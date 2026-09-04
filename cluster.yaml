@@ -7,7 +7,7 @@ provider:
 
 auth:
     ssh_user: ${USER}
-    ssh_private_key: ~/.ssh/chia_gcp # comment out if in your SSH agent
+    ssh_private_key: /home/rafay/.ssh/chia_head
 
 gcp_nodes:
     project: ${GCP_PROJECT}
