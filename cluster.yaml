@@ -1,0 +1,71 @@
+tailnet:
+    manage_all: true
+    auth_key: ${TS_AUTHKEY}
+
+provider:
+    head_ip: ${HEAD_IP}
+
+auth:
+    ssh_user: ${USER}
+    ssh_private_key: ~/.ssh/chia_gcp # comment out if in your SSH agent
+
+gcp_nodes:
+    project: ${GCP_PROJECT}
+    zone: us-central1-a
+    gcp_worker:
+        machine_type: e2-standard-4      
+        count: 1
+        image: projects/${GCP_PROJECT}/global/images/chia-worker-prebuilt
+        disk_size_gb: 100                 
+        spot: false
+        ssh_user: ${USER}
+        ssh_private_key: ${GCP_PRIVATE_KEY_PATH}
+        skip_default_setup: true
+        setup_commands:
+            - "echo 'Using pre-baked CHIA worker image'"
+
+available_node_types:
+    hello_chipyard:
+        resources: {"chipyard": 1}
+        num_workers: 1
+        compatible_ips: ["@gcp_worker:0"]
+        worker_setup_commands: ["source /home/ray/chipyard/env.sh"]
+        docker:
+            image: "ghcr.io/ucb-bar/chia-chisel-build:latest"
+            container_name: "chia-chipyard-${USER}"
+            run_options:
+                - --shm-size=10.24gb
+            pull_timeout: 7200
+
+    hello_verilator:
+        resources: {"verilator_run": 1}
+        num_workers: 1
+        compatible_ips: ["@gcp_worker:0"]
+        docker:
+            image: "ghcr.io/ucb-bar/chia-verilator-run:latest"
+            container_name: "chia-verilator-${USER}"
+            run_options:
+                - --ulimit nofile=65536:65536
+                - --shm-size=10.24gb
+    hello_opencode:
+        resources: {"opencode_creds": 1}
+        worker_setup_commands: ["source ~/.bashrc"]
+        num_workers: 1
+        compatible_ips: ["@gcp_worker:0"]
+        docker:
+            image: ghcr.io/ucb-bar/chia-opencode:latest
+            container_name: "chia-opencode-${USER}"               
+
+head_env_commands:
+  - "source ~/miniconda3/etc/profile.d/conda.sh && conda activate chia_env"
+
+head_setup_commands:
+  - "source ~/miniconda3/etc/profile.d/conda.sh && conda activate chia_env"
+
+head_start_ray_commands:
+  - "ray stop"
+  - "ray start --head --port=6379 --include-dashboard=True --dashboard-agent-listen-port=0"
+
+worker_start_ray_commands:
+  - "ray stop"
+  - "ray start --address=$RAY_HEAD_IP:6379 --dashboard-agent-listen-port=0"
