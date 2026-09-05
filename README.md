@@ -6,8 +6,7 @@ Commands:
 make help                         # Show available commands
 make cluster                      # Start; on failure tear down and retry once
 make down                         # Tear down wally_cluster.yaml
-make run                          # Submit the continuous loop through CHIA
-make run RUN_ARGS="--once"         # Submit one sweep of all tests/*.elf
+make run                          # Submit the loop through CHIA
 ```
 
 ## Exports
