@@ -9,7 +9,7 @@ export PATH := $(CHIA_ENV_BIN):$(PATH)
 CHIA ?= chia
 CLUSTER_CONFIG ?= $(PROJECT_DIR)/wally_cluster.yaml
 CHIA_ADDRESS ?= http://127.0.0.1:8265
-RUN_ARGS ?=
+RUN_ARGS ?= --once
 SUBMISSION_ID ?=
 
 .PHONY: cluster down run help
