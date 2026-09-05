@@ -11,15 +11,15 @@ make run RUN_ARGS="--once"         # Submit one sweep of all tests/*.elf
 ```
 
 ## Exports
-
+```bash
 export HEAD_IP=$(hostname -I | awk '{print $1}')
 export TS_AUTHKEY=tskey-auth-k2Lg6FtRUu11CNTRL-jJ5mCpoiNLbrGKjZdvfGLbxCd2nABAsf
 export GCP_PROJECT=project-0df87a12-e649-434b-84a
 export GCP_PRIVATE_KEY_PATH=~/.ssh/chia_gcp
-
+```
 
 ## Gcloud Setup
-
+```bash
 pip install google-cloud-compute # In a python Venv
                       
 gcloud auth application-default login                    
@@ -28,3 +28,4 @@ gcloud services enable compute.googleapis.com --project <project>
 
 ssh-keygen -t ed25519 -f ~/.ssh/chia_gcp -N ""
 ssh-add ~/.ssh/chia_gcp
+```
