@@ -1,1 +1,6 @@
-gcp.py
+*.memfile
+*.lab
+*.addr
+__pycache__
+*.ld
+runs/
