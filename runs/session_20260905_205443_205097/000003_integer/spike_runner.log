@@ -1,0 +1,6 @@
+Started: 2026-09-05T20:54:46.761629+00:00
+Command: /usr/bin/stdbuf -oL -eL /home/rafay/riscv/bin/spike --isa=rv64gc -l --log-commits --log=/home/rafay/miniconda3/WallyGuard/runs/session_20260905_205443_205097/000003_integer/spike.log +signature=/home/rafay/miniconda3/WallyGuard/runs/session_20260905_205443_205097/000003_integer/spike.signature +signature-granularity=4 /home/rafay/miniconda3/WallyGuard/tests/integer.elf
+
+
+Finished: 2026-09-05T20:54:46.802277+00:00
+Return code: 0

@@ -1,0 +1,16 @@
+Started: 2026-09-05T18:22:10.528868+00:00
+Command: /usr/bin/stdbuf -oL -eL /home/rafay/miniconda3/WallyGuard/cvw/bin/wsim rv64gc --sim verilator --elf /home/rafay/miniconda3/WallyGuard/tests/add_test.elf --args '+trace_file=/home/rafay/miniconda3/WallyGuard/runs/session_20260905_182208_607889/000001_add_test/wally_trace.csv +signature_file=/home/rafay/miniconda3/WallyGuard/runs/session_20260905_182208_607889/000001_add_test/wally.signature'
+
+Config=rv64gc tests=None sim=verilator gui=False args='+trace_file=/home/rafay/miniconda3/WallyGuard/runs/session_20260905_182208_607889/000001_add_test/wally_trace.csv +signature_file=/home/rafay/miniconda3/WallyGuard/runs/session_20260905_182208_607889/000001_add_test/wally.signature' params='' define=''
+Running Verilator on rv64gc tests_add_test.elf
+WallyGuard trace complete: 11 events
+SIGNATURE DEBUG: begin=80002000 end=80002008 bytes=8 entries=1
+Wally signature written to /home/rafay/miniconda3/WallyGuard/runs/session_20260905_182208_607889/000001_add_test/wally.signature
+Single ELF execution complete.
+- /home/rafay/miniconda3/WallyGuard/cvw/testbench/testbench.sv:597: Verilog $finish
+- S i m u l a t i o n   R e p o r t: Verilator 5.036 2025-04-27
+- Verilator: $finish at 755ps; walltime 0.016 s; speed 63.821 ns/s
+- Verilator: cpu 0.012 s on 1 threads; alloced 346 MB
+
+Finished: 2026-09-05T18:22:11.707446+00:00
+Return code: 0

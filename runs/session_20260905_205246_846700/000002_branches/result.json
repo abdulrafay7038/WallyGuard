@@ -1,0 +1,85 @@
+{
+  "timestamp": "2026-09-05T20:52:51.185318+00:00",
+  "test": "/home/rafay/miniconda3/WallyGuard/tests/branches.elf",
+  "configuration": "rv64gc",
+  "status": "PASS",
+  "wally": {
+    "runner": "wally",
+    "command": [
+      "/usr/bin/stdbuf",
+      "-oL",
+      "-eL",
+      "/home/rafay/miniconda3/WallyGuard/cvw/bin/wsim",
+      "rv64gc",
+      "--sim",
+      "verilator",
+      "--elf",
+      "/home/rafay/miniconda3/WallyGuard/tests/branches.elf",
+      "--args",
+      "+trace_file=/home/rafay/miniconda3/WallyGuard/runs/session_20260905_205246_846700/000002_branches/wally_trace.csv +signature_file=/home/rafay/miniconda3/WallyGuard/runs/session_20260905_205246_846700/000002_branches/wally.signature"
+    ],
+    "returncode": 0,
+    "timed_out": false,
+    "duration_seconds": 1.0727067479999732,
+    "started_at": "2026-09-05T20:52:50.102011+00:00",
+    "finished_at": "2026-09-05T20:52:51.174632+00:00",
+    "log_path": "/home/rafay/miniconda3/WallyGuard/runs/session_20260905_205246_846700/000002_branches/wally.log",
+    "runner_log_path": "/home/rafay/miniconda3/WallyGuard/runs/session_20260905_205246_846700/000002_branches/wally.log",
+    "trace_path": "/home/rafay/miniconda3/WallyGuard/runs/session_20260905_205246_846700/000002_branches/wally_trace.csv",
+    "signature_path": "/home/rafay/miniconda3/WallyGuard/runs/session_20260905_205246_846700/000002_branches/wally.signature",
+    "trace_created": true,
+    "signature_created": true,
+    "error": null
+  },
+  "spike": {
+    "runner": "spike",
+    "command": [
+      "/usr/bin/stdbuf",
+      "-oL",
+      "-eL",
+      "/home/rafay/riscv/bin/spike",
+      "--isa=rv64gc",
+      "-l",
+      "--log-commits",
+      "--log=/home/rafay/miniconda3/WallyGuard/runs/session_20260905_205246_846700/000002_branches/spike.log",
+      "+signature=/home/rafay/miniconda3/WallyGuard/runs/session_20260905_205246_846700/000002_branches/spike.signature",
+      "+signature-granularity=4",
+      "/home/rafay/miniconda3/WallyGuard/tests/branches.elf"
+    ],
+    "returncode": 0,
+    "timed_out": false,
+    "duration_seconds": 0.04371404000005441,
+    "started_at": "2026-09-05T20:52:50.102717+00:00",
+    "finished_at": "2026-09-05T20:52:50.146407+00:00",
+    "log_path": "/home/rafay/miniconda3/WallyGuard/runs/session_20260905_205246_846700/000002_branches/spike.log",
+    "runner_log_path": "/home/rafay/miniconda3/WallyGuard/runs/session_20260905_205246_846700/000002_branches/spike_runner.log",
+    "trace_path": "/home/rafay/miniconda3/WallyGuard/runs/session_20260905_205246_846700/000002_branches/spike_trace.csv",
+    "signature_path": "/home/rafay/miniconda3/WallyGuard/runs/session_20260905_205246_846700/000002_branches/spike.signature",
+    "trace_created": true,
+    "signature_created": true,
+    "error": null
+  },
+  "trace_comparison": {
+    "status": "PASS",
+    "match": true,
+    "matched_instructions": 50,
+    "reason": "Architectural event traces match",
+    "first_mismatch": null
+  },
+  "signature_comparison": {
+    "status": "PASS",
+    "match": true,
+    "reason": "Architectural signatures match",
+    "entries": 16
+  },
+  "evidence": {
+    "wally_log": "/home/rafay/miniconda3/WallyGuard/runs/session_20260905_205246_846700/000002_branches/wally.log",
+    "spike_log": "/home/rafay/miniconda3/WallyGuard/runs/session_20260905_205246_846700/000002_branches/spike.log",
+    "wally_trace": "/home/rafay/miniconda3/WallyGuard/runs/session_20260905_205246_846700/000002_branches/wally_trace.csv",
+    "spike_trace": "/home/rafay/miniconda3/WallyGuard/runs/session_20260905_205246_846700/000002_branches/spike_trace.csv",
+    "wally_signature": "/home/rafay/miniconda3/WallyGuard/runs/session_20260905_205246_846700/000002_branches/wally.signature",
+    "spike_signature": "/home/rafay/miniconda3/WallyGuard/runs/session_20260905_205246_846700/000002_branches/spike.signature",
+    "mismatch_json": null,
+    "mismatch_text": null
+  }
+}
