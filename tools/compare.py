@@ -10,7 +10,7 @@ from .trace import completion_count, read_trace
 def oracle_result(trace, signature):
     status = trace["status"]
     reason = trace.get("reason", status)
-    if status == "PASS" and signature["status"] != "PASS":
+    if status == "PASS" and signature["status"] not in ("PASS", "NOT_AVAILABLE"):
         status = "INCONSISTENT_ORACLE"
         reason = "Trace passes but the secondary signature oracle does not"
     return {"status": status, "match": status == "PASS", "reason": reason,

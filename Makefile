@@ -12,9 +12,19 @@ CHIA_ADDRESS ?= http://127.0.0.1:8265
 RUN_ARGS ?= --once
 SUBMISSION_ID ?=
 
-.PHONY: cluster down run help
+.PHONY: cluster down _cluster _down run help
 
-cluster:
+cluster down:
+	@flock -n -E 75 "$(PROJECT_DIR)/.cluster.lock" \
+		$(MAKE) --no-print-directory -f "$(PROJECT_DIR)/Makefile" _$@ || { \
+		status=$$?; \
+		if [ "$$status" -eq 75 ]; then \
+			echo 'Another cluster operation is active or suspended. Finish it, or use fg then Ctrl+C to cancel it.' >&2; \
+		fi; \
+		exit "$$status"; \
+	}
+
+_cluster:
 	@command -v "$(CHIA)" >/dev/null || { echo 'CHIA CLI missing: activate chia_env or set CHIA_ENV_BIN.' >&2; exit 1; }
 	@test -f "$(CLUSTER_CONFIG)"
 	@export HEAD_IP="$${HEAD_IP:-$$(hostname -I | awk '{print $$1}')}"; \
@@ -26,7 +36,7 @@ cluster:
 		"$(CHIA)" up -y "$(CLUSTER_CONFIG)"; \
 	fi
 
-down:
+_down:
 	@command -v "$(CHIA)" >/dev/null || { echo 'CHIA CLI missing: activate chia_env or set CHIA_ENV_BIN.' >&2; exit 1; }
 	@test -f "$(CLUSTER_CONFIG)"
 	@export HEAD_IP="$${HEAD_IP:-$$(hostname -I | awk '{print $$1}')}"; \
@@ -46,10 +56,14 @@ help:
 	  '  make cluster   Start wally_cluster.yaml; on failure, down then retry once.' \
 	  '                 If teardown fails, stop and report the error.' \
 	  '  make down      Tear down the configured cluster (without confirmation).' \
-	  '  make run       Submit the continuous loop through CHIA and stream logs.' \
+	  '  make run       Generate and compare one test through CHIA (RUN_ARGS=--once).' \
 	  '  make help      Show this help (also the default target).' \
 	  '' \
 	  'Examples:' \
+	  '  make run RUN_ARGS="--preflight --seed 100 --stop-on-failure"' \
+	  '  make run RUN_ARGS="--num-tests 10 --seed 101"' \
+	  '  make run RUN_ARGS=""  # continuous generation' \
+	  '  make run RUN_ARGS="--existing-tests --once"' \
 	  '  make run RUN_ARGS="--once --stop-on-failure"' \
 	  '  make run RUN_ARGS="--sleep 5 --wally-timeout 900 --spike-timeout 120"' \
 	  '  make run CHIA_ADDRESS=http://<head-ip>:8265' \
@@ -59,3 +73,4 @@ help:
 	  'CHIA_ENV_BIN defaults to ~/miniconda3/envs/chia_env/bin.' \
 	  'Overrides: CHIA, CHIA_ENV_BIN, CLUSTER_CONFIG, CHIA_ADDRESS, RUN_ARGS, SUBMISSION_ID.' \
 	  'The run target requires an existing cluster; it does not start one.'
+	@printf '%s\n' 'Cluster operations are serialized. Ctrl+Z suspends a command; use Ctrl+C to cancel.'

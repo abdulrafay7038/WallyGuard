@@ -11,33 +11,55 @@ auth:
 
 gcp_nodes:
     project: ${GCP_PROJECT}
-    zone: us-central1-a
-    gcp_worker:
+    zone: me-central1-c
+    gcp_worker1:
         machine_type: e2-standard-4      
         count: 1
         image: projects/${GCP_PROJECT}/global/images/chia-worker-prebuilt
         disk_size_gb: 100                 
         spot: false
         ssh_user: ${USER}
+        ssh_public_key:  ${GCP_PUBLIC_KEY_PATH}
         ssh_private_key: ${GCP_PRIVATE_KEY_PATH}
+        ssh_timeout: 120
         skip_default_setup: true
         setup_commands:
             - "echo 'Using pre-baked CHIA worker image'"
+    gcp_worker2:
+        machine_type: e2-standard-2      
+        count: 1
+        image: projects/${GCP_PROJECT}/global/images/riscv-dv-worker
+        disk_size_gb: 100                 
+        spot: false
+        ssh_user: ${USER}
+        ssh_public_key:  ${GCP_PUBLIC_KEY_PATH}
+        ssh_private_key: ${GCP_PRIVATE_KEY_PATH}
+        ssh_timeout: 120
+        skip_default_setup: true
+        setup_commands:
+            - "echo 'Using pre-baked riscv-dv worker image'"        
 
 available_node_types:
-    worker:
+    cvw:
         resources: {"wally": 1, "spike": 1, "compare": 1}
         num_workers: 1
         compatible_ips: ["${HEAD_IP}"]
         worker_env_commands:
         - "source /home/rafay/miniconda3/etc/profile.d/conda.sh && conda activate chia_env"
         - "source /home/rafay/miniconda3/WallyGuard/cvw/setup.sh"
-
+    riscv-dv:
+        resources: {"generator": 1}
+        num_workers: 1
+        compatible_ips: ["@gcp_worker2:0"]
+        worker_env_commands:
+            - "source /home/rafay/miniconda3/etc/profile.d/conda.sh && conda activate chia_env"
+            - "export RISCV_DV_ROOT=/home/rafay/miniconda3/riscv-dv"
+            - "export PATH=$RISCV_DV_ROOT:$PATH"
     opencode:
         resources: {"opencode_creds": 1}
         worker_setup_commands: ["source ~/.bashrc"]
         num_workers: 1
-        compatible_ips: ["@gcp_worker:0"]
+        compatible_ips: ["@gcp_worker1:0"]
         docker:
             image: ghcr.io/ucb-bar/chia-opencode:latest
             container_name: "chia-opencode-${USER}"               

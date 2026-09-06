@@ -1,0 +1,181 @@
+# RISC-V-DV generation through CHIA
+
+The default distributed loop generates a fresh test on `generator: 1` for each
+iteration. Wally, Spike, and comparison retain `wally: 1`, `spike: 1`, and
+`compare: 1` on the CVW worker. No OpenCode task is invoked.
+
+## Commands
+
+Start with one compatibility check, then ten tests:
+
+```bash
+make run RUN_ARGS="--preflight --seed 100 --stop-on-failure"
+make run RUN_ARGS="--num-tests 10 --seed 101"
+```
+
+Preflight runs `file` and `riscv64-unknown-elf-readelf -h` on the local ELF,
+then Spike, then Wally. Check its `result.json` and both complete traces before
+starting the ten-test campaign. Normal campaign iterations dispatch both
+simulators before waiting for either result.
+
+```bash
+# Continuous generation, one new random seed per test
+make run RUN_ARGS=""
+
+# One new generated test (the Makefile currently defaults to --once)
+make run
+
+# Preserve the old tests/*.elf sweep
+make run RUN_ARGS="--existing-tests --once"
+
+# Existing ELF tests locally, without the cluster
+python wally_loop.py --local --once
+```
+
+`--seed N` starts with N, followed by N+1, N+2, modulo 2^31. Without a seed,
+each iteration chooses a new seed and records it before submitting generation.
+`--num-tests N` counts attempts, including failures. `--once` means one
+generated test, or one sweep in existing-test mode. `--stop-on-failure`,
+`--sleep`, `--wally-timeout`, and `--spike-timeout` remain available. A completed
+generation campaign exits nonzero if any attempt failed, even when it continued
+to collect the remaining results.
+
+## Remote generator requirements
+
+The generator worker must already have:
+
+- `RISCV_DV_ROOT` pointing to the installed checkout containing `run.py`.
+- An installed Python interpreter with the open-source pyflow dependencies.
+  This can differ from Ray's interpreter. Set `RISCV_DV_PYTHON` to its absolute
+  path, or let the adapter probe the sibling Conda environments
+  `riscv-dv-py311` and `riscv-dv-env`, checkout `.venv`/`venv`, then Ray's Python.
+  Each candidate must import PyVSC, PyYAML, bitstring, and pyboolector.
+- `RISCV_GCC` and `RISCV_OBJCOPY`, or the corresponding `riscv64-unknown-elf-*`
+  tools on PATH (also searched under `$RISCV/bin`).
+- An advertised CHIA resource `generator: 1`.
+
+Nothing is installed automatically. The generator implementation is serialized
+by value with the CHIA task, so this worker does not need the head's `tools/`
+package. Only standard-library imports run outside RISC-V-DV on that worker.
+
+The command is built from the worker's installed paths:
+
+```text
+<python> <RISCV_DV_ROOT>/run.py
+  --target rv64imafdc --isa rv64gc --mabi lp64d
+  --simulator pyflow --steps gen,gcc_compile
+  --testlist <temporary>/testlist.yaml --test wallyguard_rand
+  --iterations 1 --seed <seed> --gen_timeout 600
+  '--gcc_opts=-march=rv64gc -mabi=lp64d -save-temps=obj -Wl,--build-id=none'
+  --output <temporary>/output --verbose
+```
+
+`rv64imafdc` is the pyflow target spelling for the RV64GC extension set. Explicit
+GCC options retain RV64GC/lp64d even in run.py versions that override the ISA/ABI
+arguments when loading a predefined target. The
+initial profile requests 200 random integer/compressed instructions in a
+single-hart bare M-mode program. It disables random CSR accesses, floating
+point, vectors, debug returns, EBREAK, WFI, fences, and directed instruction streams.
+This keeps the first handoff tests within the current comparator's coverage.
+The exact profile and testlist text are persisted in metadata. The worker's
+`RISCV_DV_TIMEOUT` environment variable overrides the 600-second generation
+timeout; the entire subprocess group is killed after that plus 60 seconds.
+
+The installed pyflow implementation uses `append` instead of `extend` for the
+SYNCH category when `no_fence=0`, creating a nested list in its instruction
+choices. Some seeds then fail with `TypeError: unhashable type: 'list'`.
+The initial profile uses the supported `no_fence=1` option to avoid that bug;
+it does not patch the installed generator or reduce coverage silently after
+a seed fails. `no_csr_instr=1` also avoids its analogous CSR category path.
+
+`-save-temps=obj` gives assembler intermediates stable filenames, removing
+GCC's random temporary-object filename from the ELF symbol table. The adapter
+ignores relocatable intermediate `.o` files and returns only the linked ELF.
+This preserves useful symbols while allowing byte-identical regeneration.
+
+## Artifact handoff
+
+`generate_riscv_dv_test(seed)` returns bytes, assembly text, seed, original ELF
+name, hostname, command, timestamp, complete captured logs, and error metadata.
+Files named `.o` must actually have an ELF64 little-endian RISC-V executable
+header; relocatable objects are not returned. Exactly one assembly file and one
+executable are accepted. Its temporary remote directory is cleaned afterward.
+
+The head writes:
+
+```text
+generated_tests/test_<session-and-test-id>_seed_<seed>/
+  test.S
+  test.elf
+  generation.log
+  metadata.json
+  elf_inspection.log  # preflight only
+```
+
+Metadata includes the ELF SHA256, original filename, remote hostname, command,
+seed, and generation/materialization timestamps. A failed generator still
+gets logs and metadata, but no usable ELF. The simulator tasks receive only
+the newly materialized **local absolute path**. The generator never returns a
+remote path as an artifact. There are no NFS, SCP, rsync, or cloud-storage steps.
+
+Each run retains the existing trace/signature evidence under
+`runs/session_<timestamp>/<index>_seed_<seed>/`, plus `request.json` and
+generation metadata in `result.json`. The session's `campaign.json` records
+every attempted seed and generation/simulator/trace/error counts. Trace files
+remain on the CVW/head filesystem; they are not included in task results.
+
+## Signatures and compatibility
+
+An absent or empty simulator signature yields `NOT_AVAILABLE`. A passing trace
+with that status passes overall. When both signatures exist, the original
+comparison still applies, including `INCONSISTENT_ORACLE` for a signature
+mismatch after a trace pass. Malformed/missing traces or failed simulators
+remain errors and cannot become architectural PASS through optional signatures.
+
+The pyflow bare-program option uses its existing `test_done`/`write_tohost`
+path. No custom signature labels or processor RTL changes are required by this
+adapter. Actual termination and target compatibility must be established by
+the preflight on the installed worker version; unit tests alone do not establish
+this. The comparator still has its existing FP/CSR/memory/interrupt limitations,
+and jump-to-self remains a terminal boundary. Seeds select generation; identical
+ELF reproduction also depends on the installed generator, solver, and compiler
+versions. Preserve ELF bytes and their hashes as the authoritative reproducer.
+
+## Local checks
+
+```bash
+python -m unittest discover -s tests -p 'test_*.py' -v
+python wally_loop.py --local --once --stop-on-failure
+```
+
+The unit tests exercise byte transfer, failure logs, ELF validation, exact step
+selection, optional signatures, seed progression, failure counts, and stopping.
+
+## Verified cluster run (2026-09-06)
+
+Generation ran on `chia-default-gcp-worker2-0` using the installed
+`/home/rafay/miniconda3/envs/riscv-dv-py311/bin/python`. Ray's separate
+`chia_env` did not have the pyflow dependencies.
+
+The previously failing seed `1729667639` passed preflight after enabling the
+`no_fence=1` profile option: both simulators exited successfully and matched
+171 architectural events. Evidence is in
+`runs/session_20260906_224436_386595/000001_seed_1729667639/result.json`.
+Its locally materialized ELF, exact command, remote hostname, and `file`/readelf
+output are in
+`generated_tests/test_20260906_224436_386595_000001_seed_1729667639/`.
+
+The subsequent seeds 101 through 110 produced 10 generation successes,
+10 Wally successes, 10 Spike successes, and 10 trace passes, with zero trace
+mismatches or infrastructure/generator errors. See
+`runs/session_20260906_224537_264023/campaign.json`. Both non-empty trace files
+and increasing retirement order were checked for every test. Signatures were
+`NOT_AVAILABLE`, as expected for this bare pyflow profile. The earlier campaign
+had two passes and eight generation errors; the corrected run re-tested all ten
+seeds without skipping failures.
+
+Regenerating seed `1729667639` with the same installed tools produced identical
+assembly and ELF bytes, with ELF SHA256
+`fdd2082f8260a0bbff385ebc871d36b1ecbbd5e5db44e7d4c813caac597d1ad1`.
+The preflight, ten-test campaign, and repeat-generation CHIA jobs all finished
+with status `SUCCEEDED`. Eleven local unit tests passed.

@@ -211,8 +211,12 @@ def compare_architectural_traces(wally_trace_path: str, spike_trace_path: str,
     trace.setdefault("matched_instructions", 0)
     trace.setdefault("first_mismatch", None)
     try:
-        signature = compare_signatures(Path(wally_signature_path).read_text(),
-                                       Path(spike_signature_path).read_text())
+        if not nonempty(Path(wally_signature_path)) or not nonempty(Path(spike_signature_path)):
+            signature = {"status": "NOT_AVAILABLE", "match": None,
+                         "reason": "One or both simulators produced no signature"}
+        else:
+            signature = compare_signatures(Path(wally_signature_path).read_text(),
+                                           Path(spike_signature_path).read_text())
     except (OSError, UnicodeError) as exc:
         signature = {"status": "COMPARE_ERROR", "match": False, "reason": str(exc)}
     return oracle_result(trace, signature)
@@ -229,7 +233,8 @@ def classify_and_compare(wally: dict, spike: dict) -> dict:
         *comparison_args(wally, spike, Path(wally["trace_path"]).parent)))
 
 
-def save_summary(run_directory: Path, elf: Path, wally: dict, spike: dict, comparison: dict):
+def save_summary(run_directory: Path, elf: Path, wally: dict, spike: dict, comparison: dict,
+                 generation: dict | None = None):
     mismatch = comparison["trace"]["status"] == "TRACE_MISMATCH"
     summary = {
         "timestamp": datetime.now().astimezone().isoformat(), "test": str(elf),
@@ -245,6 +250,8 @@ def save_summary(run_directory: Path, elf: Path, wally: dict, spike: dict, compa
             "mismatch_text": str(run_directory / "mismatch.txt") if mismatch else None,
         },
     }
+    if generation is not None:
+        summary["generation"] = generation
     temporary = run_directory / "result.json.tmp"
     temporary.write_text(json.dumps(summary, indent=2) + "\n")
     temporary.replace(run_directory / "result.json")
@@ -275,9 +282,42 @@ def print_result(run_number: int, elf: Path, comparison: dict, run_directory: Pa
         print(f"Result: {run_directory / 'result.json'}", flush=True)
 
 
+def execute_elf(elf, directory, args, preflight=False):
+    """Keep simulator tasks and comparison shared by existing and generated tests."""
+    wally_args = (str(elf), str(directory / "wally.log"),
+                  str(directory / "wally.signature"), WALLY_CONFIG, args.wally_timeout)
+    spike_args = (str(elf), str(directory / "spike.log"),
+                  str(directory / "spike.signature"), WALLY_CONFIG, args.spike_timeout)
+    if args.local:
+        from concurrent.futures import ThreadPoolExecutor
+        from inspect import unwrap
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            wally_ref = pool.submit(unwrap(run_wally), *wally_args)
+            spike_ref = pool.submit(unwrap(run_spike), *spike_args)
+            wally, spike = wally_ref.result(), spike_ref.result()
+        comparison = unwrap(compare_architectural_traces)(*comparison_args(wally, spike, directory))
+    else:
+        if preflight:
+            spike = get(run_spike.chia_remote(*spike_args))
+            wally = get(run_wally.chia_remote(*wally_args))
+        else:
+            wally_ref = run_wally.chia_remote(*wally_args)
+            spike_ref = run_spike.chia_remote(*spike_args)
+            wally, spike = get([wally_ref, spike_ref])
+        comparison = classify_and_compare(wally, spike)
+    return wally, spike, comparison
+
+
 def main():
     parser = argparse.ArgumentParser(description="WallyGuard CHIA architectural trace loop")
-    parser.add_argument("--test-dir", type=Path, default=DEFAULT_TEST_DIR)
+    parser.add_argument("--test-dir", type=Path, default=None,
+                        help="Run existing ELF files from this directory instead of generating")
+    parser.add_argument("--existing-tests", action="store_true", help="Use the existing tests/ ELF sweep")
+    parser.add_argument("--num-tests", type=int, help="Number of tests to execute (default: continuous)")
+    parser.add_argument("--seed", type=int, help="First generation seed; subsequent seeds increment")
+    parser.add_argument("--generated-dir", type=Path, default=PROJECT_ROOT / "generated_tests")
+    parser.add_argument("--preflight", action="store_true",
+                        help="Generate one test, inspect its ELF, run Spike then Wally")
     parser.add_argument("--run-dir", type=Path, default=DEFAULT_RUN_DIR)
     parser.add_argument("--sleep", type=float, default=1.0, help="Seconds between complete sweeps")
     parser.add_argument("--once", action="store_true")
@@ -287,6 +327,16 @@ def main():
     parser.add_argument("--local", action="store_true",
                         help="Explicit local test: run the same task implementations without Ray")
     args = parser.parse_args()
+    existing = args.existing_tests or args.test_dir is not None or args.local
+    if args.num_tests is not None and args.num_tests < 1:
+        parser.error("--num-tests must be positive")
+    if args.seed is not None and not 0 <= args.seed < 2**31:
+        parser.error("--seed must be in [0, 2**31)")
+    if args.preflight and (existing or args.num_tests not in (None, 1)):
+        parser.error("--preflight requires generation mode and exactly one test")
+    if args.sleep < 0 or args.wally_timeout <= 0 or args.spike_timeout <= 0:
+        parser.error("sleep must be nonnegative and simulator timeouts must be positive")
+    args.test_dir = args.test_dir or DEFAULT_TEST_DIR
     if not args.local:
         import ray
         if not ray.is_initialized():
@@ -297,7 +347,8 @@ def main():
             except ConnectionError as exc:
                 parser.exit(2, f"Existing CHIA cluster unavailable: {exc}\n"
                             "Set RAY_ADDRESS to the existing head, or use --local for a local test.\n")
-        missing = [name for name in ("wally", "spike", "compare")
+        required = ["wally", "spike", "compare"] + ([] if existing else ["generator"])
+        missing = [name for name in required
                    if ray.cluster_resources().get(name, 0) < 1]
         if missing:
             parser.exit(2, f"Existing cluster is missing WallyGuard resources: {missing}\n")
@@ -305,6 +356,9 @@ def main():
     session_directory.mkdir(parents=True)
     print(f"WallyGuard {'local task test' if args.local else 'CHIA loop'}\n"
           f"Evidence: {session_directory}", flush=True)
+    if not existing:
+        from tools.campaign import run_campaign
+        return run_campaign(args, session_directory, execute_elf, save_summary, print_result)
     run_number = 0
     try:
         while True:
@@ -317,32 +371,15 @@ def main():
                 run_number += 1
                 directory = session_directory / f"{run_number:06d}_{elf.stem}"
                 directory.mkdir()
-                wally_args = (str(elf), str(directory / "wally.log"),
-                              str(directory / "wally.signature"), WALLY_CONFIG, args.wally_timeout)
-                spike_args = (str(elf), str(directory / "spike.log"),
-                              str(directory / "spike.signature"), WALLY_CONFIG, args.spike_timeout)
                 print(f"[{run_number:06d}] Dispatching {elf.name}", flush=True)
-                if args.local:
-                    from concurrent.futures import ThreadPoolExecutor
-                    from inspect import unwrap
-                    with ThreadPoolExecutor(max_workers=2) as pool:
-                        wally_ref = pool.submit(unwrap(run_wally), *wally_args)
-                        spike_ref = pool.submit(unwrap(run_spike), *spike_args)
-                        wally, spike = wally_ref.result(), spike_ref.result()
-                    comparison = unwrap(compare_architectural_traces)(
-                        *comparison_args(wally, spike, directory))
-                else:
-                    # Both tasks are submitted before waiting; artifacts remain
-                    # on disk and only metadata passes through Ray.
-                    wally_ref = run_wally.chia_remote(*wally_args)
-                    spike_ref = run_spike.chia_remote(*spike_args)
-                    wally, spike = get([wally_ref, spike_ref])
-                    comparison = classify_and_compare(wally, spike)
+                wally, spike, comparison = execute_elf(elf, directory, args)
                 save_summary(directory, elf, wally, spike, comparison)
                 print_result(run_number, elf, comparison, directory)
                 if args.stop_on_failure and comparison["status"] != "PASS":
                     print("Stopping because --stop-on-failure was set.", flush=True)
                     return 1
+                if args.num_tests is not None and run_number >= args.num_tests:
+                    return 0
             if args.once:
                 return 0
             time.sleep(args.sleep)

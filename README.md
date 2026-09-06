@@ -2,6 +2,11 @@ This Repo is for the Chia Hackathon Project.
 
 Commands:
 
+The distributed loop now defaults to remote RISC-V-DV generation and local
+ELF materialization. See [generation and handoff documentation](tools/GENERATION.md)
+for preflight, ten-test campaigns, and worker requirements. Use
+`--existing-tests` for the original `tests/*.elf` sweep.
+
 ```bash
 make help                         # Show available commands
 make cluster                      # Start; on failure tear down and retry once
@@ -15,6 +20,7 @@ export HEAD_IP=$(hostname -I | awk '{print $1}')
 export TS_AUTHKEY=tskey-auth-k2Lg6FtRUu11CNTRL-jJ5mCpoiNLbrGKjZdvfGLbxCd2nABAsf
 export GCP_PROJECT=project-0df87a12-e649-434b-84a
 export GCP_PRIVATE_KEY_PATH=~/.ssh/chia_gcp
+export GCP_PUBLIC_KEY_PATH=~/.ssh/chia_gcp.pub
 ```
 
 ## Gcloud Setup
