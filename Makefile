@@ -56,12 +56,13 @@ help:
 	  '  make cluster   Start wally_cluster.yaml; on failure, down then retry once.' \
 	  '                 If teardown fails, stop and report the error.' \
 	  '  make down      Tear down the configured cluster (without confirmation).' \
-	  '  make run       Generate and compare one test through CHIA (RUN_ARGS=--once).' \
+	  '  make run       Run directed tests, then one generated test through CHIA.' \
 	  '  make help      Show this help (also the default target).' \
 	  '' \
 	  'Examples:' \
 	  '  make run RUN_ARGS="--preflight --seed 100 --stop-on-failure"' \
 	  '  make run RUN_ARGS="--num-tests 10 --seed 101"' \
+	  '  make run RUN_ARGS="--num-tests 10 --seed 500 --color always"' \
 	  '  make run RUN_ARGS=""  # continuous generation' \
 	  '  make run RUN_ARGS="--existing-tests --once"' \
 	  '  make run RUN_ARGS="--once --stop-on-failure"' \

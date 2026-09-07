@@ -1,7 +1,7 @@
 # RISC-V-DV generation through CHIA
 
-The default distributed loop generates a fresh test on `generator: 1` for each
-iteration. Wally, Spike, and comparison retain `wally: 1`, `spike: 1`, and
+The default distributed loop runs every `tests/*.elf` once, then generates a
+fresh test on `generator: 1` for each iteration. Wally, Spike, and comparison retain `wally: 1`, `spike: 1`, and
 `compare: 1` on the CVW worker. No OpenCode task is invoked.
 
 ## Commands
@@ -13,7 +13,7 @@ make run RUN_ARGS="--preflight --seed 100 --stop-on-failure"
 make run RUN_ARGS="--num-tests 10 --seed 101"
 ```
 
-Preflight runs `file` and `riscv64-unknown-elf-readelf -h` on the local ELF,
+After the directed sweep, preflight runs `file` and `riscv64-unknown-elf-readelf -h` on the local ELF,
 then Spike, then Wally. Check its `result.json` and both complete traces before
 starting the ten-test campaign. Normal campaign iterations dispatch both
 simulators before waiting for either result.
@@ -34,8 +34,14 @@ python wally_loop.py --local --once
 
 `--seed N` starts with N, followed by N+1, N+2, modulo 2^31. Without a seed,
 each iteration chooses a new seed and records it before submitting generation.
-`--num-tests N` counts attempts, including failures. `--once` means one
-generated test, or one sweep in existing-test mode. `--stop-on-failure`,
+`--num-tests N` counts generated attempts, including failures, in addition to the
+initial directed sweep. `--once` means that sweep plus one generated test, or one
+sweep in existing-test mode. `--existing-tests`, `--test-dir`, and `--local`
+retain their existing ELF-only behavior. Directed results are stored in
+`directed_<index>_<test>/` and `directed.json`, and included in `campaign.json`.
+A directed failure stops before generation with `--stop-on-failure`; otherwise
+generation continues and the final exit code still reports the failure.
+`--stop-on-failure`,
 `--sleep`, `--wally-timeout`, and `--spike-timeout` remain available. A completed
 generation campaign exits nonzero if any attempt failed, even when it continued
 to collect the remaining results.
@@ -125,6 +131,22 @@ every attempted seed and generation/simulator/trace/error counts. Trace files
 remain on the CVW/head filesystem; they are not included in task results.
 
 ## Signatures and compatibility
+
+Console output has separate directed and RISC-V-DV phases, concise result lines,
+and campaign counts every 25 generated tests and at completion. Generated tests
+with absent signatures omit the routine `SIGNATURE NOT_AVAILABLE` console message;
+the status remains in result JSON. Signature passes and failures remain visible.
+Colors default to automatic terminal detection; use `--color always` through
+CHIA logs, or `--color never` for plain output. No cursor-control animations are used.
+
+Every trace mismatch is copied on the head into
+`mismatch_results/<session>/<run>/`, including result/mismatch reports, complete
+traces, logs, available signatures, original ELF, assembly, and generation metadata.
+`index.csv` and `seeds.txt` update after each collection. SHA256 hashes and original
+paths are recorded in each `collection.json`; originals are preserved. Directed
+assembly is included when a unique matching `.S`/`.s` source exists under the test
+directory. Use `--mismatch-dir` to override the collection root. Collection errors
+are printed and recorded without replacing the architectural comparison result.
 
 An absent or empty simulator signature yields `NOT_AVAILABLE`. A passing trace
 with that status passes overall. When both signatures exist, the original
