@@ -9,6 +9,7 @@ import time
 
 from chia.base.ChiaFunction import get
 from .generator import generate_riscv_dv_test, materialize_generated_test
+from . import console
 
 
 def write_json(path, data):
@@ -35,7 +36,7 @@ def run_campaign(args, session, execute, save, display):
     limit = 1 if args.preflight or args.once else args.num_tests
     summary = dict(attempted=0, generation_success=0, wally_success=0, spike_success=0,
                    trace_pass=0, trace_mismatch=0, infrastructure_generator_errors=0,
-                   results=[])
+                   evidence_errors=0, directed=getattr(args, "directed_summary", None), results=[])
     used_seeds = set()
     failed = False
     try:
@@ -52,7 +53,7 @@ def run_campaign(args, session, execute, save, display):
             write_json(directory / "request.json", dict(test_id=test_id, seed=seed,
                        requested_at=datetime.now(timezone.utc).isoformat()))
             summary["attempted"] = number
-            print(f"[{number:06d}] Generating seed {seed} on generator:1", flush=True)
+            console.progress(number, f"seed {seed}", "generating")
             try:
                 generated = get(generate_riscv_dv_test.chia_remote(seed))
             except Exception as exc:
@@ -74,10 +75,10 @@ def run_campaign(args, session, execute, save, display):
             if elf is None:
                 result = dict(status="GENERATOR_ERROR", generation=metadata)
                 write_json(directory / "result.json", result)
-                print(f"GENERATOR_ERROR: {metadata.get('error')}\nEvidence: {artifact_dir}", flush=True)
+                console.progress(number, f"seed {seed}", console.paint("GENERATOR_ERROR", "1;33"))
+                print(f"  {metadata.get('error')}\n  Evidence: {artifact_dir}", flush=True)
             else:
                 summary["generation_success"] += 1
-                print(f"Generated on {metadata.get('hostname')}; local ELF: {elf}", flush=True)
                 try:
                     if args.preflight:
                         inspect_local_elf(elf, artifact_dir)
@@ -86,13 +87,15 @@ def run_campaign(args, session, execute, save, display):
                         if runner["returncode"] == 0 and not runner["timed_out"] and not runner["error"] and runner["trace_created"]:
                             summary[f"{name}_success"] += 1
                     save(directory, elf, wally, spike, comparison, generation=metadata)
+                    summary["evidence_errors"] += bool(comparison.get("collection_error"))
                     display(number, elf, comparison, directory)
                     result = comparison
                 except Exception as exc:
                     result = dict(status="INFRASTRUCTURE_ERROR", generation=metadata,
                                   error=f"{type(exc).__name__}: {exc}")
                     write_json(directory / "result.json", result)
-                    print(f"INFRASTRUCTURE_ERROR: {result['error']}", flush=True)
+                    console.progress(number, f"seed {seed}", console.paint("INFRASTRUCTURE_ERROR", "1;33"))
+                    print(f"  {result['error']}\n  Evidence: {directory}", flush=True)
             status = result["status"]
             trace_status = result.get("trace", {}).get("status")
             summary["trace_pass"] += trace_status == "PASS"
@@ -102,13 +105,17 @@ def run_campaign(args, session, execute, save, display):
                                            result_path=str(directory / "result.json")))
             failed |= status != "PASS"
             write_json(session / "campaign.json", summary)
-            print("Campaign counts: " + json.dumps({k: v for k, v in summary.items() if k != "results"}), flush=True)
+            if number % 25 == 0:
+                console.counts(summary)
             if args.stop_on_failure and status != "PASS":
+                console.counts(summary, final=True)
                 return 1
             if limit is None or number < limit:
                 time.sleep(args.sleep)
     except KeyboardInterrupt:
         summary["interrupted"] = True
         write_json(session / "campaign.json", summary)
+        console.counts(summary, final=True)
         return 130
+    console.counts(summary, final=True)
     return int(failed)

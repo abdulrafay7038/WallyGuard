@@ -9,11 +9,14 @@ import shutil
 import signal
 import subprocess
 import time
+import warnings
 from datetime import datetime
 
 from chia.base.ChiaFunction import ChiaFunction, get
 from tools.compare import compare_traces, oracle_result
 from tools.spike import normalize_spike
+from tools import console
+from tools.evidence import collect_mismatch
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 DEFAULT_TEST_DIR = PROJECT_ROOT / "tests"
@@ -234,8 +237,9 @@ def classify_and_compare(wally: dict, spike: dict) -> dict:
 
 
 def save_summary(run_directory: Path, elf: Path, wally: dict, spike: dict, comparison: dict,
-                 generation: dict | None = None):
+                 generation: dict | None = None, mismatch_root: Path | None = None):
     mismatch = comparison["trace"]["status"] == "TRACE_MISMATCH"
+    collection_root = mismatch_root or PROJECT_ROOT / "mismatch_results"
     summary = {
         "timestamp": datetime.now().astimezone().isoformat(), "test": str(elf),
         "configuration": WALLY_CONFIG, "status": comparison["status"],
@@ -248,6 +252,8 @@ def save_summary(run_directory: Path, elf: Path, wally: dict, spike: dict, compa
             "wally_signature": wally["signature_path"], "spike_signature": spike["signature_path"],
             "mismatch_json": str(run_directory / "mismatch.json") if mismatch else None,
             "mismatch_text": str(run_directory / "mismatch.txt") if mismatch else None,
+            "mismatch_collection": str(collection_root.resolve() / run_directory.parent.name / run_directory.name)
+                                   if mismatch else None,
         },
     }
     if generation is not None:
@@ -255,31 +261,82 @@ def save_summary(run_directory: Path, elf: Path, wally: dict, spike: dict, compa
     temporary = run_directory / "result.json.tmp"
     temporary.write_text(json.dumps(summary, indent=2) + "\n")
     temporary.replace(run_directory / "result.json")
+    if mismatch:
+        try:
+            comparison["collection_path"] = collect_mismatch(
+                run_directory, elf, collection_root, generation)
+        except (OSError, ValueError, KeyError) as exc:
+            # Preserve the original comparison even if the evidence disk is full.
+            comparison["collection_error"] = f"{type(exc).__name__}: {exc}"
+            summary["collection_error"] = comparison["collection_error"]
+            summary["evidence"]["mismatch_collection"] = None
+            temporary.write_text(json.dumps(summary, indent=2) + "\n")
+            temporary.replace(run_directory / "result.json")
 
 
-def print_result(run_number: int, elf: Path, comparison: dict, run_directory: Path):
+def print_result(run_number: int, elf: Path, comparison: dict, run_directory: Path, generated=False):
     trace, signature = comparison["trace"], comparison["signature"]
-    print(f"[{run_number:06d}] {elf.name}", flush=True)
+    label = "seed " + run_directory.name.rsplit("_seed_", 1)[-1] if generated else elf.name
+    prefix = f"[{'DV' if generated else 'DIR'} {run_number:06d}] {label}"
+    signature_text = ("" if generated and signature["status"] == "NOT_AVAILABLE"
+                      else f" | SIGNATURE {signature['status']}")
     if trace["status"] == "PASS":
-        print(f"TRACE PASS: {trace['matched_instructions']} matched retired instructions", flush=True)
+        message = f"TRACE PASS: {trace['matched_instructions']} matched events"
+        print(f"{prefix} | {console.paint(message, '32')}{signature_text}", flush=True)
     elif trace["status"] == "TRACE_MISMATCH":
         first = trace["first_mismatch"]
         row = first["spike"] or first["wally"]
-        print(f"!!! TRACE MISMATCH after {trace['matched_instructions']} matching instructions", flush=True)
-        print(f"     First divergence (index {first['index']}): {first['reason']}\n"
-              f"     PC     : {row['pc']}\n     binary : {row['binary']}", flush=True)
+        message = f"TRACE MISMATCH after {trace['matched_instructions']} matching events"
+        print(f"{prefix} | {console.paint(message, '1;31')}{signature_text}", flush=True)
+        print(f"  Index {first['index']}: {first['reason']} | PC {row['pc']} | binary {row['binary']}", flush=True)
+        if row.get("instr"):
+            print(f"  Instruction: {row['instr']}", flush=True)
         for name in ("spike", "wally"):
             event = first[name]
             effect = f"rd={event['rd'] or '-'} value={event['rd_value'] or '-'}" if event else "<end of trace>"
-            print(f"     {name.capitalize()}: {effect}", flush=True)
-        print(f"     Evidence: {run_directory / 'mismatch.txt'}", flush=True)
+            print(f"  {name.capitalize():5}: {effect}", flush=True)
+        print(f"  Evidence: {Path(comparison.get('collection_path', run_directory)) / 'mismatch.txt'}", flush=True)
     else:
-        print(f"{trace['status']}: infrastructure/simulation error: {trace['reason']}", flush=True)
-    print(f"SIGNATURE {signature['status']}", flush=True)
+        print(f"{prefix} | {console.paint(trace['status'], '1;33')} | infrastructure/simulation error: "
+              f"{trace['reason']}{signature_text}", flush=True)
     if comparison["status"] == "INCONSISTENT_ORACLE":
         print(f"INCONSISTENT_ORACLE: {comparison['reason']}", flush=True)
-    if comparison["status"] != "PASS":
-        print(f"Result: {run_directory / 'result.json'}", flush=True)
+    if comparison.get("collection_error"):
+        print(console.paint(f"  EVIDENCE COLLECTION ERROR: {comparison['collection_error']}", "1;33"), flush=True)
+    if comparison["status"] not in ("PASS", "TRACE_MISMATCH") or comparison.get("collection_error"):
+        print(f"  Result: {run_directory / 'result.json'}", flush=True)
+
+
+def run_directed_tests(args, session, save):
+    """Run one directed sweep before generating; keep its counts separate."""
+    from tools.campaign import write_json
+    tests = sorted(args.test_dir.resolve().glob("*.elf"))
+    console.phase(f"Directed tests ({len(tests)} ELF files)")
+    summary = dict(attempted=0, passed=0, failed=0, results=[])
+    if not tests:
+        print("No directed ELF files found; continuing to RISC-V-DV.", flush=True)
+    for number, elf in enumerate(tests, 1):
+        directory = session / f"directed_{number:06d}_{elf.stem}"
+        directory.mkdir()
+        try:
+            wally, spike, comparison = execute_elf(elf, directory, args)
+            save(directory, elf, wally, spike, comparison)
+            print_result(number, elf, comparison, directory)
+            status = comparison["status"]
+        except Exception as exc:
+            status = "INFRASTRUCTURE_ERROR"
+            write_json(directory / "result.json", dict(test=str(elf), status=status, error=str(exc)))
+            print(f"[DIR {number:06d}] {elf.name} | {status}: {exc}", flush=True)
+        summary["attempted"] += 1
+        summary["passed"] += status == "PASS"
+        summary["failed"] += status != "PASS"
+        summary["results"].append(dict(test=str(elf), status=status, result_path=str(directory / "result.json")))
+        write_json(session / "directed.json", summary)
+        if status != "PASS" and args.stop_on_failure:
+            break
+    write_json(session / "directed.json", summary)
+    print(f"Directed summary: {summary['passed']} passed | {summary['failed']} failed", flush=True)
+    return summary
 
 
 def execute_elf(elf, directory, args, preflight=False):
@@ -319,6 +376,10 @@ def main():
     parser.add_argument("--preflight", action="store_true",
                         help="Generate one test, inspect its ELF, run Spike then Wally")
     parser.add_argument("--run-dir", type=Path, default=DEFAULT_RUN_DIR)
+    parser.add_argument("--mismatch-dir", type=Path, default=PROJECT_ROOT / "mismatch_results",
+                        help="Automatically collect trace mismatches and their assembly here")
+    parser.add_argument("--color", choices=("auto", "always", "never"), default="auto",
+                        help="Console colors; use always for colors through CHIA job logs")
     parser.add_argument("--sleep", type=float, default=1.0, help="Seconds between complete sweeps")
     parser.add_argument("--once", action="store_true")
     parser.add_argument("--stop-on-failure", action="store_true")
@@ -327,6 +388,7 @@ def main():
     parser.add_argument("--local", action="store_true",
                         help="Explicit local test: run the same task implementations without Ray")
     args = parser.parse_args()
+    console.COLOR = args.color
     existing = args.existing_tests or args.test_dir is not None or args.local
     if args.num_tests is not None and args.num_tests < 1:
         parser.error("--num-tests must be positive")
@@ -341,9 +403,14 @@ def main():
         import ray
         if not ray.is_initialized():
             try:
-                ray.init(address="auto", ignore_reinit_error=True,
-                         runtime_env={"env_vars": {
-                             "PYTHONPATH": str(PROJECT_ROOT) + os.pathsep + os.environ.get("PYTHONPATH", "")}})
+                with warnings.catch_warnings():
+                    # This GPU-visibility deprecation is unrelated to our CPU-only tasks.
+                    warnings.filterwarnings("ignore", category=FutureWarning,
+                        message="Tip: In future versions of Ray, Ray will no longer override accelerator visible devices env var",
+                        module=r"ray\._private\.worker")
+                    ray.init(address="auto", ignore_reinit_error=True, logging_level="ERROR",
+                             runtime_env={"env_vars": {
+                                 "PYTHONPATH": str(PROJECT_ROOT) + os.pathsep + os.environ.get("PYTHONPATH", "")}})
             except ConnectionError as exc:
                 parser.exit(2, f"Existing CHIA cluster unavailable: {exc}\n"
                             "Set RAY_ADDRESS to the existing head, or use --local for a local test.\n")
@@ -354,12 +421,29 @@ def main():
             parser.exit(2, f"Existing cluster is missing WallyGuard resources: {missing}\n")
     session_directory = args.run_dir.resolve() / datetime.now().strftime("session_%Y%m%d_%H%M%S_%f")
     session_directory.mkdir(parents=True)
-    print(f"WallyGuard {'local task test' if args.local else 'CHIA loop'}\n"
-          f"Evidence: {session_directory}", flush=True)
+    console.phase(f"WallyGuard | {'Local' if args.local else 'CHIA'} | Verilator + Spike")
+    print(f"Evidence:   {session_directory}\n"
+          f"Mismatches: {args.mismatch_dir.resolve() / session_directory.name}", flush=True)
+
+    def save(*positional, **keywords):
+        return save_summary(*positional, **keywords, mismatch_root=args.mismatch_dir)
+
     if not existing:
         from tools.campaign import run_campaign
-        return run_campaign(args, session_directory, execute_elf, save_summary, print_result)
+        try:
+            args.directed_summary = run_directed_tests(args, session_directory, save)
+        except KeyboardInterrupt:
+            print("Directed tests interrupted.", flush=True)
+            return 130
+        if args.directed_summary["failed"] and args.stop_on_failure:
+            print("Stopped before generation (--stop-on-failure).", flush=True)
+            return 1
+        console.phase("RISC-V-DV generation and comparison")
+        result = run_campaign(args, session_directory, execute_elf, save,
+                              lambda *a: print_result(*a, generated=True))
+        return result or int(args.directed_summary["failed"] > 0)
     run_number = 0
+    failed = False
     try:
         while True:
             tests = sorted(args.test_dir.resolve().glob("*.elf"))
@@ -371,17 +455,17 @@ def main():
                 run_number += 1
                 directory = session_directory / f"{run_number:06d}_{elf.stem}"
                 directory.mkdir()
-                print(f"[{run_number:06d}] Dispatching {elf.name}", flush=True)
                 wally, spike, comparison = execute_elf(elf, directory, args)
-                save_summary(directory, elf, wally, spike, comparison)
+                save(directory, elf, wally, spike, comparison)
                 print_result(run_number, elf, comparison, directory)
+                failed |= comparison["status"] != "PASS"
                 if args.stop_on_failure and comparison["status"] != "PASS":
                     print("Stopping because --stop-on-failure was set.", flush=True)
                     return 1
                 if args.num_tests is not None and run_number >= args.num_tests:
-                    return 0
+                    return int(failed)
             if args.once:
-                return 0
+                return int(failed)
             time.sleep(args.sleep)
     except KeyboardInterrupt:
         print("WallyGuard loop interrupted.", flush=True)
