@@ -1,0 +1,44 @@
+cluster_name: wallyguard
+
+# The machine where CHIA is installed and where the loop driver runs.
+provider:
+  head_ip: ${HEAD_IP}
+
+# Credentials used by CHIA to SSH to the head and provisioned workers.
+auth:
+  ssh_user: ${USER}
+
+# Provision one VM on GCP. Export GCP_PROJECT, GCP_ZONE, and
+# GCP_MACHINE_TYPE before running `chia up cluster.yaml`.
+gcp_nodes:
+  project: ${GCP_PROJECT}
+  zone: ${GCP_ZONE}
+  wally_gcp:
+    machine_type: ${GCP_MACHINE_TYPE}
+    count: 1
+    ssh_user: ${USER}
+    ssh_public_key: /home/abdul/.ssh/wallyguard_gcp_ed25519.pub
+    ssh_private_key: /home/abdul/.ssh/wallyguard_gcp_ed25519
+
+# A CHIA-compatible worker for Wally build, simulation, and verification nodes.
+available_node_types:
+  wally_worker:
+    resources: {"wally": 1}
+    num_workers: 1
+    compatible_ips: ["@wally_gcp:0"]
+    docker:
+      image: "ghcr.io/ucb-bar/chia:latest"
+      container_name: "chia-wallyguard-${USER}"
+      run_options:
+        - --shm-size=10.24gb
+
+head_env_commands:
+  - "source ~/.bashrc && conda activate chia_env"
+
+head_start_ray_commands:
+  - ray stop
+  - ray start --head --port=6379 --include-dashboard=True --dashboard-agent-listen-port=0
+
+worker_start_ray_commands:
+  - ray stop
+  - ray start --address=$RAY_HEAD_IP:6379 --dashboard-agent-listen-port=0
