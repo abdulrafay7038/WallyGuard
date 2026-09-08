@@ -22,14 +22,22 @@ def sha256(path):
     return digest.hexdigest()
 
 
+def collection_directory(directory, root):
+    directory, root = Path(directory), Path(root).resolve()
+    session = next((p for p in directory.parents if p.name.startswith("session_")), None)
+    if session is None:
+        return root / directory.parent.name / directory.name
+    return root / session.name / directory.relative_to(session)
+
+
 def collect_mismatch(directory, elf, root, generation=None):
     directory, elf, root = Path(directory), Path(elf), Path(root)
     result = json.loads((directory / "result.json").read_text())
     if result["trace_comparison"]["status"] != "TRACE_MISMATCH":
         return None
-    collection = root.resolve() / directory.parent.name
+    target = collection_directory(directory, root)
+    collection = target.parent
     collection.mkdir(parents=True, exist_ok=True)
-    target = collection / directory.name
     sources = {p.name: p for p in directory.iterdir() if p.is_file() and not p.name.endswith(".tmp")}
     sources["test.elf"] = elf
     if generation is not None:
@@ -47,7 +55,9 @@ def collect_mismatch(directory, elf, root, generation=None):
             sources["test.S"] = candidates[0]
     first = result["trace_comparison"]["first_mismatch"]
     wally, spike = first.get("wally") or {}, first.get("spike") or {}
-    entry = dict(run=directory.name, seed=generation.get("seed") if generation else None,
+    entry = dict(wally_config=result.get("wally_config", result.get("configuration")),
+                 test_area=result.get("test_area"), riscv_dv_test=result.get("riscv_dv_test"),
+                 run=directory.name, seed=generation.get("seed") if generation else None,
                  test=elf.name, matched_instructions=result["trace_comparison"]["matched_instructions"],
                  reason=first["reason"], pc=spike.get("pc", wally.get("pc", "")),
                  binary=spike.get("binary", wally.get("binary", "")),

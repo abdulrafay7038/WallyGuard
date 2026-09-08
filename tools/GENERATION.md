@@ -1,5 +1,7 @@
 # RISC-V-DV generation through CHIA
 
+For the multi-configuration API and current eligibility, see [VERIFICATION_API.md](../docs/VERIFICATION_API.md). The historical runs below predate the full bare-GPR initialization audit; current profiles use `fix_sp=1` and initialize the omitted thread register before the comparison marker.
+
 The default distributed loop runs every `tests/*.elf` once, then generates a
 fresh test on `generator: 1` for each iteration. Wally, Spike, and comparison retain `wally: 1`, `spike: 1`, and
 `compare: 1` on the CVW worker. No OpenCode task is invoked.
@@ -17,6 +19,22 @@ After the directed sweep, preflight runs `file` and `riscv64-unknown-elf-readelf
 then Spike, then Wally. Check its `result.json` and both complete traces before
 starting the ten-test campaign. Normal campaign iterations dispatch both
 simulators before waiting for either result.
+
+Normal campaigns also keep one remote generation in flight for the next test
+while the current ELF executes and is compared. The head holds its Ray reference
+and fetches/materializes that payload only after current local work completes.
+There is no local generator, additional local simulator, or unbounded queue.
+Resource requirements remain `generator: 1`, `wally: 1`, `spike: 1`, `compare: 1`.
+`--stop-on-failure` disables lookahead so no unused test is generated; preflight
+and single-test runs also stay sequential. The default sleep remains unchanged.
+
+Each prefetched seed is persisted in its request.json before dispatch. Generation
+failures are consumed and reported in seed order. Interruption requests cooperative
+cancellation of unconsumed generation and records its seed/status in campaign.json;
+the generator cleans up its child process group when cancelled. Local concurrency
+stays unchanged, although reducing idle time can increase average CPU utilization.
+Ray may retain one additional pending result; full architectural traces are never
+included in that result.
 
 ```bash
 # Continuous generation, one new random seed per test
@@ -69,12 +87,63 @@ The command is built from the worker's installed paths:
 ```text
 <python> <RISCV_DV_ROOT>/run.py
   --target rv64imafdc --isa rv64gc --mabi lp64d
-  --simulator pyflow --steps gen,gcc_compile
+  --simulator pyflow --steps gen
   --testlist <temporary>/testlist.yaml --test wallyguard_rand
   --iterations 1 --seed <seed> --gen_timeout 600
   '--gcc_opts=-march=rv64gc -mabi=lp64d -save-temps=obj -Wl,--build-id=none'
-  --output <temporary>/output --verbose
+  --output <temporary>/output --noclean --verbose
 ```
+
+The wrapper then normalizes the generated assembly, validates it, and calls the
+same command with `--steps gcc_compile`. Metadata retains `generator_command`
+and the separate `compiler_command`. GCC is never invoked before normalization
+passes. Both phases' logs are retained.
+
+### Deterministic x11 initialization
+
+Bare pyflow output in this workspace uses `main:` for the beginning of the random
+body and previously had no comparison label. The wrapper adds the global
+`wallyguard_compare_start:` label at that boundary, preserving the first random
+instruction even when it shares the `main:` line. If the label already exists,
+its position is retained. The wrapper then inserts:
+
+```asm
+main:
+.globl wallyguard_compare_start
+                  li x11, 0
+wallyguard_compare_start:
+                  # original randomized body
+```
+
+`normalize_initialization()` requires exactly one comparison marker.
+`validate_initialization()` requires that the last non-comment, nonblank line
+before that marker is `li x11, 0`. The assembly is written and read back for
+validation before GCC runs. Missing/ambiguous body boundaries, missing/duplicate
+markers, or failed validation return `INITIALIZATION_ERROR`, with no transferable
+ELF and no simulation. The campaign preserves this status and the seed/logs.
+Successful metadata records `initialization: {"x11": "0x0", "validated": true}`.
+
+The marker names the randomized-body boundary; the existing trace collectors
+still begin at the ELF entry, so the initialization instruction is itself compared.
+No comparator field is masked and no seed is specially handled. The wrapper,
+not upstream RISC-V-DV or processor RTL, owns this normalization.
+
+Verified on 2026-09-07: fresh seed 1705 passed preflight on
+`chia-default-gcp-worker2-0`, with 122 matching events. Both traces record the
+inserted compressed `li x11, 0` at order 58, PC `800000b6`, encoding `00004581`;
+the marker is at `800000b8`. All six directed tests and signatures also passed.
+All 46 previously failing seeds were then generated afresh on that worker,
+transferred as ELF bytes, and run through the existing CHIA tasks: 46 trace
+passes, zero mismatches/errors, and 46 matching initialization-event checks.
+Per-seed evidence is indexed in `runs/x11_regression_20260907/results.csv`, with
+counts in `summary.json` and `validation.json`. Both CHIA jobs finished
+`SUCCEEDED`. Independently patching/recompiling the archived assemblies also
+produced 46/46 local passes. Twenty-two unit tests passed, including failure
+classification and proof that invalid initialization never invokes compilation.
+
+This normalizes x11 only. It does not establish an initialization contract for
+every GPR/CSR or broaden FP, privilege, interrupt, and memory coverage. Those
+remain separate concerns when the generator profile expands.
 
 `rv64imafdc` is the pyflow target spelling for the RV64GC extension set. Explicit
 GCC options retain RV64GC/lp64d even in run.py versions that override the ISA/ABI

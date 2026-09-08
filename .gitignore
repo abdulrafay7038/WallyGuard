@@ -6,3 +6,13 @@ __pycache__
 runs/
 mismatch_results/
 .cluster.lock
+.qualification.lock
+
+# Local generated artifacts and qualification evidence
+generated_tests/
+tools/data/compatibility.json
+tools/data/qualification_attempts.json
+tools/data/validated_combinations.json
+docs/qualification_results.json
+docs/area_config_matrix.csv
+docs/QUALIFICATION_RESULTS.md

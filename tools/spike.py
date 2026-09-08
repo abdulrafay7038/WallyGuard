@@ -34,9 +34,9 @@ def dv_parser():
 def elf_metadata(path):
     with Path(path).open("rb") as handle:
         header = handle.read(64)
-    if header[:6] != b"\x7fELF\x02\x01" or len(header) != 64:
-        raise ValueError("WallyGuard v1 requires little-endian ELF64")
-    entry = int.from_bytes(header[24:32], "little")
+    if (header[:4] != b"\x7fELF" or header[4] not in (1, 2) or header[5] != 1) or len(header) != 64:
+        raise ValueError("WallyGuard requires little-endian ELF32/ELF64")
+    entry = int.from_bytes(header[24:28 if header[4] == 1 else 32], "little")
     nm = Path(os.environ.get("RISCV", "/home/rafay/riscv")) / "bin/riscv64-unknown-elf-nm"
     output = subprocess.check_output([str(nm), "--defined-only", str(path)], text=True)
     tohost = None

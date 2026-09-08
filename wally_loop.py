@@ -16,12 +16,12 @@ from chia.base.ChiaFunction import ChiaFunction, get
 from tools.compare import compare_traces, oracle_result
 from tools.spike import normalize_spike
 from tools import console
-from tools.evidence import collect_mismatch
+from tools.evidence import collect_mismatch, collection_directory
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 DEFAULT_TEST_DIR = PROJECT_ROOT / "tests"
 DEFAULT_RUN_DIR = PROJECT_ROOT / "runs"
-WALLY_CONFIG = "rv64gc"
+from tools.configs import WALLY_CONFIGS
 
 
 def normalize_signature(signature: str) -> list[str]:
@@ -237,12 +237,14 @@ def classify_and_compare(wally: dict, spike: dict) -> dict:
 
 
 def save_summary(run_directory: Path, elf: Path, wally: dict, spike: dict, comparison: dict,
-                 generation: dict | None = None, mismatch_root: Path | None = None):
+                 generation: dict | None = None, mismatch_root: Path | None = None, config="rv64gc"):
     mismatch = comparison["trace"]["status"] == "TRACE_MISMATCH"
     collection_root = mismatch_root or PROJECT_ROOT / "mismatch_results"
     summary = {
         "timestamp": datetime.now().astimezone().isoformat(), "test": str(elf),
-        "configuration": WALLY_CONFIG, "status": comparison["status"],
+        "test_area": "local_directed", "riscv_dv_test": None, "seed": None,
+        "configuration": config, "wally_config": config,
+        **{k: WALLY_CONFIGS[config][k] for k in ("xlen", "spike_isa", "riscv_dv_target")}, "status": comparison["status"],
         "wally": wally, "spike": spike,
         "trace_comparison": comparison["trace"],
         "signature_comparison": comparison["signature"],
@@ -252,12 +254,15 @@ def save_summary(run_directory: Path, elf: Path, wally: dict, spike: dict, compa
             "wally_signature": wally["signature_path"], "spike_signature": spike["signature_path"],
             "mismatch_json": str(run_directory / "mismatch.json") if mismatch else None,
             "mismatch_text": str(run_directory / "mismatch.txt") if mismatch else None,
-            "mismatch_collection": str(collection_root.resolve() / run_directory.parent.name / run_directory.name)
+            "mismatch_collection": str(collection_directory(run_directory, collection_root))
                                    if mismatch else None,
         },
     }
     if generation is not None:
         summary["generation"] = generation
+        summary.update({k: generation.get(k) for k in ("test_area", "riscv_dv_test", "seed")})
+    summary["generator_status"] = generation.get("status") if generation else "NOT_APPLICABLE"
+    summary["infrastructure_status"] = "PASS" if comparison["status"] in ("PASS", "TRACE_MISMATCH", "INCONSISTENT_ORACLE") else comparison["status"]
     temporary = run_directory / "result.json.tmp"
     temporary.write_text(json.dumps(summary, indent=2) + "\n")
     temporary.replace(run_directory / "result.json")
@@ -277,6 +282,10 @@ def save_summary(run_directory: Path, elf: Path, wally: dict, spike: dict, compa
 def print_result(run_number: int, elf: Path, comparison: dict, run_directory: Path, generated=False):
     trace, signature = comparison["trace"], comparison["signature"]
     label = "seed " + run_directory.name.rsplit("_seed_", 1)[-1] if generated else elf.name
+    if generated and "_seed_" in run_directory.name:
+        dimensions = run_directory.name.split("_", 1)[-1].rsplit("_seed_", 1)[0]
+        if dimensions != run_directory.name.split("_", 1)[-1]:
+            label = dimensions + " | " + label
     prefix = f"[{'DV' if generated else 'DIR'} {run_number:06d}] {label}"
     signature_text = ("" if generated and signature["status"] == "NOT_AVAILABLE"
                       else f" | SIGNATURE {signature['status']}")
@@ -341,10 +350,11 @@ def run_directed_tests(args, session, save):
 
 def execute_elf(elf, directory, args, preflight=False):
     """Keep simulator tasks and comparison shared by existing and generated tests."""
+    config = getattr(args, "wally_config", "rv64gc")
     wally_args = (str(elf), str(directory / "wally.log"),
-                  str(directory / "wally.signature"), WALLY_CONFIG, args.wally_timeout)
+                  str(directory / "wally.signature"), config, args.wally_timeout)
     spike_args = (str(elf), str(directory / "spike.log"),
-                  str(directory / "spike.signature"), WALLY_CONFIG, args.spike_timeout)
+                  str(directory / "spike.signature"), WALLY_CONFIGS[config]["spike_isa"], args.spike_timeout)
     if args.local:
         from concurrent.futures import ThreadPoolExecutor
         from inspect import unwrap
@@ -387,7 +397,35 @@ def main():
     parser.add_argument("--spike-timeout", type=int, default=120)
     parser.add_argument("--local", action="store_true",
                         help="Explicit local test: run the same task implementations without Ray")
+    parser.add_argument("--wally-config", default="rv64gc", metavar="CONFIG", help="Wally configuration or all; inspect --list-wally-configs")
+    parser.add_argument("--test-area", default="general")
+    parser.add_argument("--riscv-dv-test")
+    parser.add_argument("--all-areas", action="store_true")
+    parser.add_argument("--num-tests-per-area", type=int, default=10)
+    parser.add_argument("--campaign", action="store_true", help="Use weighted compatible areas")
+    parser.add_argument("--skip-directed", action="store_true", help="Skip the initial local directed sweep")
+    parser.add_argument("--list-wally-configs", action="store_true")
+    parser.add_argument("--list-test-areas", action="store_true")
+    parser.add_argument("--list-riscv-dv-tests", action="store_true")
+    parser.add_argument("--compatibility-matrix", action="store_true")
+    parser.add_argument("--json", action="store_true", help="Machine-readable listings")
     args = parser.parse_args()
+    from tools.test_profiles import list_data, resolve_selection
+    for flag,kind in ((args.list_wally_configs,"configs"),(args.list_test_areas,"areas"),
+                      (args.list_riscv_dv_tests,"tests"),(args.compatibility_matrix,"matrix")):
+        if flag:
+            list_data(kind, args.json or kind=="matrix")
+            return 0
+    if args.wally_config == "all" and not (args.num_tests or args.all_areas or args.once):
+        parser.error("--wally-config all needs a finite --num-tests (per config), --once, or --all-areas")
+    if args.num_tests_per_area < 1: parser.error("--num-tests-per-area must be positive")
+    if sum((args.all_areas,args.campaign,bool(args.riscv_dv_test))) > 1:
+        parser.error("Choose one of --all-areas, --campaign, --riscv-dv-test")
+    if args.campaign: args.test_area="campaign"
+    try:
+        resolve_selection("rv64gc" if args.wally_config=="all" else args.wally_config,
+                          args.test_area,args.seed or 0,args.riscv_dv_test)
+    except ValueError as exc: parser.error(str(exc))
     console.COLOR = args.color
     existing = args.existing_tests or args.test_dir is not None or args.local
     if args.num_tests is not None and args.num_tests < 1:
@@ -426,22 +464,13 @@ def main():
           f"Mismatches: {args.mismatch_dir.resolve() / session_directory.name}", flush=True)
 
     def save(*positional, **keywords):
-        return save_summary(*positional, **keywords, mismatch_root=args.mismatch_dir)
+        return save_summary(*positional, **keywords, mismatch_root=args.mismatch_dir, config=args.wally_config)
 
     if not existing:
-        from tools.campaign import run_campaign
-        try:
-            args.directed_summary = run_directed_tests(args, session_directory, save)
-        except KeyboardInterrupt:
-            print("Directed tests interrupted.", flush=True)
-            return 130
-        if args.directed_summary["failed"] and args.stop_on_failure:
-            print("Stopped before generation (--stop-on-failure).", flush=True)
-            return 1
-        console.phase("RISC-V-DV generation and comparison")
-        result = run_campaign(args, session_directory, execute_elf, save,
-                              lambda *a: print_result(*a, generated=True))
-        return result or int(args.directed_summary["failed"] > 0)
+        from tools.matrix_campaign import run_matrix
+        return run_matrix(args,session_directory,execute_elf,save,print_result,run_directed_tests)
+    if args.wally_config == "all":
+        parser.error("--wally-config all requires generation mode")
     run_number = 0
     failed = False
     try:

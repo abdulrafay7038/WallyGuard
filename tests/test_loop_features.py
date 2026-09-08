@@ -123,6 +123,7 @@ class LoopFeatureTests(unittest.TestCase):
                     self.assertEqual(args.num_tests, 3)
                     self.assertEqual(args.directed_summary["attempted"], 2)
                     self.assertTrue((session / "directed.json").exists())
+                    (session / "campaign.json").write_text(json.dumps({"results": []}))
                     return 0
 
                 argv = ["wally_loop.py", "--num-tests", "3", "--seed", "509", "--run-dir", str(self.root / f"runs_{stop}")]
@@ -133,7 +134,8 @@ class LoopFeatureTests(unittest.TestCase):
                      patch("ray.cluster_resources", return_value={r: 1 for r in ("wally", "spike", "compare", "generator")}), \
                      patch.object(loop, "execute_elf", side_effect=execute), \
                      patch.object(loop, "save_summary"), patch.object(loop, "print_result"), \
-                     patch("tools.campaign.run_campaign", side_effect=campaign), redirect_stdout(io.StringIO()):
+                     patch("tools.matrix_campaign.run_campaign", side_effect=campaign), \
+                     patch("tools.matrix_campaign.resolve_selection", return_value={"campaign_enabled": True}), redirect_stdout(io.StringIO()):
                     code = loop.main()
                 self.assertEqual(code, 1)
                 self.assertEqual(events, ["a.elf"] if stop else ["a.elf", "b.elf", "generation"])
