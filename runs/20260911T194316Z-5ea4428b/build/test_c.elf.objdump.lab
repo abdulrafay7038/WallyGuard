@@ -1,0 +1,7 @@
+rvtest_entry_point
+smode_code
+trap_handler
+pass
+fail
+tohost
+fromhost

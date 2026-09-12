@@ -1,0 +1,2 @@
+./tester_llm/20260911T194316Z-5ea4428b/reproducer.sh: line 38: 33040 Aborted                    (core dumped) ${DUT} +ElfFile="${BUILD_DIR}/test_a.elf" > "${LOG_DIR}/verilator_a.log" 2>&1
+Bug reproduced successfully!
