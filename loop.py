@@ -384,8 +384,8 @@ def verify_command(scratch: str, command: str, log_path: str, timeout: int = REG
 
 @ChiaFunction(resources={"wally_sim": 1})
 def save_attempt(wally_path: str, record: dict) -> None:
-    """Archive negative/crashed attempts too, into the user's cvw/tester_llm."""
-    dest = Path(wally_path) / "tester_llm" / record["tag"]
+    """Archive all attempts under runs/ beside the cvw checkout."""
+    dest = Path(wally_path).parent / "runs" / record["tag"]
     dest.mkdir(parents=True, exist_ok=True)
     if record.get("scratch"):
         source = Path(record["scratch"]) / record["test_dir"]
@@ -405,7 +405,7 @@ def history_entry(record: dict) -> dict:
 @ChiaFunction(resources={"wally_sim": 1})
 def load_history(wally_path: str) -> list[dict]:
     history = []
-    for path in sorted((Path(wally_path) / "tester_llm").glob("*/attempt.json")):
+    for path in sorted((Path(wally_path).parent / "runs").glob("*/attempt.json")):
         try:
             history.append(history_entry(json.loads(path.read_text(encoding="utf-8"))))
         except (OSError, ValueError, KeyError) as exc:
@@ -433,7 +433,8 @@ def run_attempt(record: dict, history: list[dict], max_fix_attempts: int) -> Non
     record["models"] = dict(MODELS)
     record.update(remote(make_worktree, WALLY_PATH, record["tag"]))
     scratch, test_dir, base = record["scratch"], record["test_dir"], record["base_commit"]
-    context = {**record, "history": history[-40:], "history_dir": f"{WALLY_PATH}/tester_llm",
+    context = {**record, "history": history[-40:],
+               "history_dir": str(Path(WALLY_PATH).parent / "runs"),
                "original_checkout": WALLY_PATH, "isa_docs": ISA_DOCS,
                "regression_command": REGRESSION_COMMAND}
     log("Architect", "Studying source and choosing the next target...")
@@ -443,7 +444,7 @@ def run_attempt(record: dict, history: list[dict], max_fix_attempts: int) -> Non
     remote(save_attempt, WALLY_PATH, record)
     context["plan"] = record["plan"]
 
-    log("Tester", f"Investigating; tests will be archived in {WALLY_PATH}/{test_dir}")
+    log("Tester", f"Investigating; tests will be archived in {Path(WALLY_PATH).parent / 'runs' / record['tag']}")
     record["tester"] = remote(tester, scratch, context)
     remote(check_changes, scratch, base)
     remote(save_attempt, WALLY_PATH, record)
