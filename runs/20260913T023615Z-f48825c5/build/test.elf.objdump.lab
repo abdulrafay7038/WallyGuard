@@ -1,0 +1,17 @@
+_start
+test_b
+test_c
+test_d
+pass
+fail_mcounteren_read
+fail_mcounteren_write
+fail_mstatus_trapped
+fail_menvcfg_read
+trap_fail
+exit
+pass_exit
+fail_exit
+trap_handler
+return_from_trap
+tohost
+fromhost

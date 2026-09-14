@@ -82,6 +82,82 @@ Authentication errors and other exception types are not retried by this policy.
 If all retries fail, the existing error/archive/next-iteration behavior applies.
 
 These changes apply to newly submitted jobs; an already running job retains
-the code it loaded at startup. The retained worktree from an earlier failed
-iteration remains available but is not automatically resumed by a new campaign.
+the code it loaded at startup.
 See [Google's 429 guidance](https://cloud.google.com/vertex-ai/generative-ai/docs/error-code-429).
+
+The loop reuses `wally-worktrees/wally-shared` beside `cvw` across iterations
+and job restarts. The first run copies the local checkout, including ignored
+build files, built tests and populated submodules. The copy has independent
+submodule Git metadata. Existing symlinks are preserved; relocated executables,
+virtual environments or build files with absolute paths may need rebuilding.
+Local tracked edits and new RTL are captured in a private baseline commit;
+the original checkout is not changed. Later edits to the original are not
+automatically synchronized into the shared copy.
+
+Before the next attempt, the loop restores tracked files to that initial
+baseline and removes newly generated RTL under `src/`, while keeping regression
+build data. Proposed patches and untracked RTL are saved before this reset.
+Confirmed fixes remain exported patches; they are not accumulated in the
+shared baseline. Tests, binaries, logs and attempt records are written directly
+to `runs/<attempt-id>/`, without a second artifact copy in the worktree.
+
+The loop stops if the previous shared-worktree attempt is still marked
+`in_progress` or has no archive, so two jobs cannot reset each other's work.
+An abrupt process kill or incomplete first copy requires inspecting the retained
+workspace before reuse. Older per-iteration worktrees are left untouched.
+
+If a job was forcibly stopped, recover its workspace on the simulation worker
+with `python recover_workspace.py --job-id <stopped-job-id>`. This checks Ray's
+job status, confirms its logs started the owning attempt, refuses recovery while
+another loop job is active, and archives the interrupted attempt and any tracked
+changes. It does not reset the workspace; the next loop performs the normal reset.
+Attempt records are now written before the Architect starts. A workspace-blocked
+job exits with failure rather than misleadingly reporting success.
+
+Full regression is now optional and disabled by default. A confirmed patch
+requires an unchanged, failing baseline reproducer, a passing targeted test
+after the fix, and Critic approval. Records say `verification_scope=targeted_only`
+and record regression as skipped, not passed. To require full regression again,
+set `WALLY_RUN_REGRESSION=1` before submitting through `submit.py`, which forwards
+this setting to the job. An enabled but failing baseline regression yields
+`regression_blocked` before calling the RTL Fixer.
+
+Unsuccessful/empty OpenCode calls and Vertex's specific "Requests ending with a
+model turn" error now get two recovery retries on the same assignment, with
+fresh conversations and existing artifacts. Exhaustion is recorded as
+`agent_failed`. Invalid model requests and authentication failures are not
+retried by this recovery policy. This bounds disruption; it cannot prevent the
+provider from terminating or rejecting calls.
+
+The Tester gets up to two repair rounds for execution errors, self-rewriting
+reproducers, or Critic-requested corrections. Each repair must pass a fresh
+baseline reproduction and a new Critic review. Original input snapshots and
+the exact changed filenames are retained. Unauthorized tracked edits during
+bug review are archived and restored before revalidation; that review's approval
+is discarded. Repeated failures yield `test_repair_exhausted`. Scope violations
+during fixing remain rejected as `invalid_artifacts`. Recognized `.orig`, `.bak`,
+`.rej` and `~` backups of tracked RTL are moved to the attempt's `fixer/backups/`.
+
+Regression preparation: `cvw/addins/riscv-arch-test` is now pinned locally to
+`c8c813af55ea79acb97fe832c5737cc4539af3ee`, which adds the missing Sv57 tests.
+Their Spike/Sail build report is in `cvw/tests/riscof/riscof_work/sv57/report.html`;
+the converted simulation files are installed under the expected
+`cvw/tests/riscof/work/riscv-arch-test/rv64i_m/vm_sv57/` path. The regression parser
+accepts the legacy testbench success marker without a missing-RVCP warning,
+while retaining error and explicit failure checks. These are test infrastructure
+changes, separate from agent-generated RTL fixes. No full regression was run.
+
+The Wally Bash MCP callback is asynchronous and runs blocking subprocess work
+in an AnyIO worker thread. This keeps the HTTP event loop responsive during
+long builds. A per-tool lock serializes shell commands; AnyIO cancellation does
+not abandon a running thread or release that lock early. The existing command
+timeout and process-group cleanup still apply. This addresses event-loop
+starvation that can cause client disconnects; network interruptions and client
+cancellations can still produce `ClientDisconnect` messages. Existing jobs must
+be resubmitted to create tool servers with this callback.
+
+Git errors now include stderr. If an agent replaces a copied submodule with a
+symlink, the scope check preserves a record of the link and restores an independent
+copy only when the original dependency is still at the baseline revision. Other
+dependency edits remain disallowed. An archive error still writes `attempt.json`
+with diagnostic details and protects the workspace until recovery succeeds.

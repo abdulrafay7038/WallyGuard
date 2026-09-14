@@ -1,0 +1,13 @@
+diff --git a/src/privileged/csrs.sv b/src/privileged/csrs.sv
+index fc815a7dd..0d50077bb 100644
+--- a/src/privileged/csrs.sv
++++ b/src/privileged/csrs.sv
+@@ -155,7 +155,7 @@ module csrs import cvw::*;  #(parameter cvw_t P) (
+       SEPC:      CSRSReadValM = SEPC_REGW;
+       SCAUSE:    CSRSReadValM = SCAUSE_REGW;
+       STVAL:     CSRSReadValM = STVAL_REGW;
+-      SATP:      if (P.VIRTMEM_SUPPORTED & (PrivilegeModeW == P.M_MODE | ~STATUS_TVM)) CSRSReadValM = SATP_REGW;
++      SATP:      if (PrivilegeModeW == P.M_MODE | ~STATUS_TVM) CSRSReadValM = SATP_REGW;
+                  else IllegalCSRSAccessM = 1'b1;
+       SCOUNTEREN:CSRSReadValM = {{(P.XLEN-32){1'b0}}, SCOUNTEREN_REGW};
+       SENVCFG:   CSRSReadValM = SENVCFG_REGW;

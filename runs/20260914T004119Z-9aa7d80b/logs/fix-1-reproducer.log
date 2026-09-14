@@ -1,0 +1,6 @@
+/opt/riscv/lib/gcc/riscv64-unknown-elf/15.2.0/../../../../riscv64-unknown-elf/bin/ld: warning: /home/abdul/miniconda3/WallyGuard2/runs/20260914T004119Z-9aa7d80b/build/test_sfence_bare.elf has a LOAD segment with RWX permissions
+Running Spike...
+Spike exit code: 0
+Running Wally...
+Wally exit code: 0
+Wally executed successfully (DUT correct).

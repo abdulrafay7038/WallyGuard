@@ -1,0 +1,1 @@
+DUT behavior correct: cbo.inval properly flushed/invalidated cache line

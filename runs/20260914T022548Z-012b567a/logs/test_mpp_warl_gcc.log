@@ -1,0 +1,1 @@
+/opt/riscv/lib/gcc/riscv64-unknown-elf/15.2.0/../../../../riscv64-unknown-elf/bin/ld: warning: /home/abdul/miniconda3/WallyGuard2/runs/20260914T022548Z-012b567a/build/test_mpp_warl.elf has a LOAD segment with RWX permissions
