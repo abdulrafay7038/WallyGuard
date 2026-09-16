@@ -1,12 +1,10 @@
-
-
 provider:
     head_ip: ${HEAD_IP}
     
 
 auth:
-    ssh_user: abdul
-    ssh_private_key: /home/abdul/.ssh/wallyguard_gcp_ed25519
+    ssh_user: ${USER}
+    ssh_private_key: ${GCP_PRIVATE_KEY_PATH}
          
 
 available_node_types:
@@ -15,8 +13,8 @@ available_node_types:
         num_workers: 1
         compatible_ips: ["${HEAD_IP}"]
         worker_env_commands:
-        - "source /home/abdul/miniconda3/etc/profile.d/conda.sh && conda activate chia_env"
-        - "source /home/abdul/miniconda3/WallyGuard2/cvw/setup.sh"
+        - "source /home/${USER}/miniconda3/etc/profile.d/conda.sh && conda activate chia_env"
+        - "source /home/${USER}/miniconda3/WallyGuard2/cvw/setup.sh"
     opencode:
         resources: {"opencode_creds": 3}
         worker_setup_commands: ["source ~/.bashrc"]

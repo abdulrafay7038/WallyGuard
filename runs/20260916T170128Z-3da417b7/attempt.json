@@ -1,0 +1,16 @@
+{
+  "tag": "20260916T170128Z-3da417b7",
+  "iteration": 2,
+  "status": "in_progress",
+  "models": {
+    "architect": "google-vertex/gemini-3.8-flash",
+    "tester": "google-vertex/gemini-3.1-pro-preview-customtools",
+    "critic": "google-vertex/gemini-3.1-pro-preview-customtools",
+    "rtl_fixer": "opencode/mimo-v2.5-free"
+  },
+  "run_regression": false,
+  "verification_scope": "targeted_only",
+  "scratch": "/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared",
+  "base_commit": "d8712b52b9b57961d36795df1ae1063e08756cae",
+  "test_dir": "/home/rafay/miniconda3/WallyGuard2/runs/20260916T170128Z-3da417b7"
+}

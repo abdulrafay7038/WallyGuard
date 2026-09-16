@@ -27,7 +27,7 @@ from chia.base.ChiaFunction import ChiaFunction, get
 from chia.base.tools.BashTool import BashTool
 from chia.models.opencode import AdditionalModelProvider, OpenCodeLLM, RateLimitError, InvalidRequestError
 
-WALLY_PATH = os.environ.get("WALLY_PATH", "/home/abdul/miniconda3/WallyGuard2/cvw")
+WALLY_PATH = os.environ.get("WALLY_PATH", "/home/rafay/miniconda3/WallyGuard2/cvw")
 MAX_ITERATIONS = 200
 MAX_FIX_ATTEMPTS = 3
 MAX_TEST_REPAIRS = 2
@@ -41,7 +41,7 @@ RATE_LIMIT_MAX_DELAY = 300
 # Operator-selected suite: an agent cannot substitute a trivial success command.
 REGRESSION_COMMAND = os.environ.get("WALLY_REGRESSION_COMMAND", "bin/regression-wally")
 ISA_DOCS = os.environ.get("WALLY_ISA_DOCS", "")
-VERTEX_PROJECT = os.environ.get("GOOGLE_CLOUD_PROJECT", "jovial-analyst-507116-p9")
+VERTEX_PROJECT = os.environ.get("GOOGLE_CLOUD_PROJECT", "project-0df87a12-e649-434b-84a")
 VERTEX_PROVIDER = AdditionalModelProvider(
     id="google-vertex",
     npm="@ai-sdk/google-vertex",

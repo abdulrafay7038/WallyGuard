@@ -1,7 +1,8 @@
 ## Exports
 ```bash
 export HEAD_IP=$(hostname -I | awk '{print $1}')
-
+export GCP_PROJECT=project-0df87a12-e649-434b-84a
+export GCP_PRIVATE_KEY_PATH=~/.ssh/chia_gcp
 ```
 
 [15:15:30] (Architect) Missing Instruction-Address-Misaligned Exception (Cause 0) on Taken Unaligned Jump/Branch Due to CommittedF Trap Suppression (src/privileged/trap.sv, src/ifu/ifu.sv)

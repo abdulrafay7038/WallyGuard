@@ -1,0 +1,30 @@
+Compiling tests...
+Running Spike oracle...
+Rebuilding Wally DUT...
+make: Entering directory '/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/sim/verilator'
+mkdir -p /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/sim/verilator/wkdir/rv64gc_testbench
+verilator \
+--Mdir /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/sim/verilator/wkdir/rv64gc_testbench -o Vtestbench \
+--binary --trace \
+--assert --no-trace-top --stats \
+--top-module testbench  --relative-includes \
+"-I/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/config/shared" "-I/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/config/rv64gc" "-I/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/config/deriv/rv64gc" \
+/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/sim/verilator/wrapper.c \
+ \
+ \
+/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/src/cvw.sv /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/testbench.sv /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/DCacheFlushFSM.sv /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/functionName.sv /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/instrNameDecTB.sv /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/instrTrackerTB.sv /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/loggers.sv /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/ramxdetector.sv /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/riscvassertions_wally.sv /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/rvvitbwrapper.sv /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/wallyTracer.sv /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/watchdog.sv  /home/rafay/miniconda3/WallyGuard2/runs/20260916T152458Z-7ae13216/tests/riscvassertions.sv /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/src/*/*.sv /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/src/*/*/*.sv /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/addins/verilog-ethernet/*/*.sv /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/addins/verilog-ethernet/*/*/*/*.sv
+make[1]: Entering directory '/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/sim/verilator/wkdir/rv64gc_testbench'
+make[1]: Nothing to be done for 'default'.
+make[1]: Leaving directory '/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/sim/verilator/wkdir/rv64gc_testbench'
+- V e r i l a t i o n   R e p o r t: Verilator 5.036 2025-04-27 rev v5.036
+- Verilator: Built from 0.000 MB sources in 0 modules, into 0.000 MB in 0 C++ files needing 0.000 MB
+- Verilator: Walltime 0.091 s (elab=0.000, cvt=0.000, bld=0.086); cpu 0.006 s on 1 threads; alloced 19.484 MB
+make: Leaving directory '/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/sim/verilator'
+Running Wally DUT on control test...
+Running Wally DUT on bug test...
+Bug confirmed: data hazard on amocas compare operand!
+FAILURE: Watch Dog Time Out triggered. Instruction at PC 0000000000000000 trapped         100 times in a row; the core is livelocked in a recursive trap
+- /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/watchdog.sv:86: Verilog $finish
+- S i m u l a t i o n   R e p o r t: Verilator 5.036 2025-04-27
+- Verilator: $finish at 5ns; walltime 0.225 s; speed 150.128 ns/s
+- Verilator: cpu 0.032 s on 1 threads; alloced 346 MB

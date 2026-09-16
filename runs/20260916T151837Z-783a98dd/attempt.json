@@ -1,0 +1,14 @@
+{
+  "tag": "20260916T151837Z-783a98dd",
+  "iteration": 21,
+  "status": "workspace_unavailable",
+  "models": {
+    "architect": "google-vertex/gemini-3.8-flash",
+    "tester": "google-vertex/gemini-3.1-pro-preview-customtools",
+    "critic": "google-vertex/gemini-3.1-pro-preview-customtools",
+    "rtl_fixer": "opencode/mimo-v2.5-free"
+  },
+  "run_regression": false,
+  "verification_scope": "targeted_only",
+  "error": "\u001b[36mray::make_worktree()\u001b[39m (pid=169253, ip=10.212.0.2)\n  File \"/home/rafay/miniconda3/chia/chia/base/ChiaFunction.py\", line 401, in _chia_trampoline\n    return func(*args, **kwargs)\n  File \"/tmp/ray/session_2026-09-16_13-58-58_181973_135061/runtime_resources/working_dir_files/_ray_pkg_f38c1e56d57cb826/loop.py\", line 397, in make_worktree\n    raise WorkspaceUnavailableError(f\"Previous attempt is active or unarchived: {previous}\")\nWorkspaceUnavailableError: Previous attempt is active or unarchived: /home/rafay/miniconda3/WallyGuard2/runs/20260916T151837Z-24ce7ad3/attempt.json"
+}
