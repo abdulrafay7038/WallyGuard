@@ -1,0 +1,77 @@
+(spike) core   0: 0x0000000000001000 (0x00000297) auipc   t0, 0x0
+(spike) core   0: 0x0000000000001004 (0x02028593) addi    a1, t0, 32
+(spike) core   0: 0x0000000000001008 (0xf1402573) csrr    a0, mhartid
+(spike) core   0: 0x000000000000100c (0x0182b283) ld      t0, 24(t0)
+(spike) core   0: 0x0000000000001010 (0x00028067) jr      t0
+(spike) core   0: >>>>  rvtest_entry_point
+core   0: 0x0000000080000000 (0x00000297) auipc   t0, 0x0
+(spike) core   0: 0x0000000080000004 (0x0fc28293) addi    t0, t0, 252
+(spike) core   0: 0x0000000080000008 (0x30529073) csrw    mtvec, t0
+(spike) core   0: 0x000000008000000c (0x10529073) csrw    stvec, t0
+(spike) core   0: 0x0000000080000010 (0x00004297) auipc   t0, 0x4
+(spike) core   0: 0x0000000080000014 (0xff028293) addi    t0, t0, -16
+(spike) core   0: 0x0000000080000018 (0x20000337) lui     t1, 0x20000
+(spike) core   0: 0x000000008000001c (0x0cf3031b) addiw   t1, t1, 207
+(spike) core   0: 0x0000000080000020 (0x0062b823) sd      t1, 16(t0)
+(spike) core   0: 0x0000000080000024 (0x00005317) auipc   t1, 0x5
+(spike) core   0: 0x0000000080000028 (0xfdc30313) addi    t1, t1, -36
+(spike) core   0: 0x000000008000002c (0x00c35313) srli    t1, t1, 12
+(spike) core   0: 0x0000000080000030 (0x0000032a) c.slli  t1, 10
+(spike) core   0: 0x0000000080000032 (0x00136313) ori     t1, t1, 1
+(spike) core   0: 0x0000000080000036 (0x0062b423) sd      t1, 8(t0)
+(spike) core   0: 0x000000008000003a (0x00005297) auipc   t0, 0x5
+(spike) core   0: 0x000000008000003e (0xfc628293) addi    t0, t0, -58
+(spike) core   0: 0x0000000080000042 (0x00006317) auipc   t1, 0x6
+(spike) core   0: 0x0000000080000046 (0xfbe30313) addi    t1, t1, -66
+(spike) core   0: 0x000000008000004a (0x00c35313) srli    t1, t1, 12
+(spike) core   0: 0x000000008000004e (0x0000032a) c.slli  t1, 10
+(spike) core   0: 0x0000000080000050 (0x00136313) ori     t1, t1, 1
+(spike) core   0: 0x0000000080000054 (0x0062b023) sd      t1, 0(t0)
+(spike) core   0: 0x0000000080000058 (0x00006297) auipc   t0, 0x6
+(spike) core   0: 0x000000008000005c (0xfa828293) addi    t0, t0, -88
+(spike) core   0: 0x0000000080000060 (0x00001317) auipc   t1, 0x1
+(spike) core   0: 0x0000000080000064 (0xfa030313) addi    t1, t1, -96
+(spike) core   0: 0x0000000080000068 (0x00c35313) srli    t1, t1, 12
+(spike) core   0: 0x000000008000006c (0x0000032a) c.slli  t1, 10
+(spike) core   0: 0x000000008000006e (0x0eb36313) ori     t1, t1, 235
+(spike) core   0: 0x0000000080000072 (0x0062b423) sd      t1, 8(t0)
+(spike) core   0: 0x0000000080000076 (0x00002317) auipc   t1, 0x2
+(spike) core   0: 0x000000008000007a (0xf8a30313) addi    t1, t1, -118
+(spike) core   0: 0x000000008000007e (0x00c35313) srli    t1, t1, 12
+(spike) core   0: 0x0000000080000082 (0x0000032a) c.slli  t1, 10
+(spike) core   0: 0x0000000080000084 (0x0eb36313) ori     t1, t1, 235
+(spike) core   0: 0x0000000080000088 (0x0062b823) sd      t1, 16(t0)
+(spike) core   0: 0x000000008000008c (0x00004297) auipc   t0, 0x4
+(spike) core   0: 0x0000000080000090 (0xf7428293) addi    t0, t0, -140
+(spike) core   0: 0x0000000080000094 (0x00c2d293) srli    t0, t0, 12
+(spike) core   0: 0x0000000080000098 (0x00004321) c.li    t1, 8
+(spike) core   0: 0x000000008000009a (0x00001372) c.slli  t1, 60
+(spike) core   0: 0x000000008000009c (0x0062e2b3) or      t0, t0, t1
+(spike) core   0: 0x00000000800000a0 (0x18029073) csrw    satp, t0
+(spike) core   0: 0x00000000800000a4 (0x12000073) sfence.vma zero, zero
+(spike) core   0: 0x00000000800000a8 (0x00006285) c.lui   t0, 0x1
+(spike) core   0: 0x00000000800000aa (0x8002829b) addiw   t0, t0, -2048
+(spike) core   0: 0x00000000800000ae (0x3002a073) csrs    mstatus, t0
+(spike) core   0: 0x00000000800000b2 (0x00000297) auipc   t0, 0x0
+(spike) core   0: 0x00000000800000b6 (0x01228293) addi    t0, t0, 18
+(spike) core   0: 0x00000000800000ba (0x34129073) csrw    mepc, t0
+(spike) core   0: 0x00000000800000be (0x30200073) mret
+(spike) core   0: >>>>  s_mode_start
+core   0: 0x00000000800000c4 (0x400014b7) lui     s1, 0x40001
+(spike) core   0: 0x00000000800000c8 (0x000480e7) jalr    s1
+(spike) core   0: 0x0000000040001000 (0x00005297) auipc   t0, 0x5
+(spike) core   0: 0x0000000040001004 (0x00028293) mv      t0, t0
+(spike) core   0: 0x0000000040001008 (0x00002317) auipc   t1, 0x2
+(spike) core   0: 0x000000004000100c (0xff830313) addi    t1, t1, -8
+(spike) core   0: 0x0000000040001010 (0x00c35313) srli    t1, t1, 12
+(spike) core   0: 0x0000000040001014 (0x00a31313) slli    t1, t1, 10
+(spike) core   0: 0x0000000040001018 (0x0eb36313) ori     t1, t1, 235
+(spike) core   0: 0x000000004000101c (0x0062b823) sd      t1, 16(t0)
+core   0: exception trap_store_page_fault, epc 0x000000004000101c
+core   0:           tval 0x0000000040006010
+(spike) core   0: >>>>  trap_handler
+core   0: 0x00000000800000fc (0x00004295) c.li    t0, 5
+(spike) core   0: 0x00000000800000fe (0x00007317) auipc   t1, 0x7
+(spike) core   0: 0x0000000080000102 (0xf0230313) addi    t1, t1, -254
+(spike) core   0: 0x0000000080000106 (0x00532023) sw      t0, 0(t1)
+*** FAILED *** (tohost = 2)

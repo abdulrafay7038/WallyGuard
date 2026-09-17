@@ -1,0 +1,4 @@
+Running Positive Control (sfence.vma)
+Running Negative Control (sfence.inval.ir non-global)
+Running Bug Reproducer (sfence.inval.ir global)
+Bug NOT reproduced. The reproducer passed cleanly.

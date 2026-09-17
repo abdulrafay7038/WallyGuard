@@ -1,0 +1,34 @@
+MMUDBG_LD time=420 PA=00000080002000 EffPriv=11 PMPLoad=0 PMPStore=0 LoadFault=0 TLBMiss=0 EnforcePMP=0
+MMUDBG_LD time=430 PA=00000080002000 EffPriv=11 PMPLoad=0 PMPStore=0 LoadFault=0 TLBMiss=0 EnforcePMP=0
+MMUDBG_LD time=440 PA=00000080002000 EffPriv=11 PMPLoad=0 PMPStore=0 LoadFault=0 TLBMiss=0 EnforcePMP=0
+MMUDBG_LD time=450 PA=00000080002000 EffPriv=11 PMPLoad=0 PMPStore=0 LoadFault=0 TLBMiss=0 EnforcePMP=0
+MMUDBG_LD time=460 PA=00000080002000 EffPriv=11 PMPLoad=0 PMPStore=0 LoadFault=0 TLBMiss=0 EnforcePMP=0
+MMUDBG_LD time=470 PA=00000080002000 EffPriv=11 PMPLoad=0 PMPStore=0 LoadFault=0 TLBMiss=0 EnforcePMP=0
+MMUDBG_LD time=480 PA=00000080002000 EffPriv=11 PMPLoad=0 PMPStore=0 LoadFault=0 TLBMiss=0 EnforcePMP=0
+MMUDBG_LD time=490 PA=00000080002000 EffPriv=11 PMPLoad=0 PMPStore=0 LoadFault=0 TLBMiss=0 EnforcePMP=0
+MMUDBG_LD time=500 PA=00000080002000 EffPriv=11 PMPLoad=0 PMPStore=0 LoadFault=0 TLBMiss=0 EnforcePMP=0
+MMUDBG_LD time=510 PA=00000080002000 EffPriv=11 PMPLoad=0 PMPStore=0 LoadFault=0 TLBMiss=0 EnforcePMP=0
+MMUDBG_LD time=520 PA=00000080002000 EffPriv=11 PMPLoad=0 PMPStore=0 LoadFault=0 TLBMiss=0 EnforcePMP=0
+MMUDBG_LD time=560 PA=00000080002008 EffPriv=11 PMPLoad=0 PMPStore=0 LoadFault=0 TLBMiss=0 EnforcePMP=0
+MMUDBG_LD time=600 PA=00000080002010 EffPriv=11 PMPLoad=0 PMPStore=0 LoadFault=0 TLBMiss=0 EnforcePMP=0
+MMUDBG_LD time=640 PA=00000080002018 EffPriv=11 PMPLoad=0 PMPStore=0 LoadFault=0 TLBMiss=0 EnforcePMP=0
+MMUDBG_LD time=790 PA=00000080002020 EffPriv=11 PMPLoad=0 PMPStore=0 LoadFault=0 TLBMiss=0 EnforcePMP=0
+MMUDBG_LD time=830 PA=00000080002028 EffPriv=11 PMPLoad=0 PMPStore=0 LoadFault=0 TLBMiss=0 EnforcePMP=0
+MMUDBG_LD time=870 PA=00000080002030 EffPriv=11 PMPLoad=0 PMPStore=0 LoadFault=0 TLBMiss=0 EnforcePMP=0
+MMUDBG_LD time=910 PA=00000080002038 EffPriv=11 PMPLoad=0 PMPStore=0 LoadFault=0 TLBMiss=0 EnforcePMP=0
+MMUDBG_LD time=950 PA=00000080002040 EffPriv=11 PMPLoad=0 PMPStore=0 LoadFault=0 TLBMiss=0 EnforcePMP=0
+MMUDBG_LD time=960 PA=00000080002040 EffPriv=11 PMPLoad=0 PMPStore=0 LoadFault=0 TLBMiss=0 EnforcePMP=0
+MMUDBG_LD time=970 PA=00000080002040 EffPriv=11 PMPLoad=0 PMPStore=0 LoadFault=0 TLBMiss=0 EnforcePMP=0
+MMUDBG_LD time=980 PA=00000080002040 EffPriv=11 PMPLoad=0 PMPStore=0 LoadFault=0 TLBMiss=0 EnforcePMP=0
+MMUDBG_LD time=990 PA=00000080002040 EffPriv=11 PMPLoad=0 PMPStore=0 LoadFault=0 TLBMiss=0 EnforcePMP=0
+MMUDBG_LD time=1000 PA=00000080002040 EffPriv=11 PMPLoad=0 PMPStore=0 LoadFault=0 TLBMiss=0 EnforcePMP=0
+MMUDBG_LD time=1010 PA=00000080002040 EffPriv=11 PMPLoad=0 PMPStore=0 LoadFault=0 TLBMiss=0 EnforcePMP=0
+MMUDBG_LD time=1020 PA=00000080002040 EffPriv=11 PMPLoad=0 PMPStore=0 LoadFault=0 TLBMiss=0 EnforcePMP=0
+MMUDBG_LD time=1030 PA=00000080002040 EffPriv=11 PMPLoad=0 PMPStore=0 LoadFault=0 TLBMiss=0 EnforcePMP=0
+MMUDBG_LD time=1040 PA=00000080002040 EffPriv=11 PMPLoad=0 PMPStore=0 LoadFault=0 TLBMiss=0 EnforcePMP=0
+MMUDBG_LD time=1050 PA=00000080002040 EffPriv=11 PMPLoad=0 PMPStore=0 LoadFault=0 TLBMiss=0 EnforcePMP=0
+Single Elf file tests are not signatured verified.
+- /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/testbench.sv:532: Verilog $finish
+- S i m u l a t i o n   R e p o r t: Verilator 5.036 2025-04-27
+- Verilator: $finish at 2ns; walltime 0.249 s; speed 43.605 ns/s
+- Verilator: cpu 0.036 s on 1 threads; alloced 346 MB

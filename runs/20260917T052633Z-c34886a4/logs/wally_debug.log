@@ -1,0 +1,16 @@
+PMPDBG time=820 PA=00000080001010 EndAddr=00000080001017 Size=3 FirstMatch=0000 EndFirstMatch=0000 EnforcePMP=0 Match=0000 EndMatch=0000 PMPLoad=0 PMPStore=0 PMPBoundary=0 Read=1 Write=0
+PMPDBG time=830 PA=00000080001010 EndAddr=00000080001017 Size=3 FirstMatch=0000 EndFirstMatch=0000 EnforcePMP=0 Match=0000 EndMatch=0000 PMPLoad=0 PMPStore=0 PMPBoundary=0 Read=1 Write=0
+PMPDBG time=840 PA=00000080001010 EndAddr=00000080001017 Size=3 FirstMatch=0000 EndFirstMatch=0000 EnforcePMP=0 Match=0000 EndMatch=0000 PMPLoad=0 PMPStore=0 PMPBoundary=0 Read=1 Write=0
+PMPDBG time=850 PA=00000080001010 EndAddr=00000080001017 Size=3 FirstMatch=0000 EndFirstMatch=0000 EnforcePMP=0 Match=0000 EndMatch=0000 PMPLoad=0 PMPStore=0 PMPBoundary=0 Read=1 Write=0
+PMPDBG time=860 PA=00000080001010 EndAddr=00000080001017 Size=3 FirstMatch=0000 EndFirstMatch=0000 EnforcePMP=0 Match=0000 EndMatch=0000 PMPLoad=0 PMPStore=0 PMPBoundary=0 Read=1 Write=0
+PMPDBG time=870 PA=00000080001010 EndAddr=00000080001017 Size=3 FirstMatch=0000 EndFirstMatch=0000 EnforcePMP=0 Match=0000 EndMatch=0000 PMPLoad=0 PMPStore=0 PMPBoundary=0 Read=1 Write=0
+PMPDBG time=880 PA=00000080001010 EndAddr=00000080001017 Size=3 FirstMatch=0000 EndFirstMatch=0000 EnforcePMP=0 Match=0000 EndMatch=0000 PMPLoad=0 PMPStore=0 PMPBoundary=0 Read=1 Write=0
+PMPDBG time=890 PA=00000080001010 EndAddr=00000080001017 Size=3 FirstMatch=0000 EndFirstMatch=0000 EnforcePMP=0 Match=0000 EndMatch=0000 PMPLoad=0 PMPStore=0 PMPBoundary=0 Read=1 Write=0
+PMPDBG time=900 PA=00000080001010 EndAddr=00000080001017 Size=3 FirstMatch=0000 EndFirstMatch=0000 EnforcePMP=0 Match=0000 EndMatch=0000 PMPLoad=0 PMPStore=0 PMPBoundary=0 Read=1 Write=0
+PMPDBG time=910 PA=00000080001010 EndAddr=00000080001017 Size=3 FirstMatch=0000 EndFirstMatch=0000 EnforcePMP=0 Match=0000 EndMatch=0000 PMPLoad=0 PMPStore=0 PMPBoundary=0 Read=1 Write=0
+PMPDBG time=920 PA=00000080001010 EndAddr=00000080001017 Size=3 FirstMatch=0000 EndFirstMatch=0000 EnforcePMP=0 Match=0000 EndMatch=0000 PMPLoad=0 PMPStore=0 PMPBoundary=0 Read=1 Write=0
+FAILURE: Watch Dog Time Out triggered. Instruction at PC 0000000000000000 trapped         100 times in a row; the core is livelocked in a recursive trap
+- /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/watchdog.sv:86: Verilog $finish
+- S i m u l a t i o n   R e p o r t: Verilator 5.036 2025-04-27
+- Verilator: $finish at 5ns; walltime 0.061 s; speed 100.255 ns/s
+- Verilator: cpu 0.051 s on 1 threads; alloced 346 MB

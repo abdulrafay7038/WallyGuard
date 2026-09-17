@@ -1,0 +1,94 @@
+diff --git a/src/mmu/pmpchecker.sv b/src/mmu/pmpchecker.sv
+index 4d14c9675..04446e4c2 100644
+--- a/src/mmu/pmpchecker.sv
++++ b/src/mmu/pmpchecker.sv
+@@ -18,14 +18,14 @@
+ //
+ // SPDX-License-Identifier: Apache-2.0 WITH SHL-2.1
+ //
+-// Licensed under the Solderpad Hardware License v 2.1 (the “License”); you may not use this file
++// Licensed under the Solderpad Hardware License v 2.1 (the "License"); you may not use this file
+ // except in compliance with the License, or, at your option, the Apache License version 2.0. You
+ // may obtain a copy of the License at
+ //
+ // https://solderpad.org/licenses/SHL-2.1/
+ //
+ // Unless required by applicable law or agreed to in writing, any work distributed under the
+-// License is distributed on an “AS IS” BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
++// License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ // either express or implied. See the License for the specific language governing permissions
+ // and limitations under the License.
+ ////////////////////////////////////////////////////////////////////////////////////////////////
+@@ -60,6 +60,18 @@ module pmpchecker import cvw::*;  #(parameter cvw_t P) (
+   logic [2:0]                      SizeBytesMinus1;
+   logic                            MatchingR, MatchingW, MatchingX, MatchingL;
+ 
++  // End-of-access address for multi-byte access PMP boundary crossing check
++  logic [P.PA_BITS-1:0]            PhysicalAddressEnd;
++  logic [P.PMP_ENTRIES-1:0]        MatchEnd, FirstMatchEnd;
++  logic [P.PMP_ENTRIES-1:0]        LEnd, XEnd, WEnd, REnd;
++  logic [P.PMP_ENTRIES-1:0]        PAgePMPAdrEnd;
++  logic                            MatchingREnd, MatchingWEnd, MatchingXEnd, MatchingLEnd;
++  logic                            EnforcePMPEnd;
++
++  // Compute SizeBytesMinus1 = (1 << Size) - 1: 0 for byte, 1 for half, 3 for word, 7 for dword
++  assign SizeBytesMinus1 = (3'b111 >> (3'b011 - {1'b0, Size}));
++  assign PhysicalAddressEnd = PhysicalAddress + {{(P.PA_BITS-3){1'b0}}, SizeBytesMinus1};
++
+ 
+   if (P.PMP_ENTRIES > 0) begin: pmp // prevent complaints about array of no elements when PMP_ENTRIES = 0
+     pmpadrdec #(P) pmpadrdecs[P.PMP_ENTRIES-1:0](
+@@ -71,9 +83,21 @@ module pmpchecker import cvw::*;  #(parameter cvw_t P) (
+       .PAgePMPAdrIn({PAgePMPAdr[P.PMP_ENTRIES-2:0], 1'b1}),
+       .PAgePMPAdrOut(PAgePMPAdr),
+       .Match, .L, .X, .W, .R);
++
++    // Second set of PMP decoders for end-of-access address to detect boundary crossing
++    pmpadrdec #(P) pmpadrdecsEnd[P.PMP_ENTRIES-1:0](
++      .PhysicalAddress(PhysicalAddressEnd),
++      .Size,
++      .PMPCfg(PMPCFG_ARRAY_REGW),
++      .PMPAdr(PMPADDR_ARRAY_REGW),
++      .FirstMatch(FirstMatchEnd),
++      .PAgePMPAdrIn({PAgePMPAdrEnd[P.PMP_ENTRIES-2:0], 1'b1}),
++      .PAgePMPAdrOut(PAgePMPAdrEnd),
++      .Match(MatchEnd), .L(LEnd), .X(XEnd), .W(WEnd), .R(REnd));
+   end
+ 
+   priorityonehot #(P.PMP_ENTRIES) pmppriority(.a(Match), .y(FirstMatch)); // combine the match signal from all the address decoders to find the first one that matches.
++  priorityonehot #(P.PMP_ENTRIES) pmppriorityEnd(.a(MatchEnd), .y(FirstMatchEnd)); // same for end-of-access address.
+ 
+   // Distributed AND-OR mux to select the first matching results
+   assign MatchingR = |(R & FirstMatch);
+@@ -81,14 +105,27 @@ module pmpchecker import cvw::*;  #(parameter cvw_t P) (
+   assign MatchingX = |(X & FirstMatch);
+   assign MatchingL = |(L & FirstMatch);
+ 
++  // Same for end-of-access address
++  assign MatchingREnd = |(REnd & FirstMatchEnd);
++  assign MatchingWEnd = |(WEnd & FirstMatchEnd);
++  assign MatchingXEnd = |(XEnd & FirstMatchEnd);
++  assign MatchingLEnd = |(LEnd & FirstMatchEnd);
++
+   // Only enforce PMP checking for effective S and U modes (accounting for mstatus.MPRV) or in Machine mode when L bit is set in selected region
+-  assign EnforcePMP = (EffectivePrivilegeModeW != P.M_MODE) | MatchingL;
++  assign EnforcePMP    = (EffectivePrivilegeModeW != P.M_MODE) | MatchingL;
++  assign EnforcePMPEnd = (EffectivePrivilegeModeW != P.M_MODE) | MatchingLEnd;
+ 
+   assign PMPCBOMAccessFault     = EnforcePMP & (|CMOpM[2:0]) & ~MatchingR ; // checking R is sufficient because W implies R in PMP  // exclusion-tag: immu-pmpcbom
+   assign PMPCBOZAccessFault     = EnforcePMP & CMOpM[3] & ~MatchingW ;          // exclusion-tag: immu-pmpcboz
+   assign PMPCMOAccessFault      = PMPCBOZAccessFault | PMPCBOMAccessFault;              // exclusion-tag: immu-pmpcboaccess
+ 
+-  assign PMPInstrAccessFaultF     = EnforcePMP & ExecuteAccessF & ~MatchingX ;
+-  assign PMPStoreAmoAccessFaultM  = (EnforcePMP & WriteAccessM & ~MatchingW)  | PMPCMOAccessFault; // exclusion-tag: immu-pmpstoreamoaccessfault
+-  assign PMPLoadAccessFaultM      = EnforcePMP & ReadAccessM & ~WriteAccessM & ~MatchingR;
++  // Access faults: check both start and end of access range. If either is not permitted, fault.
++  // This ensures multi-byte accesses that cross PMP region boundaries are correctly flagged.
++  assign PMPInstrAccessFaultF     = (EnforcePMP & ExecuteAccessF & ~MatchingX) |
++                                    (EnforcePMPEnd & ExecuteAccessF & ~MatchingXEnd);
++  assign PMPStoreAmoAccessFaultM  = (EnforcePMP & WriteAccessM & ~MatchingW) |
++                                    (EnforcePMPEnd & WriteAccessM & ~MatchingWEnd) |
++                                    PMPCMOAccessFault; // exclusion-tag: immu-pmpstoreamoaccessfault
++  assign PMPLoadAccessFaultM      = (EnforcePMP & ReadAccessM & ~WriteAccessM & ~MatchingR) |
++                                    (EnforcePMPEnd & ReadAccessM & ~WriteAccessM & ~MatchingREnd);
+  endmodule
