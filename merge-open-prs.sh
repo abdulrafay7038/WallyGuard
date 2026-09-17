@@ -42,23 +42,59 @@ for state in MERGE_HEAD CHERRY_PICK_HEAD REVERT_HEAD rebase-merge rebase-apply; 
         exit 1
     fi
 done
-command -v gh >/dev/null || { echo 'ERROR: install GitHub CLI and run gh auth login.' >&2; exit 1; }
+# Prefer gh; public PR metadata also works without a GitHub account.
+if command -v gh >/dev/null && pr_numbers=$(gh pr list --repo openhwgroup/cvw --state open --limit 100 --json number --jq '.[].number'); then
+    mapfile -t listed < <(printf '%s\n' "$pr_numbers" | sed '/^$/d')
+    if (( ${#listed[@]} >= 100 )); then
+        use_public_api=1
+    else
+        use_public_api=0
+    fi
+else
+    use_public_api=1
+fi
+if (( use_public_api )); then
+    echo 'Listing public PRs through the GitHub API (no authentication required).'
+    pr_numbers=$(python3 - <<'PY'
+import json
+import urllib.request
+
+page = 1
+numbers = set()
+while True:
+    url = f'https://api.github.com/repos/openhwgroup/cvw/pulls?state=open&per_page=100&page={page}'
+    request = urllib.request.Request(url, headers={'Accept': 'application/vnd.github+json', 'User-Agent': 'WallyGuard-merge-open-prs'})
+    with urllib.request.urlopen(request, timeout=60) as response:
+        pulls = json.load(response)
+    for pull in pulls:
+        numbers.add(int(pull['number']))
+    if len(pulls) < 100:
+        break
+    page += 1
+for number in sorted(numbers, reverse=True):
+    print(number)
+PY
+    )
+fi
 git fetch origin
 git checkout main
 git merge --ff-only origin/main
 backup="before-open-prs-$(date -u +%Y%m%d-%H%M%S)"
 git tag "$backup"
 
-pr_numbers=$(gh pr list --repo openhwgroup/cvw --state open --limit 100 --json number --jq '.[].number')
-# Refuse to silently omit PRs if the requested limit was reached.
 mapfile -t prs < <(printf '%s\n' "$pr_numbers" | sed '/^$/d')
-if (( ${#prs[@]} >= 100 )); then
-    echo 'ERROR: PR list reached its 100-item limit; completeness cannot be guaranteed.' >&2
-    exit 1
-fi
 for pr in "${prs[@]}"; do
     [[ "$pr" =~ ^[0-9]+$ ]] || { echo 'ERROR: invalid PR number.' >&2; exit 1; }
-    git fetch origin "pull/$pr/head:wallyguard-pr-$pr"
+    if ! git fetch origin "pull/$pr/head:wallyguard-pr-$pr"; then
+        # A PR author may rebase/force-push. Preserve the previous local
+        # branch before refreshing it; never rewrite main or discard commits.
+        git fetch origin "pull/$pr/head"
+        previous=$(git rev-parse --verify "refs/heads/wallyguard-pr-$pr")
+        saved="${backup}-pr-${pr}-${previous:0:12}"
+        git tag "$saved" "$previous"
+        git branch -f "wallyguard-pr-$pr" FETCH_HEAD
+        printf 'Preserved previous PR #%s head as %s\n' "$pr" "$saved"
+    fi
     if ! git merge --no-ff --no-edit "wallyguard-pr-$pr"; then
         printf 'STOPPED: merge failed for PR #%s. Conflicting files:\n' "$pr" >&2
         git diff --name-only --diff-filter=U

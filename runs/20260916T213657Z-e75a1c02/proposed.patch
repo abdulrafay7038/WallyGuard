@@ -1,0 +1,336 @@
+diff --git a/setup.sh b/setup.sh
+index b23862ec9..a96bd3468 100644
+--- a/setup.sh
++++ b/setup.sh
+@@ -1,59 +1,277 @@
+-# setup.sh
+-# David_Harris@hmc.edu and kekim@hmc.edu 1 December 2021
+-# jcarlin@hmc.edu 2025
+-# Set up tools for cvw
+-
+-# optionally have .bashrc or .bash_profile source this file with
+-#if [ -f ~/cvw/setup.sh ]; then
+-#    source ~/cvw/setup.sh
+-#fi
+-
+-# SPDX-License-Identifier: Apache-2.0 WITH SHL-2.1
+-
+-# Colors for terminal output
+-WARNING_COLOR='\033[93m'
+-FAIL_COLOR='\033[91m'
+-ENDC='\033[0m' # Reset to default color
+-
+-echo "Executing Wally setup.sh"
+-
+-# Path to RISC-V Tools
+-if [ -d ~/riscv ]; then
+-    export RISCV=~/riscv
+-elif [ -d /opt/riscv ]; then
+-    export RISCV=/opt/riscv
+-else
+-    # set the $RISCV directory here and remove the subsequent two lines
+-    # export RISCV=
+-    echo -e "${FAIL_COLOR}\$RISCV directory not found. Checked /opt/riscv and ~/riscv. Edit setup.sh to point to your custom \$RISCV directory.${ENDC}"
+-    return 1
++#!/bin/bash
++set -e
++export WALLY=/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared
++export TEST_DIR=/home/rafay/miniconda3/WallyGuard2/runs/20260916T213657Z-e75a1c02
++
++mkdir -p $TEST_DIR/tests $TEST_DIR/build $TEST_DIR/logs
++
++# test_zacas_rd1_hazard.S
++cat << 'TESTEOF' > $TEST_DIR/tests/test_zacas_rd1_hazard.S
++.section .text.init
++.globl rvtest_entry_point
++rvtest_entry_point:
++    # Initialize PMP to allow all accesses
++    li t0, -1
++    csrw pmpaddr0, t0
++    li t0, 0x1F
++    csrw pmpcfg0, t0
++
++    # Load address of test_val into a0
++    la a0, test_val
++
++    # Set up registers: compare value in a2:a3
++    li a2, 42
++    li a3, 100
++    # Swap value in a4:a5
++    li a4, 99
++    li a5, 999
++
++    nop
++    nop
++    nop
++
++    # Memory holds {42, 777}. Compare value {42, 100} mismatches.
++    # amocas.q loads memory {42, 777} into register pair a2:a3 (a2=42, a3=777).
++    amocas.q a2, a4, (a0)
++
++    # Immediately consume a3 (rd+1) with 0 NOP distance
++    addi a6, a3, 0
++
++    # Check result
++    li t1, 777
++    beq a6, t1, pass
++
++fail:
++    csrw mtvec, x0
++    jr x0
++
++pass:
++    la t0, tohost
++    li t1, 1
++    sd t1, 0(t0)
++    .option norvc
++1:  j 1b
++
++.section .data
++.align 4
++test_val:
++    .dword 42
++    .dword 777
++
++.section .tohost, "aw", @progbits
++.align 6
++.globl tohost
++tohost: .dword 0
++.globl fromhost
++fromhost: .dword 0
++TESTEOF
++
++# test_zacas_rd1_control.S
++cat << 'TESTEOF' > $TEST_DIR/tests/test_zacas_rd1_control.S
++.section .text.init
++.globl rvtest_entry_point
++rvtest_entry_point:
++    # Initialize PMP to allow all accesses
++    li t0, -1
++    csrw pmpaddr0, t0
++    li t0, 0x1F
++    csrw pmpcfg0, t0
++
++    # Load address of test_val into a0
++    la a0, test_val
++
++    # Set up registers: compare value in a2:a3
++    li a2, 42
++    li a3, 100
++    # Swap value in a4:a5
++    li a4, 99
++    li a5, 999
++
++    nop
++    nop
++    nop
++
++    # Memory holds {42, 777}. Compare value {42, 100} mismatches.
++    # amocas.q loads memory {42, 777} into register pair a2:a3 (a2=42, a3=777).
++    amocas.q a2, a4, (a0)
++
++    # Allow amocas.q to commit to regfile
++    nop
++    nop
++    nop
++
++    # Consume a3 (rd+1)
++    addi a6, a3, 0
++
++    # Check result
++    li t1, 777
++    beq a6, t1, pass
++
++fail:
++    csrw mtvec, x0
++    jr x0
++
++pass:
++    la t0, tohost
++    li t1, 1
++    sd t1, 0(t0)
++    .option norvc
++1:  j 1b
++
++.section .data
++.align 4
++test_val:
++    .dword 42
++    .dword 777
++
++.section .tohost, "aw", @progbits
++.align 6
++.globl tohost
++tohost: .dword 0
++.globl fromhost
++fromhost: .dword 0
++TESTEOF
++
++# test_zacas_rd0_hazard.S
++cat << 'TESTEOF' > $TEST_DIR/tests/test_zacas_rd0_hazard.S
++.section .text.init
++.globl rvtest_entry_point
++rvtest_entry_point:
++    # Initialize PMP to allow all accesses
++    li t0, -1
++    csrw pmpaddr0, t0
++    li t0, 0x1F
++    csrw pmpcfg0, t0
++
++    # Load address of test_val into a0
++    la a0, test_val
++
++    # Set up registers: compare value in a2:a3
++    li a2, 42
++    li a3, 100
++    # Swap value in a4:a5
++    li a4, 99
++    li a5, 999
++
++    nop
++    nop
++    nop
++
++    # Memory holds {42, 777}. Compare value {42, 100} mismatches.
++    # amocas.q loads memory {42, 777} into register pair a2:a3 (a2=42, a3=777).
++    amocas.q a2, a4, (a0)
++
++    # Immediately consume a2 (rd) with 0 NOP distance
++    addi a6, a2, 0
++
++    # Check result
++    li t1, 42
++    beq a6, t1, pass
++
++fail:
++    csrw mtvec, x0
++    jr x0
++
++pass:
++    la t0, tohost
++    li t1, 1
++    sd t1, 0(t0)
++    .option norvc
++1:  j 1b
++
++.section .data
++.align 4
++test_val:
++    .dword 42
++    .dword 777
++
++.section .tohost, "aw", @progbits
++.align 6
++.globl tohost
++tohost: .dword 0
++.globl fromhost
++fromhost: .dword 0
++TESTEOF
++
++# Create reproducer.sh
++cat << 'REPEOF' > $TEST_DIR/reproducer.sh
++#!/bin/bash
++# Reproducer for missing amocas data hazard detection for rd+1
++
++export WALLY=/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared
++export TEST_DIR=/home/rafay/miniconda3/WallyGuard2/runs/20260916T213657Z-e75a1c02
++export GCC=/home/rafay/riscv/bin/riscv64-unknown-elf-gcc
++export SPIKE=/home/rafay/riscv/bin/spike
++export VTB=\$WALLY/sim/verilator/wkdir/rv64gc_testbench/Vtestbench
++export CFLAGS="-march=rv64gc_zacas -mabi=lp64d -nostdlib -nostartfiles -T \$WALLY/tests/riscof/spike/env/link.ld"
++
++mkdir -p \$TEST_DIR/build \$TEST_DIR/logs
++
++echo "Building tests..."
++\$GCC \$CFLAGS \$TEST_DIR/tests/test_zacas_rd1_hazard.S -o \$TEST_DIR/build/test_zacas_rd1_hazard.elf || exit 2
++\$GCC \$CFLAGS \$TEST_DIR/tests/test_zacas_rd1_control.S -o \$TEST_DIR/build/test_zacas_rd1_control.elf || exit 2
++\$GCC \$CFLAGS \$TEST_DIR/tests/test_zacas_rd0_hazard.S -o \$TEST_DIR/build/test_zacas_rd0_hazard.elf || exit 2
++
++echo "Running Spike oracle..."
++timeout 5s \$SPIKE --isa=rv64gc_zacas \$TEST_DIR/build/test_zacas_rd1_hazard.elf || exit 2
++timeout 5s \$SPIKE --isa=rv64gc_zacas \$TEST_DIR/build/test_zacas_rd1_control.elf || exit 2
++timeout 5s \$SPIKE --isa=rv64gc_zacas \$TEST_DIR/build/test_zacas_rd0_hazard.elf || exit 2
++
++echo "Running Wally DUT controls..."
++\$VTB +ElfFile=\$TEST_DIR/build/test_zacas_rd1_control.elf > \$TEST_DIR/logs/rd1_control.log 2>&1
++if [ \$? -ne 0 ]; then
++    echo "Control test failed on DUT!"
++    cat \$TEST_DIR/logs/rd1_control.log
++    exit 2
+ fi
+-echo \$RISCV set to "${RISCV}"
+-
+-# Path to Wally repository
+-WALLY=$(dirname "${BASH_SOURCE[0]:-$0}")
+-WALLY=$(cd "$WALLY" && pwd)
+-export WALLY
+-echo \$WALLY set to "${WALLY}"
+-# utility functions in Wally repository
+-export PATH=$WALLY/bin:$PATH
+-
+-# Verilator needs a larger core file size to simulate CORE-V Wally
+-ulimit -c 300000
+-
+-# load site licenses and tool locations
+-if [ -e "${RISCV}"/site-setup.sh ]; then
+-    source "${RISCV}"/site-setup.sh
+-else
+-    echo -e "${FAIL_COLOR}site-setup.sh not found in \$RISCV directory. Rerun wally-toolchain-install.sh to automatically download it.${ENDC}"
+-    return 1
++
++\$VTB +ElfFile=\$TEST_DIR/build/test_zacas_rd0_hazard.elf > \$TEST_DIR/logs/rd0_hazard.log 2>&1
++if [ \$? -ne 0 ]; then
++    echo "rd0 hazard test failed on DUT!"
++    cat \$TEST_DIR/logs/rd0_hazard.log
++    exit 2
+ fi
+ 
+-if [ ! -e "${WALLY}/.git/hooks/pre-commit" ]; then
+-    pushd "${WALLY}" || return 1
+-    echo "Installing pre-commit hooks"
+-    uv run pre-commit install
+-    popd || return
++echo "Running Wally DUT reproducer..."
++set +e
++\$VTB +ElfFile=\$TEST_DIR/build/test_zacas_rd1_hazard.elf > \$TEST_DIR/logs/rd1_hazard.log 2>&1
++RV=\$?
++set -e
++
++cat \$TEST_DIR/logs/rd1_hazard.log
++
++if [ \$RV -eq 134 ] || grep -q "Assertion failed" \$TEST_DIR/logs/rd1_hazard.log || grep -q "Watch Dog Time Out" \$TEST_DIR/logs/rd1_hazard.log; then
++    echo "Mismatch confirmed. Wally DUT failed as expected on the rd1 hazard test."
++    exit 1
++elif [ \$RV -eq 0 ]; then
++    echo "Test passed on Wally DUT. No mismatch found."
++    exit 0
++else
++    echo "Unknown error occurred on Wally DUT."
++    exit 2
+ fi
++REPEOF
++
++chmod +x $TEST_DIR/reproducer.sh
++
++cat << 'READMEEOF' > $TEST_DIR/README.md
++# Wally Zacas rd+1 Data Hazard Bug Reproducer
++
++## Description
++This directory contains a deterministic reproducer for a data hazard detection and forwarding bug in Wally's Zacas implementation. Specifically, for the `amocas.q` and `amocas.d` instructions, the pipeline hazard detection logic fails to track `rd+1` (the high half of the destination register pair). If an instruction immediately consumes `rd+1` after `amocas`, the pipeline does not stall, no forwarding occurs, and the consuming instruction reads stale data from the register file.
++
++## Expected Behavior (Spike Oracle)
++The Spike simulator correctly resolves the hazard and passes the test.
++
++## Observed Behavior (Wally DUT)
++The Wally DUT executes with the stale `rd+1` value, computing an incorrect result, branching to the failure handler (`csrw mtvec, x0; jr x0`), and triggering a Watch Dog Time Out / testbench assertion (exit code 134).
++
++## Files
++- `tests/test_zacas_rd1_hazard.S`: Tests back-to-back dependency on `rd+1` (fails on DUT).
++- `tests/test_zacas_rd1_control.S`: Same test but with 3 NOPs to flush the pipeline (passes on DUT).
++- `tests/test_zacas_rd0_hazard.S`: Tests back-to-back dependency on `rd` (passes on DUT, confirming the bug is isolated to `rd+1`).
++
++## Execution
++Run `./reproducer.sh` to compile, test against the Spike oracle, and reproduce the failure on the Wally DUT. The script exits with 1 on a confirmed mismatch.
++READMEEOF
+ 
+-echo "setup done"

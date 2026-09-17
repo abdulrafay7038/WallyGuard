@@ -34,6 +34,7 @@ MAX_TEST_REPAIRS = 2
 AGENT_RECOVERY_RETRIES = 2
 RUN_REGRESSION = os.environ.get("WALLY_RUN_REGRESSION", "0").lower() in {"1", "true", "yes"}
 REGRESSION_TIMEOUT = 5400
+REPRODUCER_TIMEOUT = 900  # 15 minutes
 AGENT_TIMEOUT = 14400  # Allows several long tool calls per investigation.
 RATE_LIMIT_RETRIES = 4  # Extra calls after the first rate-limited call.
 RATE_LIMIT_BASE_DELAY = 30
@@ -388,6 +389,7 @@ def make_worktree(wally_path: str, tag: str) -> dict:
     state_path = scratch.parent / "wally-shared.json"
     with (scratch.parent / "wally-shared.lock").open("a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
+        source_head = git(str(base), "rev-parse", "HEAD").strip()
         if state_path.exists():
             state = json.loads(state_path.read_text(encoding="utf-8"))
             if state["source"] != str(base) or not (scratch / ".git").is_file():
@@ -397,6 +399,15 @@ def make_worktree(wally_path: str, tag: str) -> dict:
                 raise WorkspaceUnavailableError(f"Previous attempt is active or unarchived: {previous}")
             if json.loads(previous.read_text()).get("workspace_recovery_required"):
                 raise WorkspaceUnavailableError(f"Previous archive needs repair; see archive_errors in {previous}")
+            # Older state files used a private snapshot whose parent was the
+            # source HEAD. Never silently reuse it after cvw has advanced.
+            saved_head = state.get("source_head") or git(
+                str(scratch), "rev-parse", state["base_commit"] + "^").strip()
+            if saved_head != source_head:
+                raise WorkspaceUnavailableError(
+                    f"cvw HEAD changed from {saved_head} to {source_head}; "
+                    "preserve the archived workspace and reseed it before continuing")
+            state["source_head"] = saved_head
             # Only this managed copy is reset. Keep ignored/untracked build data.
             git(str(scratch), "reset", "--hard", state["base_commit"])
             git(str(scratch), "clean", "-fdx", "--", "src/")
@@ -408,7 +419,7 @@ def make_worktree(wally_path: str, tag: str) -> dict:
                 # The path was checked absent above. --force permits replacing
                 # its stale Git registration after manual directory deletion;
                 # a locked registration still requires separate intervention.
-                git(str(base), "worktree", "add", "--force", "--detach", "--no-checkout", str(scratch), "HEAD")
+                git(str(base), "worktree", "add", "--force", "--detach", "--no-checkout", str(scratch), source_head)
             except subprocess.CalledProcessError as exc:
                 raise WorkspaceUnavailableError(f"Cannot create shared worktree: {exc.stderr.strip()}") from exc
             git(str(scratch), "reset", "--mixed", "HEAD")
@@ -421,11 +432,17 @@ def make_worktree(wally_path: str, tag: str) -> dict:
             git(str(scratch), "add", "-u")
             git(str(scratch), "add", "-f", "--", "src/")
             tree = git(str(scratch), "write-tree").strip()
-            baseline = git(str(scratch), "-c", "user.name=WallyGuard", "-c",
-                           "user.email=wallyguard@localhost", "commit-tree", tree,
-                           "-p", "HEAD", "-m", "Initial local cvw snapshot for shared workspace").strip()
+            if git(str(base), "rev-parse", "HEAD").strip() != source_head:
+                raise WorkspaceUnavailableError("cvw HEAD changed while copying; inspect the incomplete shared workspace")
+            # A clean copy can use the exact merged commit as its baseline.
+            # Retain the snapshot behavior when copying local source edits.
+            baseline = source_head
+            if tree != git(str(base), "rev-parse", source_head + "^{tree}").strip():
+                baseline = git(str(scratch), "-c", "user.name=WallyGuard", "-c",
+                               "user.email=wallyguard@localhost", "commit-tree", tree,
+                               "-p", source_head, "-m", "Initial local cvw snapshot for shared workspace").strip()
             git(str(scratch), "reset", "--soft", baseline)
-            state = {"source": str(base), "base_commit": baseline}
+            state = {"source": str(base), "source_head": source_head, "base_commit": baseline}
         # Store tests directly in runs/ so their binaries are not copied twice.
         test_dir = base.parent / "runs" / tag
         test_dir.mkdir(parents=True, exist_ok=False)
@@ -574,22 +591,39 @@ def verify_command(scratch: str, command: str, log_path: str, timeout: int = REG
     path = Path(scratch) / log_path
     path.parent.mkdir(parents=True, exist_ok=True)
     timed_out = False
+    log("Verify", f"Running command with {timeout / 60:.0f} min timeout: {command[:160]}")
     with path.open("w", encoding="utf-8") as output:
         proc = subprocess.Popen(
             ["bash", "-o", "pipefail", "-c", wally_shell(scratch, command)],
             cwd=scratch, stdout=output, stderr=subprocess.STDOUT, start_new_session=True,
         )
+        start = time.monotonic()
+        next_report = 60
         try:
-            proc.wait(timeout=timeout)
-        except subprocess.TimeoutExpired:
-            timed_out = True
+            while proc.poll() is None:
+                elapsed = time.monotonic() - start
+                if elapsed >= timeout:
+                    timed_out = True
+                    break
+                if elapsed >= next_report:
+                    log("Verify", f"Still running: {elapsed / 60:.1f} min "
+                                  f"(timeout {timeout / 60:.0f} min)")
+                    next_report = elapsed + 60
+                time.sleep(min(1, max(0, timeout - elapsed)))
         finally:
             # Also clean background children on normal exit or interruption.
             try:
                 os.killpg(proc.pid, signal.SIGKILL)
             except ProcessLookupError:
                 pass
-            proc.wait()
+            try:
+                proc.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                log("Verify", "Process did not exit within 10 seconds after SIGKILL; cleanup failed")
+                raise
+    elapsed = time.monotonic() - start
+    log("Verify", f"Finished: return code {proc.returncode}, timed out={timed_out}, "
+                  f"elapsed {elapsed / 60:.1f} min (timeout {timeout / 60:.0f} min)")
     with path.open("rb") as output:
         output.seek(max(0, path.stat().st_size - 6000))
         tail = output.read().decode("utf-8", errors="replace")
@@ -699,7 +733,7 @@ def run_attempt(record: dict, history: list[dict], max_fix_attempts: int) -> Non
         step = {"revision": revision, "tester": record["tester"], "inputs": frozen_tests}
         record["test_revisions"].append(step)
         baseline = remote(verify_command, scratch, command,
-                          f"{test_dir}/logs/baseline-reproducer-{revision}.log")
+                          f"{test_dir}/logs/baseline-reproducer-{revision}.log", REPRODUCER_TIMEOUT)
         record["baseline_reproducer"] = step["baseline_reproducer"] = baseline
         remote(check_changes, scratch, base, False, test_dir)
         changes = fingerprint_changes(frozen_tests, remote(test_fingerprint, scratch, test_dir))
@@ -747,7 +781,8 @@ def run_attempt(record: dict, history: list[dict], max_fix_attempts: int) -> Non
     if RUN_REGRESSION:
         log("Regression", f"Running baseline: {REGRESSION_COMMAND}")
         record["baseline_regression"] = remote(
-            verify_command, scratch, REGRESSION_COMMAND, f"{test_dir}/logs/baseline-regression.log")
+            verify_command, scratch, REGRESSION_COMMAND, f"{test_dir}/logs/baseline-regression.log",
+            REGRESSION_TIMEOUT)
         remote(check_changes, scratch, base, False, test_dir)
         if not record["baseline_regression"].get("passed"):
             record["status"] = "regression_blocked"
@@ -766,12 +801,14 @@ def run_attempt(record: dict, history: list[dict], max_fix_attempts: int) -> Non
             record["status"] = "no_fix"
             return
         fix["reproducer"] = remote(
-            verify_command, scratch, command, f"{test_dir}/logs/fix-{attempt}-reproducer.log")
+            verify_command, scratch, command, f"{test_dir}/logs/fix-{attempt}-reproducer.log",
+            REPRODUCER_TIMEOUT)
         fix["regression"] = dict(skipped)
         if RUN_REGRESSION:
             log("Regression", f"Independently checking fix {attempt}: {REGRESSION_COMMAND}")
             fix["regression"] = remote(
-                verify_command, scratch, REGRESSION_COMMAND, f"{test_dir}/logs/fix-{attempt}-regression.log")
+                verify_command, scratch, REGRESSION_COMMAND, f"{test_dir}/logs/fix-{attempt}-regression.log",
+                REGRESSION_TIMEOUT)
         context.update(phase="fix_review", fix=fix)
         log("Critic", "Reviewing the RTL diff and independent verification logs...")
         fix["review"] = remote(critic, scratch, context)
