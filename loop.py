@@ -52,7 +52,7 @@ VERTEX_PROVIDER = AdditionalModelProvider(
 )
 ARCHITECT_MODEL = os.environ.get("CHIA_ARCHITECT_MODEL", "google-vertex/gemini-3.8-flash")
 TESTER_MODEL = os.environ.get("CHIA_TESTER_MODEL", "google-vertex/gemini-3.1-pro-preview-customtools")
-CRITIC_MODEL = os.environ.get("CHIA_CRITIC_MODEL", "google-vertex/gemini-3.1-pro-preview-customtools")
+CRITIC_MODEL = os.environ.get("CHIA_CRITIC_MODEL", "google-vertex/gemini-3.8-flash")
 MODELS = {
     "architect": ARCHITECT_MODEL,
     "tester": TESTER_MODEL,
