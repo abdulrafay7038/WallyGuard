@@ -1,0 +1,34 @@
+# Hardware Page Table Walker Spurious A/D Bit Update Bug Reproducer
+
+## Configuration
+- Target ISA: `rv64gc` + Sv39 + Svadu + S-mode
+- Simulator: Pre-built Verilator simulator (`rv64gc_testbench/Vtestbench`)
+- Base Commit: `97c449edc6c76091be66ce459365d7f77de315aa`
+
+## Overview
+This directory contains a standalone test suite and reproducer script to demonstrate a normative RISC-V Privileged Architecture compliance bug in Wally's Hardware Page Table Walker (`src/mmu/hptw.sv`). When Svadu is enabled (`menvcfg.ADUE = 1`), Wally spuriously updates the Accessed (A) and Dirty (D) bits in memory for misaligned superpage leaf PTEs *before* evaluating the misalignment and raising the Store/AMO Page Fault (cause 15). The RISC-V privileged architecture and Svadu specification strictly mandate that a misaligned superpage must stop translation and raise a page fault *without* conditionally updating the PTE value.
+
+## Tests
+- `test_hptw_gigapage_misaligned.S`: Reproducer that maps VA `0x40000000` to a misaligned Gigapage and executes a store. 
+- `test_hptw_megapage_misaligned.S`: Reproducer that maps VA `0x40000000` to a misaligned Megapage and executes a store.
+- `test_control_aligned.S`: Positive control mapping an aligned Gigapage.
+
+## Expected vs Observed Results
+- **Expected (Spike Oracle)**: Spike properly observes the misalignment and raises Store/AMO Page Fault (15) without updating A/D bits. The test trap handler successfully verifies A and D bits are unchanged (0) and passes execution.
+- **Observed (Wally DUT)**: Wally writes `0xC0` (A=1, D=1) into the misaligned PTE memory during state `UPDATE_PTE` before generating the Page Fault. The test trap handler catches this incorrect state and triggers a deliberate watchdog livelock abort (`FAILURE: Watch Dog Time Out`).
+
+## Commands
+```bash
+# Build the test suite
+riscv64-unknown-elf-gcc -march=rv64gc -mabi=lp64d -nostdlib -nostartfiles -T $WALLY/tests/riscof/spike/env/link.ld tests/test_hptw_gigapage_misaligned.S -o build/test_hptw_gigapage_misaligned.elf
+$WALLY/bin/elf2hex build/test_hptw_gigapage_misaligned.elf build/test_hptw_gigapage_misaligned.elf.memfile
+
+# Execute on Spike
+spike --isa=rv64gc_svadu build/test_hptw_gigapage_misaligned.elf
+
+# Execute on Wally DUT
+$WALLY/sim/verilator/wkdir/rv64gc_testbench/Vtestbench +ElfFile=build/test_hptw_gigapage_misaligned.elf
+```
+
+## Reproducer Script
+Run `./reproducer.sh` to automatically build the tests and check the execution across Spike and Wally. The script exits 0 if the DUT behaves correctly, 1 for a successful functional mismatch, and 2 for tool failures.
