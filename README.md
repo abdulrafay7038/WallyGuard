@@ -302,7 +302,7 @@ Environment settings are read when `loop.py` is imported.
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `WALLY_PATH` | `/home/rafay/miniconda3/WallyGuard2/cvw` | Original CVW checkout on the simulation host; override for other installations. |
-| `WALLY_RUN_REGRESSION` | `1` | Enable baseline and patched full regression. |
+| `WALLY_RUN_REGRESSION` | `0` (disabled) | Set to `1` to enable baseline and patched full regression, as in the full-loop example above. |
 | `WALLY_DIRECTED_COMMAND` | Empty | Operator-selected related tests; required for full confirmation. |
 | `WALLY_REGRESSION_COMMAND` | `bin/regression-wally` | Operator-selected full regression command. |
 | `WALLY_REPRODUCER_TIMEOUT` | `900` | Deadline in seconds for each reproducer build/simulator command. |

@@ -116,6 +116,7 @@ as separate fields. No credentials or complete environment dumps are added.
 The controller requires baseline reproduction, reviewed test quality, an RTL
 patch, a passing targeted reproducer, passing directed regression and passing
 configured full regression. Critic approval cannot override any failing gate.
+Full regression is disabled by default; set `WALLY_RUN_REGRESSION=1` to enable it.
 With regression disabled or directed regression unconfigured, a targeted passing
 fix is `candidate_fix_verified`, exported only under `candidate-bugs/`.
 `confirmed-bugs/` requires all gates, checked again at export.
