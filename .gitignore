@@ -3,3 +3,4 @@ tests/
 wally-worktrees/
 submit.py
 test.py
+miniforge3/
