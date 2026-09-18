@@ -1,0 +1,236 @@
+"""Controller-owned build, control, oracle and DUT execution contract."""
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import shutil
+from .processes import run_command
+from .result_classifier import Outcome, ReproducerResult, artifact_argv, classify, FAILURE, TOOL_ERROR, WATCHDOG
+
+TRAP_VECTOR_TEMPLATE = '''# Direct-mode trap entry: low two address bits must be zero.
+.balign 4
+wallyguard_trap_entry:
+    # Save/handle the trap here; avoid recursive traps.
+'''
+
+
+def under(path: str, root: Path) -> Path:
+    target = (root / path).resolve()
+    if not target.is_relative_to(root.resolve()):
+        raise ValueError(f'Artifact escapes test directory: {path}')
+    return target
+
+
+def _contains(path: Path, marker: str) -> bool:
+    with path.open(errors='replace') as stream:
+        return any(marker in line for line in stream)
+
+
+def log_markers(path: Path) -> str:
+    """Scan complete logs, retaining only bounded first evidence for each pattern."""
+    found = {}
+    patterns = {'watchdog': WATCHDOG, 'tool': TOOL_ERROR, 'failure': FAILURE,
+                'incomplete': re.compile('halted without completing|wrote .* signature entries'),
+                'selfcheck': re.compile(r'result \d+: adr = [0-9a-fA-F]+ sim \(D\$\) [0-9a-fA-F]+ signature = [0-9a-fA-F]+'),
+                'success': re.compile(r'succeeded\.  Brilliant!!!')}
+    with path.open(errors='replace') as stream:
+        for line in stream:
+            for key, pattern in patterns.items():
+                if key not in found and pattern.search(line):
+                    found[key] = line[:8192]
+    return ''.join(found.values())
+
+
+def _signature(path: Path) -> tuple[str, int]:
+    """Strict normalized hexadecimal signatures, streamed to bound memory."""
+    digest, count = hashlib.sha256(), 0
+    with path.open() as stream:
+        for line in stream:
+            word = line.strip().lower()
+            if not re.fullmatch(r'[0-9a-f]+', word):
+                raise ValueError(f'Invalid signature word in {path}')
+            digest.update(word.encode() + b'\n')
+            count += 1
+    if not count:
+        raise ValueError('Empty signature is not architectural evidence')
+    return digest.hexdigest(), count
+
+
+def vector_preflight(contract: dict, test_dir: Path, scratch: Path, directory: Path,
+                     timeout: int, env: dict) -> list[str]:
+    errors = []
+    vectors = contract.get('trap_vectors', [])
+    writes_vectors = False
+    inferred_symbols = set()
+    for source in test_dir.rglob('*'):
+        if source.suffix.lower() not in {'.s', '.c'} or any(p in {'build', 'logs', 'controller', 'critic', 'fixer'} for p in source.relative_to(test_dir).parts):
+            continue
+        assembly = source.read_text(errors='replace')
+        if re.search(r'\b(?:mtvec|stvec)\b', assembly):
+            writes_vectors = True
+        for match in re.finditer(r'\bla\s+(\w+),\s*([\w.$]+)[^\n]*\n(?:[^\n]*\n){0,5}?[^\n]*\bcsrw\s+(?:mtvec|stvec),\s*\1\b', assembly):
+            inferred_symbols.add(match[2])
+    if writes_vectors and not vectors:
+        return ['Trap-vector test requires trap_vectors entries with built ELF and handler symbol']
+    missing = inferred_symbols - {v.get('symbol') for v in vectors}
+    if missing:
+        errors.append(f'Trap handler symbols missing from metadata: {sorted(missing)}')
+    for index, vector in enumerate(vectors):
+        elf = under(vector['elf'], test_dir)
+        symbol = vector['symbol']
+        if not re.fullmatch(r'[A-Za-z_.$][\w.$]*', symbol):
+            raise ValueError('Invalid trap-vector symbol')
+        nm = shutil.which('riscv64-unknown-elf-nm', path=env['PATH'])
+        if not nm:
+            errors.append('Missing RISC-V nm for vector-address validation')
+            continue
+        result = run_command([nm, '-n', str(elf)], directory / f'vectors-{index}.log', timeout, env, scratch)
+        symbols = re.findall(r'^([0-9a-fA-F]+)\s+\w\s+(\S+)\s*$', Path(result['log_path']).read_text(), re.M)
+        addresses = [int(address, 16) for address, name in symbols if name == symbol]
+        if result['returncode'] != 0 or len(addresses) != 1 or addresses[0] % 4:
+            errors.append(f'Trap vector {symbol} must resolve to a 4-byte-aligned ELF address')
+    return errors
+
+
+def run_reproducer(scratch: str, test_dir: str, contract: dict, log_path: str,
+                   timeout: int) -> dict:
+    root, tests = Path(scratch).resolve(), Path(test_dir).resolve()
+    directory = Path(log_path).parent / (Path(log_path).stem + '-evidence')
+    directory.mkdir(parents=True, exist_ok=False)
+    env = {**os.environ, 'WALLY': str(root), 'PATH': str(root / 'bin') + os.pathsep + os.environ.get('PATH', '')}
+    steps, captured = {}, {}
+    def capture(name: str, path: Path) -> None:
+        target = directory / name
+        shutil.copyfile(path, target)
+        def digest(file):
+            value = hashlib.sha256()
+            with file.open('rb') as stream:
+                for block in iter(lambda: stream.read(65536), b''):
+                    value.update(block)
+            return value.hexdigest()
+        checksum = digest(target)
+        if digest(path) != checksum:
+            raise ValueError('Evidence changed during archival')
+        captured[name] = dict(path=str(target), sha256=checksum)
+
+    def execute(name: str, argv) -> dict:
+        result = run_command(artifact_argv(argv, root, tests), directory / f'{name}.log', timeout, env, root)
+        steps[name] = result
+        return result
+    def pair(spec: dict, name: str) -> dict:
+        # Agents choose test inputs, not the executable implementing the oracle.
+        wally_args = artifact_argv(spec['wally'], root, tests)
+        oracle_args = artifact_argv(spec['oracle'], root, tests)
+        expected_spike = shutil.which('spike', path=env['PATH'])
+        if (root / wally_args[0]).resolve() != (root / 'bin/wsim').resolve():
+            raise ValueError('DUT command must directly execute this checkout bin/wsim')
+        if not expected_spike or (root / oracle_args[0]).resolve() != Path(expected_spike).resolve():
+            raise ValueError('Oracle command must directly execute the configured Spike')
+        if '--elf' not in wally_args:
+            raise ValueError('Wally command must specify the tested ELF')
+        elf = (root / wally_args[wally_args.index('--elf') + 1]).resolve()
+        if not elf.is_file() or not elf.is_relative_to(tests / 'build'):
+            raise ValueError('Test ELF must exist in test_dir/build')
+        if str(elf) not in oracle_args:
+            raise ValueError('Spike must run the same ELF as Wally')
+        capture(name + '.elf', elf)
+        if spec.get('mode') == 'selfcheck':
+            # Native CVW CheckSelfCheck: independent Spike must run the identical
+            # ELF successfully; an explicit expected/actual record is required.
+            # A watchdog, generic abort or incomplete self-check is not promoted.
+            nm = shutil.which('riscv64-unknown-elf-nm', path=env['PATH'])
+            if not nm:
+                raise ValueError('Self-check contract requires RISC-V nm')
+            symbols_run = execute(name + '-symbols', [nm, '-n', str(elf)])
+            symbols = dict((name, int(address, 16)) for address, name in re.findall(
+                r'^([0-9a-fA-F]+)\s+\w\s+(\S+)\s*$', Path(symbols_run['log_path']).read_text(errors='replace'), re.M))
+            with elf.open('rb') as stream:
+                header = stream.read(20)
+            if len(header) < 20 or header[:4] != b'\x7fELF' or header[4] not in (1, 2):
+                raise ValueError('Invalid ELF for native self-check')
+            width = 8 if header[4] == 2 else 4
+            if symbols_run['status'] != 'PASS' or any(symbol not in symbols for symbol in
+                    ('selfcheck_record', 'tohost', 'begin_signature', 'end_signature')):
+                raise ValueError('Self-check ELF requires selfcheck_record/tohost/signature symbols')
+            if symbols['selfcheck_record'] != symbols['begin_signature'] or symbols['end_signature'] < symbols['begin_signature'] + 5 * width:
+                raise ValueError('Spike signature must include the same five-word selfcheck_record')
+            signature = under(spec['oracle_signature'], tests)
+            if not signature.is_relative_to(tests / 'build') and not signature.is_relative_to(tests / 'logs'):
+                raise ValueError('Oracle signature must be a runtime output')
+            if f'+signature={signature}' not in oracle_args or f'+signature-granularity={width}' not in oracle_args:
+                raise ValueError('Spike must emit the controller-checked selfcheck signature and XLEN granularity')
+            signature.unlink(missing_ok=True)
+            oracle = execute(name + '-oracle', oracle_args)
+            oracle_log = log_markers(Path(oracle['log_path']))
+            if oracle['status'] != 'PASS' or FAILURE.search(oracle_log) or TOOL_ERROR.search(oracle_log):
+                return classify(oracle, oracle_log=oracle_log, oracle_ok=False).dict()
+            _signature(signature)
+            capture(name + '-oracle.sig', signature)
+            with signature.open() as stream:
+                values = [stream.readline().strip() for _ in range(5)]
+            if any(len(word) != width * 2 for word in values) or int(values[0], 16) != 1:
+                return ReproducerResult(Outcome.ORACLE_FAILURE, 'Spike selfcheck_record did not pass').dict()
+            wally = execute(name + '-wally', wally_args)
+            wally_log = log_markers(Path(wally['log_path']))
+            if wally.get('timed_out') or WATCHDOG.search(wally_log):
+                return classify(wally, wally_log).dict()
+            record = re.search(re.escape(str(elf)) + r' result \d+: adr = ([0-9a-fA-F]+) sim \(D\$\) ([0-9a-fA-F]+) signature = ([0-9a-fA-F]+)', wally_log)
+            if record and int(record[2], 16) != int(record[3], 16) and wally['returncode'] in (0, 1, 134, -6):
+                result = ReproducerResult(Outcome.MISMATCH_CONFIRMED,
+                    'CVW completed self-check value mismatch; same ELF passed Spike', wally['returncode']).dict()
+                result['first_mismatch'] = dict(address=record[1], wally=record[2], expected=record[3])
+                result['fingerprint'] = result['first_mismatch']
+                return result
+            complete = str(elf) + ' succeeded.  Brilliant!!!' in wally_log
+            return classify(wally, wally_log, oracle_log, complete=complete, equal=True if complete else None).dict()
+        outputs = {key: under(spec[key], tests) for key in ('wally_signature', 'oracle_signature')}
+        if outputs['wally_signature'] == outputs['oracle_signature']:
+            raise ValueError('Wally and Spike must write independent signatures')
+        for path in outputs.values():
+            if not path.is_relative_to(tests / 'build') and not path.is_relative_to(tests / 'logs'):
+                raise ValueError('Signatures must be runtime output under build/ or logs/')
+            path.unlink(missing_ok=True)
+        oracle = execute(name + '-oracle', spec['oracle'])
+        oracle_log = log_markers(Path(oracle['log_path']))
+        oracle_ok = oracle['status'] == 'PASS' and not FAILURE.search(oracle_log)
+        if not oracle_ok:
+            return classify(oracle, oracle_log=oracle_log, oracle_ok=False).dict()
+        wally = execute(name + '-wally', spec['wally'])
+        wally_log = log_markers(Path(wally['log_path']))
+        complete = all(isinstance(spec.get(key), str) and spec[key] for key in ('wally_complete', 'oracle_complete'))
+        complete = complete and _contains(Path(wally['log_path']), spec['wally_complete']) and _contains(Path(oracle['log_path']), spec['oracle_complete'])
+        signatures_exist = all(path.is_file() for path in outputs.values())
+        signatures = {key: _signature(path) for key, path in outputs.items()} if signatures_exist else {}
+        equal = signatures['wally_signature'] == signatures['oracle_signature'] if signatures else None
+        result = classify(wally, wally_log, oracle_log, oracle_ok=oracle_ok, complete=complete, equal=equal).dict()
+        for key, path in outputs.items():
+            if path.is_file():
+                capture(name + '-' + key + '.sig', path)
+        result['artifacts'] = {key: str(directory / (name + '-' + key + '.sig')) for key in outputs}
+        result['fingerprint'] = signatures
+        return result
+    try:
+        if not isinstance(contract, dict) or contract.get('version') != 1 or contract.get('oracle') != 'spike':
+            raise ValueError('Require version=1 controller-run Spike differential contract; shell exit codes cannot confirm a bug')
+        if not isinstance(contract.get('control'), dict):
+            raise ValueError('A positive/control differential test is required')
+        built = execute('build', contract['build'])
+        if built['status'] != 'PASS' or TOOL_ERROR.search(log_markers(Path(built['log_path']))):
+            result = classify(built, build_ok=False).dict()
+        else:
+            errors = vector_preflight(contract, tests, root, directory, timeout, env)
+            if errors:
+                raise ValueError('; '.join(errors))
+            control = pair(contract['control'], 'control')
+            if control['status'] != Outcome.MATCH:
+                result = ReproducerResult(Outcome.TEST_INVALID, 'Positive/control test failed').dict()
+                result['control'] = control
+            else:
+                result = pair(contract['test'], 'test')
+                result['control'] = control
+    except (ValueError, KeyError, IndexError, TypeError, OSError) as exc:
+        result = ReproducerResult(Outcome.TEST_INVALID, str(exc)).dict()
+    result.update(steps=steps, log_path=str(log_path), evidence_dir=str(directory), captured=captured)
+    Path(log_path).write_text(json.dumps(result, indent=2) + '\n')
+    return result

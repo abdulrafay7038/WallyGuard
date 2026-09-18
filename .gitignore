@@ -1,6 +1,8 @@
 cvw/
 tests/
+!/tests/
+/tests/*
+!/tests/test_*.py
 wally-worktrees/
 submit.py
 test.py
-miniforge3/

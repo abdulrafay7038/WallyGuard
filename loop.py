@@ -13,34 +13,44 @@ import hashlib
 import json
 import os
 from pathlib import Path
-import random
 import re
 import shlex
 import shutil
-import signal
 import subprocess
 import time
 import uuid
-import anyio
 
 from chia.base.ChiaFunction import ChiaFunction, get
-from chia.base.tools.BashTool import BashTool
-from chia.models.opencode import AdditionalModelProvider, OpenCodeLLM, RateLimitError, InvalidRequestError
+from chia.models.opencode import AdditionalModelProvider, RateLimitError, InvalidRequestError
+
+from orchestration.agent_protocol import parse_agent_response, structured_response, AgentOutputInvalid
+from orchestration.artifact_guard import ArtifactViolation, snapshot as guard_snapshot, finish as guard_finish
+from orchestration.event_log import event, redact
+from orchestration.retry_policy import retry_call, RetryPolicy, AgentCallFailure, MCPFailure, ProviderRateLimited
+from orchestration.stage_runner import with_tool_recovery
+from orchestration.tool_runtime import ManagedBashTool, DiagnosticOpenCodeLLM, LLMCapacity
+from orchestration.result_classifier import Outcome, artifact_argv, FAILURE, TOOL_ERROR
+from orchestration.test_preflight import run_reproducer
+from orchestration.verification_state import confirmation_allowed
+from orchestration.processes import run_command
 
 WALLY_PATH = os.environ.get("WALLY_PATH", "/home/rafay/miniconda3/WallyGuard2/cvw")
 MAX_ITERATIONS = 200
 MAX_FIX_ATTEMPTS = 3
 MAX_TEST_REPAIRS = 2
 AGENT_RECOVERY_RETRIES = 2
-RUN_REGRESSION = os.environ.get("WALLY_RUN_REGRESSION", "0").lower() in {"1", "true", "yes"}
-REGRESSION_TIMEOUT = 5400
-REPRODUCER_TIMEOUT = 900  # 15 minutes
-AGENT_TIMEOUT = 14400  # Allows several long tool calls per investigation.
+RUN_REGRESSION = os.environ.get("WALLY_RUN_REGRESSION", "1").lower() in {"1", "true", "yes"}
+REGRESSION_TIMEOUT = int(os.environ.get("WALLY_REGRESSION_TIMEOUT", "5400"))
+REPRODUCER_TIMEOUT = int(os.environ.get("WALLY_REPRODUCER_TIMEOUT", "900"))
+AGENT_TIMEOUT = int(os.environ.get("WALLY_AGENT_TIMEOUT", "14400"))
 RATE_LIMIT_RETRIES = 4  # Extra calls after the first rate-limited call.
 RATE_LIMIT_BASE_DELAY = 30
 RATE_LIMIT_MAX_DELAY = 300
 # Operator-selected suite: an agent cannot substitute a trivial success command.
 REGRESSION_COMMAND = os.environ.get("WALLY_REGRESSION_COMMAND", "bin/regression-wally")
+DIRECTED_COMMAND = os.environ.get("WALLY_DIRECTED_COMMAND", "")
+BASELINE_RUNS = max(2, int(os.environ.get("WALLY_BASELINE_RUNS", "2")))
+LLM_CONCURRENCY = max(1, int(os.environ.get("WALLY_LLM_CONCURRENCY", "1")))
 ISA_DOCS = os.environ.get("WALLY_ISA_DOCS", "")
 VERTEX_PROJECT = os.environ.get("GOOGLE_CLOUD_PROJECT", "project-0df87a12-e649-434b-84a")
 VERTEX_PROVIDER = AdditionalModelProvider(
@@ -62,24 +72,12 @@ MODELS = {
 
 
 def log(role: str, msg: str):
-    print(f"[{datetime.now():%H:%M:%S}] ({role}) {msg}", flush=True)
+    print(f"[{datetime.now():%H:%M:%S}] ({role}) {redact(msg)}", flush=True)
 
 
 def parse_response(text: str) -> dict:
-    """Malformed responses fail closed, rather than becoming approvals."""
-    candidate = text.strip()
-    candidate = re.sub(r"^```(?:json)?\s*", "", candidate)
-    candidate = re.sub(r"\s*```$", "", candidate)
-    start = candidate.find("{")
-    if start >= 0:
-        candidate = candidate[start:]
-    decoder = json.JSONDecoder()
-    value, end = decoder.raw_decode(candidate)
-    if candidate[end:].strip(" `\n\r"):
-        raise ValueError("Agent response contains non-JSON content after the object")
-    if not isinstance(value, dict):
-        raise ValueError("Agent response must be a JSON object")
-    return value
+    """Compatibility entry point; all agents use explicit schemas below."""
+    return parse_agent_response('response', text, schema={})
 
 
 def require_text(result: dict, *keys: str):
@@ -107,24 +105,6 @@ def wally_shell(scratch: str, command: str) -> str:
             f'export PATH={shlex.quote(scratch + "/bin")}:"$PATH"\n' + command)
 
 
-class WallyBashTool(BashTool):
-    async def run_command(self, command: str) -> str:
-        """Keep MCP responsive while a serialized Bash command is running."""
-        script = wally_shell(self.work_dir, command)
-        # FastMCP calls synchronous tool functions directly on its event loop.
-        # communicate() can block it for an entire build, starving HTTP reads.
-        # Create the lock on the server, after Ray has serialized this tool.
-        if not hasattr(self, "_command_lock"):
-            self._command_lock = anyio.Lock()
-        async with self._command_lock:
-            # The default (abandon_on_cancel=False) waits for this worker even
-            # if an AnyIO cancellation scope is cancelled: do not release the
-            # workspace lock while a detached shell is still editing files.
-            return await anyio.to_thread.run_sync(
-                super().run_command, "exec bash -o pipefail -c " + shlex.quote(script),
-                abandon_on_cancel=False,
-            )
-
 
 class WorkspaceUnavailableError(RuntimeError):
     """Stop instead of repeatedly attempting to reset an occupied workspace."""
@@ -134,14 +114,20 @@ class AgentCallError(RuntimeError):
     """The provider/CLI could not complete an assignment after bounded retries."""
 
 
-class ArtifactError(RuntimeError):
+class ArtifactError(ArtifactViolation):
     """Evidence or source changes violate the verification contract."""
 
 
 COMMON_PROMPT = """
+The controller is the sole authority for bug existence and verification. Reviews
+are advisory assessments of test quality and RTL analysis, never pass/fail overrides.
+
 You are part of a CORE-V Wally RTL bug-hunting campaign. Use the supplied bash
  tool for ALL repository access and execution: your LLM container is not the
 simulation worker. The tool sets WALLY and PATH to the current worktree.
+Long commands return RUNNING with a job_id; poll command_status until complete.
+BUSY means the earlier command is still running: poll it before submitting more.
+Full stdout/stderr are saved at log_path; tool responses contain bounded tails.
 Read README.md, docs/testplans/testplan.md, relevant src/ modules, config/,
 testbench/, bin/ and tests/. Installed Spike, Verilator, GTKWave and RISC-V
 compiler/toolchain are available on the worker; verify versions and flags.
@@ -157,9 +143,9 @@ seeds, observed and expected results. Commands start at the worktree root.
 attempt.json, proposed.patch and untracked-rtl/ are controller-owned; do not edit them.
 controller/ is also controller-owned. Put all backup files under test_dir/fixer,
 never under src/. Keep runtime output under build/ or logs/.
-Reproducer scripts must rebuild against $WALLY/src, use paths relative to $WALLY,
-and exit 0 for correct DUT behavior, 1 ONLY for a successfully executed functional
-mismatch, and 2 for build/tool errors. Preserve failures through pipelines.
+Build scripts must rebuild against $WALLY/src and preserve build/tool failures.
+The controller directly executes Wally and Spike from a structured artifact
+contract and compares their evidence. Script exit codes never establish a bug.
 Never reuse a stale DUT executable. No commits, resets, branch changes or edits
 to the original checkout. Never weaken assertions or expected values.
 The shared worktree was seeded once from the original checkout, including built
@@ -197,6 +183,29 @@ with file paths and spec references for reuse by later rounds.
 """
 
 TESTER_PROMPT = """
+A found_bug claim must include a reproducer object, version=1, oracle="spike",
+build=[executable,args...], control={...}, test={...}, trap_vectors=[...].
+Alternatively each control/test can use mode="selfcheck" with native CVW
+CheckSelfCheck: ELF defines selfcheck_record/tohost and begin_signature aliases
+selfcheck_record, end_signature covers its five XLEN words. Supply oracle_signature
+and Spike +signature=<absolute path> +signature-granularity=<XLEN/8>. The controller
+checks Spike selfcheck_record status=1; omit wally_signature and completion markers. Spike must exit successfully on the same ELF; the controller
+reads CVW expected/actual self-check records. Watchdogs alone remain unconfirmed.
+Each control/test object contains wally=[executable,args...], oracle=[executable,args...],
+wally_signature and oracle_signature (distinct paths relative to test_dir under
+build/ or logs/), wally_complete and oracle_complete (nonempty actual completion
+markers printed by those tools). Use Spike signature output and matching Wally
+architectural signature output. Both tools must complete with exit 0. The LOOP
+compares their complete hexadecimal signature files; do not report semantic results
+through shell exit codes. The positive control must match. Supply a real build
+command that rebuilds the test and DUT; existing scripts may be invoked directly.
+No inline shell expressions, redirects or exit-code masking in command fields.
+For assembly writing mtvec/stvec, use .balign 4 at handler entry and provide
+trap_vectors=[{"elf":"build/test.elf","symbol":"handler_name"}] for ALL handlers;
+the controller checks linked symbol addresses. Unsupported block-test oracles
+remain unconfirmed until a controller adapter exists. Preserve old command/evidence
+fields for humans if useful, but reproduce_command alone cannot establish a bug.
+
 You are Agent 2, Tester. Execute the architect's tester_prompt and try hard to
 find a reproducible functional bug. DO NOT fix or edit RTL, configuration,
 existing tests or regression scripts. Build new tests only under test_dir.
@@ -207,12 +216,11 @@ Probe boundaries/sequences beyond ordinary RISC-V arch tests. Reduce failures
 to deterministic reproducers and separate functional mismatches from tools
 failing. Save negative findings too. Do not run the full regression here.
 
-Return found_bug (JSON boolean), report (string), reproduce_command (string;
-empty if no bug), evidence (string: log paths, mismatch, expected rule, config,
-seed, and why this is not a test artifact). The command must obey the 0/1/2
-exit contract and reproduce on UNMODIFIED RTL. Return only a command that runs
-an existing saved script: do not return inline heredocs that rewrite tests.
-The script may rebuild binaries, but must not rewrite test sources or README.md.
+Return found_bug (JSON boolean) and report (string). For found_bug=true also
+return reproducer (the execution contract above) and evidence (string: log paths,
+mismatch, expected rule, configuration, seed, and test-validity checks). An optional
+reproduce_command may document a saved script for humans; it is never a verifier.
+Builds may regenerate binaries, but must not rewrite source inputs or README.md.
 If test_feedback is present, repair the reported tooling/test issues first,
 inspect any Critic corrections, and rerun the complete reproducer. Do not infer
 a hardware mismatch from a timeout, simulator crash or a generic nonzero exit.
@@ -228,8 +236,9 @@ constrain legal behavior. Try control tests or an independent oracle.
 Put additional tests under test_dir/critic. Do not edit original reproducer
 inputs, tracked files or RTL. Reject unsupported or inconclusive claims.
 
-phase=bug_review: approve ONLY a real, independently reproduced RTL defect on
-original source with a valid expected result. No fix exists yet. If the test
+phase=bug_review: review the quality of the controller's independently reproduced
+mismatch and the validity of the test/spec interpretation. The controller alone
+establishes bug existence; your verdict is advisory and cannot override its gates. No fix exists yet. If the test
 needs correction, return revise and precise test repair instructions; put any
 corrected examples under test_dir/critic, without editing the original inputs.
 phase=fix_review: inspect git diff against base_commit and independent results.
@@ -245,7 +254,7 @@ approve requires valid evidence and passing required verification.
 """
 
 FIXER_PROMPT = """
-You are Agent 4, RTL Fixer. The Critic has validated the bug. Read the evidence,
+You are Agent 4, RTL Fixer. The controller reproduced the mismatch and the Critic reviewed test quality. Read the evidence,
 reproducer and critique, find the root cause and apply the SMALLEST correct fix
 to existing files under src/. Do not edit tests, expected results, configuration,
 regression scripts or dependencies. Do not commit. You may add notes/supplemental
@@ -259,109 +268,104 @@ files and targeted-test outcome). changed=false if no defensible fix is possible
 """
 
 
-def prompt_with_rate_limit_retry(llm, prompt: str, tools: list, role: str):
-    """Retry typed 429 errors without abandoning this agent's worktree.
-
-    CHIA propagates RateLimitError immediately, regardless of llm.retries.
-    Ray's get() preserves this type through RayTaskError's cause subclass.
-    A retry starts a fresh OpenCode conversation; files and tool endpoints stay
-    available, so explicitly ask the agent to inspect its existing work first.
-    """
-    retry_note = ""
-    rate_retries = recovery_retries = 0
-    while True:
+def prompt_with_rate_limit_retry(llm, prompt: str, tools: list, role: str, emit=None):
+    import ray
+    from chia.base.ChiaFunction import chia_cancel
+    emit = emit or (lambda status, **fields: log(role, status + " " + json.dumps(redact(fields))))
+    capacity = LLMCapacity.options(name="wallyguard-llm-capacity", namespace="wallyguard",
+                                   get_if_exists=True).remote(LLM_CONCURRENCY)
+    def call():
+        lease = uuid.uuid4().hex
+        acquire = capacity.acquire.remote(lease, AGENT_TIMEOUT + 60)
         try:
-            response = get(llm.prompt.chia_remote(llm, prompt + retry_note, tools=tools))
-            if not response.success or not response.result:
-                # CHIA returns success=False after CLI termination, missing
-                # session output or timeout, without preserving the last error.
-                raise AgentCallError(f"{role}: provider/CLI returned an unsuccessful or empty response")
-            return response
-        except RateLimitError:
-            if rate_retries == RATE_LIMIT_RETRIES:
-                log(role, f"Rate limit persisted after {RATE_LIMIT_RETRIES} retries; preserving this attempt.")
-                raise
-            delay = min(RATE_LIMIT_MAX_DELAY,
-                        RATE_LIMIT_BASE_DELAY * 2 ** rate_retries + random.uniform(0, 5))
-            rate_retries += 1
-            log(role, f"Rate limited; retry {rate_retries}/{RATE_LIMIT_RETRIES} in {delay:.0f}s, same worktree.")
-        except (InvalidRequestError, AgentCallError) as exc:
-            # Retry this specific conversation-format failure, not invalid
-            # models, bad credentials, billing failures or arbitrary requests.
-            if isinstance(exc, InvalidRequestError) and "Requests ending with a model turn" not in str(exc):
-                raise
-            if recovery_retries == AGENT_RECOVERY_RETRIES:
-                raise AgentCallError(f"{role}: agent recovery exhausted: {exc}") from exc
-            recovery_retries += 1
-            delay = 5 * recovery_retries
-            log(role, f"Agent call interrupted; recovery {recovery_retries}/{AGENT_RECOVERY_RETRIES}: {exc}")
-        remaining = delay
-        while remaining > 0:
-            pause = min(60, remaining)
-            time.sleep(pause)
-            remaining -= pause
-        retry_note = (
-            "\nA previous call for this SAME assignment was interrupted. "
-            "This is a fresh conversation, but the worktree and test_dir still contain its work. "
-            "Inspect existing tests, notes, logs and git diff first and continue this assignment. "
-            "Preserve existing evidence and obey your original role's edit restrictions."
-        )
+            ray.get(acquire, timeout=AGENT_TIMEOUT + 120)
+        except BaseException:
+            ray.cancel(acquire, force=False)
+            ray.get(capacity.release.remote(lease), timeout=10)
+            raise
+        ref = None
+        try:
+            ref = llm.prompt.chia_remote(llm, prompt, tools=tools)
+            deadline = time.monotonic() + AGENT_TIMEOUT + 30
+            while True:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise AgentCallFailure('LLM host deadline expired')
+                try:
+                    return get(ref, timeout=min(15, remaining))
+                except ray.exceptions.GetTimeoutError:
+                    for tool in tools:
+                        tool.ready()
+        except BaseException:
+            if ref is not None:
+                chia_cancel(ref, force=False)
+            raise
+        finally:
+            ray.get(capacity.release.remote(lease), timeout=10)
+    return retry_call(call, lambda exc: isinstance(exc, RateLimitError), emit,
+                      RetryPolicy(RATE_LIMIT_RETRIES, RATE_LIMIT_BASE_DELAY, RATE_LIMIT_MAX_DELAY))
 
 
 def ask_agent(role: str, scratch: str, instructions: str, context: dict) -> dict:
-    # Pass the driver's model selection in context: worker/container environment
-    # variables need not match the environment that launched this campaign.
     model = context.get("models", MODELS)[role]
     providers = [VERTEX_PROVIDER]
     if model.startswith("google/"):
-        providers.append(AdditionalModelProvider(
-            id="google", npm="@ai-sdk/google", name="Google Generative AI",
-            models=[model.split("/", 1)[1]],
-            # OpenCode reads the Google API key from its worker-side stored
-            # login. Do not embed credentials in prompts, records or config.
-        ))
-    log(role, f"Using {model}")
-    llm = OpenCodeLLM(model=model, timeout_seconds=AGENT_TIMEOUT, retries=1,
-                      additional_providers=providers)
-    bash = WallyBashTool(
-        f"{role}_bash", scratch, timeout_seconds=REGRESSION_TIMEOUT,
-        task_options={"resources": {"wally_sim": 1}},
-    )
-    try:
-        response = prompt_with_rate_limit_retry(
-            llm, COMMON_PROMPT + instructions + "\nContext:\n" + json.dumps(context, indent=2),
-            tools=[bash], role=role,
-        )
-        if not response.success or not response.result:
-            raise RuntimeError(f"{role} LLM call failed (success={response.success})")
+        providers.append(AdditionalModelProvider(id="google", npm="@ai-sdk/google", name="Google Generative AI",
+                                                models=[model.split("/", 1)[1]]))
+    def create():
+        return ManagedBashTool(role + '_' + uuid.uuid4().hex[:10], scratch, context['test_dir'],
+                               role, REGRESSION_TIMEOUT)
+    def call(bash):
+        llm = DiagnosticOpenCodeLLM(model=model, timeout_seconds=AGENT_TIMEOUT, retries=1,
+                                   additional_providers=providers,
+                                   config={'*': 'deny', f'{bash.name}_*': 'allow'}, dangerously_skip_permissions=False)
+        def emit(status, **fields):
+            bash.emit(status, model=model, **fields)
         try:
-            return parse_response(response.result)
-        except (json.JSONDecodeError, ValueError) as exc:
-            preview = response.result[:500].replace("\n", "\\n")
-            raise ValueError(f"{role} returned invalid JSON ({preview!r}): {exc}") from exc
+            response = prompt_with_rate_limit_retry(llm,
+                COMMON_PROMPT + instructions + "\nContext:\n" + json.dumps(context, indent=2),
+                [bash], role, emit)
+        except Exception:
+            bash.ready()  # A dead MCP endpoint is infrastructure, not reasoning failure.
+            raise
+        bash.save('cli-diagnostics.json', dict(stderr=response.stderr,
+                  returncode=response.returncode, transcript=response.stream_result, model=model))
+        def repair(prompt):
+            formatter = DiagnosticOpenCodeLLM(model=model, timeout_seconds=AGENT_TIMEOUT, retries=1,
+                additional_providers=providers, config={'*': 'deny'}, dangerously_skip_permissions=False)
+            return prompt_with_rate_limit_retry(formatter, prompt, [], role, emit).result
+        return structured_response(role, response.result, repair, bash.save)
+    lifecycle = []
+    def lifecycle_event(status, **fields):
+        lifecycle.append(dict(status=status, model=model, agent=role, **fields))
+        log(role, status + " " + json.dumps(redact(fields)))
+    try:
+        return with_tool_recovery(create, call, lifecycle_event)
     finally:
-        bash.stop()
+        if lifecycle:
+            remote(save_lifecycle_events, context['test_dir'], lifecycle)
 
 
-@ChiaFunction(resources={"opencode_creds": 1})
+
+@ChiaFunction(num_cpus=0, max_retries=0)
 def architect(scratch: str, context: dict) -> dict:
     result = ask_agent("architect", scratch, ARCHITECT_PROMPT, context)
     require_text(result, "target", "rationale", "tester_prompt", "knowledge")
     return result
 
 
-@ChiaFunction(resources={"opencode_creds": 1})
+@ChiaFunction(num_cpus=0, max_retries=0)
 def tester(scratch: str, context: dict) -> dict:
     result = ask_agent("tester", scratch, TESTER_PROMPT, context)
     if type(result.get("found_bug")) is not bool:
         raise ValueError("Tester found_bug must be a JSON boolean")
     require_text(result, "report")
     if result["found_bug"]:
-        require_text(result, "reproduce_command", "evidence")
+        require_text(result, "evidence")
     return result
 
 
-@ChiaFunction(resources={"opencode_creds": 1})
+@ChiaFunction(num_cpus=0, max_retries=0)
 def critic(scratch: str, context: dict) -> dict:
     result = ask_agent("critic", scratch, CRITIC_PROMPT, context)
     require_text(result, "verdict", "critique")
@@ -371,7 +375,7 @@ def critic(scratch: str, context: dict) -> dict:
     return result
 
 
-@ChiaFunction(resources={"opencode_creds": 1})
+@ChiaFunction(num_cpus=0, max_retries=0)
 def rtl_fixer(scratch: str, context: dict) -> dict:
     result = ask_agent("rtl_fixer", scratch, FIXER_PROMPT, context)
     if type(result.get("changed")) is not bool:
@@ -380,7 +384,35 @@ def rtl_fixer(scratch: str, context: dict) -> dict:
     return result
 
 
-@ChiaFunction(resources={"wally_sim": 1})
+@ChiaFunction(resources={"wally_sim": 1}, max_retries=0)
+def save_lifecycle_events(test_dir: str, entries: list[dict]) -> None:
+    for entry in entries:
+        fields = dict(entry)
+        status = fields.pop('status')
+        event(Path(test_dir) / 'events.jsonl', status, readable=False,
+              iteration_id=Path(test_dir).name, stage=fields['agent'], **fields)
+
+
+@ChiaFunction(resources={"wally_sim": 1}, max_retries=0)
+def stage_snapshot(scratch: str, test_dir: str, stage: str) -> str:
+    return guard_snapshot(scratch, test_dir, stage)
+
+
+@ChiaFunction(resources={"wally_sim": 1}, max_retries=0)
+def stage_finish(path: str) -> None:
+    guard_finish(path)
+
+
+def agent_stage(function, scratch: str, context: dict) -> dict:
+    role = function.__name__
+    guard = remote(stage_snapshot, scratch, context['test_dir'], role)
+    try:
+        return remote(function, scratch, context)
+    finally:
+        remote(stage_finish, guard)
+
+
+@ChiaFunction(resources={"wally_sim": 1}, max_retries=0)
 def make_worktree(wally_path: str, tag: str) -> dict:
     """Prepare one reusable checkout; never overwrite an unarchived attempt."""
     base = Path(wally_path).resolve()
@@ -395,7 +427,7 @@ def make_worktree(wally_path: str, tag: str) -> dict:
             if state["source"] != str(base) or not (scratch / ".git").is_file():
                 raise WorkspaceUnavailableError("Shared worktree does not match its saved source")
             previous = base.parent / "runs" / state["tag"] / "attempt.json"
-            if not previous.exists() or json.loads(previous.read_text())["status"] == "in_progress":
+            if not previous.exists() or (json.loads(previous.read_text()).get('active', False) or json.loads(previous.read_text())["status"] == "in_progress"):
                 raise WorkspaceUnavailableError(f"Previous attempt is active or unarchived: {previous}")
             if json.loads(previous.read_text()).get("workspace_recovery_required"):
                 raise WorkspaceUnavailableError(f"Previous archive needs repair; see archive_errors in {previous}")
@@ -457,7 +489,9 @@ def make_worktree(wally_path: str, tag: str) -> dict:
         temporary = state_path.with_suffix(".json.tmp")
         temporary.write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
         temporary.replace(state_path)
-    return {"scratch": str(scratch), "base_commit": state["base_commit"], "test_dir": str(test_dir)}
+    return {"scratch": str(scratch), "base_commit": state["base_commit"],
+            "baseline_tree": git(str(scratch), 'rev-parse', state['base_commit'] + '^{tree}').strip(),
+            "test_dir": str(test_dir)}
 
 
 def copy_dependency_gitdirs(base: Path, scratch: Path, include_root: bool = False) -> None:
@@ -521,7 +555,7 @@ def repair_submodule_links(scratch: str, base_commit: str, test_dir: str) -> lis
     return repaired
 
 
-@ChiaFunction(resources={"wally_sim": 1})
+@ChiaFunction(resources={"wally_sim": 1}, max_retries=0)
 def check_changes(scratch: str, base_commit: str, allow_rtl: bool = False, test_dir: str | None = None) -> str:
     """Reject tracked edits outside the role's scope, including staged edits."""
     if git(scratch, "rev-parse", "HEAD").strip() != base_commit:
@@ -547,7 +581,7 @@ def check_changes(scratch: str, base_commit: str, allow_rtl: bool = False, test_
     return git(scratch, "diff", "--binary", base_commit, "--", "src/")
 
 
-@ChiaFunction(resources={"wally_sim": 1})
+@ChiaFunction(resources={"wally_sim": 1}, max_retries=0)
 def test_fingerprint(scratch: str, test_dir: str) -> dict:
     """Freeze scripts/oracle inputs, excluding designated build/log directories."""
     root = Path(scratch) / test_dir
@@ -563,7 +597,7 @@ def fingerprint_changes(before: dict, after: dict) -> dict:
             "modified": sorted(k for k in before.keys() & after.keys() if before[k] != after[k])}
 
 
-@ChiaFunction(resources={"wally_sim": 1})
+@ChiaFunction(resources={"wally_sim": 1}, max_retries=0)
 def archive_inputs(scratch: str, test_dir: str, fingerprint: dict, revision: int) -> None:
     root = Path(scratch) / test_dir
     dest = root / "controller" / f"inputs-{revision}"
@@ -573,7 +607,7 @@ def archive_inputs(scratch: str, test_dir: str, fingerprint: dict, revision: int
         shutil.copy2(root / name, target)
 
 
-@ChiaFunction(resources={"wally_sim": 1})
+@ChiaFunction(resources={"wally_sim": 1}, max_retries=0)
 def restore_review_edits(scratch: str, base: str, test_dir: str, revision: int) -> None:
     if git(scratch, "rev-parse", "HEAD").strip() != base:
         raise ArtifactError("Critic changed HEAD; automatic recovery stopped")
@@ -583,56 +617,47 @@ def restore_review_edits(scratch: str, base: str, test_dir: str, revision: int) 
     git(scratch, "restore", "--source", base, "--staged", "--worktree", "--", ".")
 
 
-@ChiaFunction(resources={"wally_sim": 1})
-def verify_command(scratch: str, command: str, log_path: str, timeout: int = REGRESSION_TIMEOUT) -> dict:
-    """Run on the simulation worker, retaining full logs and killing on timeout."""
-    if not command.strip() or command.strip().lower() == "none":
-        return {"ran": False, "passed": False, "returncode": None}
+@ChiaFunction(resources={"wally_sim": 1}, max_retries=0)
+def verify_command(scratch: str, command, log_path: str, timeout: int = REGRESSION_TIMEOUT,
+                   kind: str = 'regression', test_dir: str | None = None) -> dict:
     path = Path(scratch) / log_path
     path.parent.mkdir(parents=True, exist_ok=True)
-    timed_out = False
-    log("Verify", f"Running command with {timeout / 60:.0f} min timeout: {command[:160]}")
-    with path.open("w", encoding="utf-8") as output:
-        proc = subprocess.Popen(
-            ["bash", "-o", "pipefail", "-c", wally_shell(scratch, command)],
-            cwd=scratch, stdout=output, stderr=subprocess.STDOUT, start_new_session=True,
-        )
-        start = time.monotonic()
-        next_report = 60
-        try:
-            while proc.poll() is None:
-                elapsed = time.monotonic() - start
-                if elapsed >= timeout:
-                    timed_out = True
-                    break
-                if elapsed >= next_report:
-                    log("Verify", f"Still running: {elapsed / 60:.1f} min "
-                                  f"(timeout {timeout / 60:.0f} min)")
-                    next_report = elapsed + 60
-                time.sleep(min(1, max(0, timeout - elapsed)))
-        finally:
-            # Also clean background children on normal exit or interruption.
-            try:
-                os.killpg(proc.pid, signal.SIGKILL)
-            except ProcessLookupError:
-                pass
-            try:
-                proc.wait(timeout=10)
-            except subprocess.TimeoutExpired:
-                log("Verify", "Process did not exit within 10 seconds after SIGKILL; cleanup failed")
-                raise
-    elapsed = time.monotonic() - start
-    log("Verify", f"Finished: return code {proc.returncode}, timed out={timed_out}, "
-                  f"elapsed {elapsed / 60:.1f} min (timeout {timeout / 60:.0f} min)")
-    with path.open("rb") as output:
-        output.seek(max(0, path.stat().st_size - 6000))
-        tail = output.read().decode("utf-8", errors="replace")
-    return {"ran": True, "passed": not timed_out and proc.returncode == 0,
-            "returncode": proc.returncode, "timed_out": timed_out,
-            "command": command, "log_path": str(path), "log_tail": tail}
+    if kind == 'reproducer':
+        result = run_reproducer(scratch, test_dir, command, str(path), timeout)
+    else:
+        if not isinstance(command, str) or not command.strip():
+            result = dict(status='TEST_INVALID', ran=False, passed=False, returncode=None)
+        else:
+            result = run_command(['bash', '-o', 'pipefail', '-c', wally_shell(scratch, command)],
+                                 path, timeout, cwd=scratch)
+            failed = infrastructure = rtl_failure = False
+            with path.open(errors='replace') as stream:
+                for line in stream:
+                    failed |= bool(FAILURE.search(line) or TOOL_ERROR.search(line))
+                    infrastructure |= bool(TOOL_ERROR.search(line))
+                    rtl_failure |= bool(re.search(r'Error on test .* (?:result|signature)|Assertion .*failed', line))
+            # Official full regression must finish its suite, not merely exit zero.
+            complete = True
+            if kind == 'regression' and 'regression-wally' in command:
+                with path.open(errors='replace') as stream:
+                    complete = any('SUCCESS! All tests ran without failures' in line for line in stream)
+            result.update(ran=True, passed=result['status'] == 'PASS' and not failed and complete)
+            result['failure_kind'] = (None if result['passed'] else
+                'INFRA_FAILURE' if infrastructure or result['timed_out'] or not rtl_failure else 'RTL_FAILURE')
+            result['status'] = ('REGRESSION_PASS' if result['passed'] else
+                                'HOST_TIMEOUT' if result['timed_out'] else 'REGRESSION_FAIL')
+    semantic = result['status']
+    if kind == 'reproducer':
+        prefix = 'BASELINE_' if path.name.startswith('baseline-') else 'TARGETED_'
+        semantic = prefix + ('FIX_PASS' if prefix == 'TARGETED_' and result['status'] == Outcome.MATCH else result['status'])
+    event(path.parent / 'events.jsonl', semantic, stage=kind,
+          iteration_id=Path(test_dir).name if test_dir else path.parent.parent.name,
+          raw_exit_code=result.get('returncode'), timed_out=result.get('timed_out', False),
+          duration=result.get('duration_seconds'), artifacts=[str(path)])
+    return result
 
 
-@ChiaFunction(resources={"wally_sim": 1})
+@ChiaFunction(resources={"wally_sim": 1}, max_retries=0)
 def save_attempt(wally_path: str, record: dict) -> None:
     """Archive all attempts under runs/ beside the cvw checkout."""
     dest = Path(wally_path).parent / "runs" / record["tag"]
@@ -657,6 +682,8 @@ def save_attempt(wally_path: str, record: dict) -> None:
         record.setdefault("archive_errors", []).append(str(exc))
         record["workspace_recovery_required"] = True
         log("Archive", f"Saved failure details; workspace retained: {exc}")
+    event(dest / 'events.jsonl', record['status'].upper(), readable=False,
+          iteration_id=record['tag'], stage='controller', attempt=len(record.get('fix_attempts', [])))
     temp = dest / "attempt.json.tmp"
     temp.write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
     temp.replace(dest / "attempt.json")
@@ -668,7 +695,7 @@ def history_entry(record: dict) -> dict:
             "knowledge": record.get("plan", {}).get("knowledge", "")}
 
 
-@ChiaFunction(resources={"wally_sim": 1})
+@ChiaFunction(resources={"wally_sim": 1}, max_retries=0)
 def load_history(wally_path: str) -> list[dict]:
     history = []
     for path in sorted((Path(wally_path).parent / "runs").glob("*/attempt.json")):
@@ -679,12 +706,14 @@ def load_history(wally_path: str) -> list[dict]:
     return history
 
 
-@ChiaFunction(resources={"wally_sim": 1})
+@ChiaFunction(resources={"wally_sim": 1}, max_retries=0)
 def export_patch(wally_path: str, record: dict, expected_diff: str) -> str:
     diff = check_changes(record["scratch"], record["base_commit"], allow_rtl=True, test_dir=record["test_dir"])
     if not diff or diff != expected_diff:
         raise RuntimeError("Empty patch or RTL changed after verification")
-    dest = Path(wally_path).parent / "confirmed-bugs"
+    if record.get('status') == 'full_regression_passed' and not confirmation_allowed(record):
+        raise ArtifactError('Cannot export confirmed patch: deterministic gates incomplete')
+    dest = Path(wally_path).parent / ("confirmed-bugs" if confirmation_allowed(record) else "candidate-bugs")
     dest.mkdir(parents=True, exist_ok=True)
     path = dest / f"bug-{record['tag']}.patch"
     path.write_text(diff, encoding="utf-8")
@@ -707,7 +736,7 @@ def run_attempt(record: dict, history: list[dict], max_fix_attempts: int) -> Non
                "regression_command": REGRESSION_COMMAND}
     remote(save_attempt, WALLY_PATH, record)
     log("Architect", "Studying source and choosing the next target...")
-    record["plan"] = remote(architect, scratch, context)
+    record["plan"] = agent_stage(architect, scratch, context)
     log("Architect", record["plan"]["target"])
     remote(check_changes, scratch, base, False, test_dir)
     remote(save_attempt, WALLY_PATH, record)
@@ -717,7 +746,7 @@ def run_attempt(record: dict, history: list[dict], max_fix_attempts: int) -> Non
     record["test_revisions"] = []
     for revision in range(MAX_TEST_REPAIRS + 1):
         record.pop("bug_review", None)
-        record["tester"] = remote(tester, scratch, context)
+        record["tester"] = agent_stage(tester, scratch, context)
         remote(check_changes, scratch, base, False, test_dir)
         remote(save_attempt, WALLY_PATH, record)
         log("Tester", record["tester"]["report"])
@@ -725,7 +754,7 @@ def run_attempt(record: dict, history: list[dict], max_fix_attempts: int) -> Non
             record["status"] = "no_bug"
             return  # No Critic, Fixer or regression when no bug was found.
         context["tester"] = record["tester"]
-        command = record["tester"]["reproduce_command"]
+        command = record["tester"].get("reproducer", {})
         frozen_tests = remote(test_fingerprint, scratch, test_dir)
         if not frozen_tests:
             raise ArtifactError("Bug claim has no preserved reproducer inputs")
@@ -733,7 +762,7 @@ def run_attempt(record: dict, history: list[dict], max_fix_attempts: int) -> Non
         step = {"revision": revision, "tester": record["tester"], "inputs": frozen_tests}
         record["test_revisions"].append(step)
         baseline = remote(verify_command, scratch, command,
-                          f"{test_dir}/logs/baseline-reproducer-{revision}.log", REPRODUCER_TIMEOUT)
+                          f"{test_dir}/logs/baseline-reproducer-{revision}.log", REPRODUCER_TIMEOUT, "reproducer", test_dir)
         record["baseline_reproducer"] = step["baseline_reproducer"] = baseline
         remote(check_changes, scratch, base, False, test_dir)
         changes = fingerprint_changes(frozen_tests, remote(test_fingerprint, scratch, test_dir))
@@ -741,15 +770,23 @@ def run_attempt(record: dict, history: list[dict], max_fix_attempts: int) -> Non
         if any(changes.values()):
             feedback = {"reason": "Reproducer rewrote its own inputs; make the script read existing sources",
                         "files": changes}
-        elif baseline.get("timed_out") or baseline.get("returncode") not in (0, 1):
+        elif baseline.get("status") not in (Outcome.MATCH, Outcome.MISMATCH_CONFIRMED):
             feedback = {"reason": "Baseline reproducer failed to execute correctly", "verification": baseline}
-        elif baseline["returncode"] == 0:
+        elif baseline["status"] == Outcome.MATCH:
             record["status"] = "baseline_not_reproduced"
             return
         else:
+            repeats = [remote(verify_command, scratch, command,
+                f"{test_dir}/logs/baseline-reproducer-{revision}-repeat-{n}.log",
+                REPRODUCER_TIMEOUT, "reproducer", test_dir) for n in range(1, BASELINE_RUNS)]
+            step['repeats'] = repeats
+            if any(r['status'] != Outcome.MISMATCH_CONFIRMED or r.get('fingerprint') != baseline.get('fingerprint') for r in repeats):
+                record['status'] = 'baseline_not_reproducible'
+                return
+            record['status'] = 'baseline_reproduced'
             context.update(baseline_reproducer=baseline, phase="bug_review")
             log("Critic", "Trying to disprove the bug on unmodified RTL...")
-            review = remote(critic, scratch, context)
+            review = agent_stage(critic, scratch, context)
             record["bug_review"] = step["review"] = review
             try:
                 remote(check_changes, scratch, base, False, test_dir)
@@ -765,6 +802,7 @@ def run_attempt(record: dict, history: list[dict], max_fix_attempts: int) -> Non
                 record["status"] = "bug_rejected"
                 return
             if not feedback and review["verdict"] == "approve":
+                record['status'] = 'critic_approved'
                 break
             if not feedback:
                 feedback = {"reason": "Critic requested a test repair", "review": review}
@@ -784,14 +822,16 @@ def run_attempt(record: dict, history: list[dict], max_fix_attempts: int) -> Non
             verify_command, scratch, REGRESSION_COMMAND, f"{test_dir}/logs/baseline-regression.log",
             REGRESSION_TIMEOUT)
         remote(check_changes, scratch, base, False, test_dir)
-        if not record["baseline_regression"].get("passed"):
-            record["status"] = "regression_blocked"
+        if not record['baseline_regression'].get('passed') and record['baseline_regression'].get('failure_kind') != 'RTL_FAILURE':
+            record['status'] = 'regression_blocked'
             return
+        # A deterministic baseline RTL failure is evidence for the Fixer, not
+        # a reason to require broken RTL to pass before it can be repaired.
     context.update(bug_review=record["bug_review"], baseline_regression=record["baseline_regression"])
     record["fix_attempts"] = []
     for attempt in range(1, max_fix_attempts + 1):
         log("RTL Fixer", f"Applying/refining the minimal RTL fix ({attempt}/{max_fix_attempts})...")
-        fix = {"attempt": attempt, "fixer": remote(rtl_fixer, scratch, context)}
+        fix = {"attempt": attempt, "fixer": agent_stage(rtl_fixer, scratch, context)}
         record["fix_attempts"].append(fix)
         diff = remote(check_changes, scratch, base, True, test_dir)
         if remote(test_fingerprint, scratch, test_dir) != frozen_tests:
@@ -800,18 +840,27 @@ def run_attempt(record: dict, history: list[dict], max_fix_attempts: int) -> Non
         if not fix["fixer"]["changed"] or not diff:
             record["status"] = "no_fix"
             return
+        record['status'] = 'patch_generated'
         fix["reproducer"] = remote(
             verify_command, scratch, command, f"{test_dir}/logs/fix-{attempt}-reproducer.log",
-            REPRODUCER_TIMEOUT)
+            REPRODUCER_TIMEOUT, "reproducer", test_dir)
+        fix['directed'] = {'ran': False, 'passed': False, 'reason': 'WALLY_DIRECTED_COMMAND not configured'}
+        if fix['reproducer']['passed']:
+            record['status'] = 'targeted_fix_verified'
+            if DIRECTED_COMMAND:
+                fix['directed'] = remote(verify_command, scratch, DIRECTED_COMMAND,
+                    f'{test_dir}/logs/fix-{attempt}-directed.log', REGRESSION_TIMEOUT, 'directed', test_dir)
+                if fix['directed']['passed']:
+                    record['status'] = 'directed_regression_passed'
         fix["regression"] = dict(skipped)
-        if RUN_REGRESSION:
+        if RUN_REGRESSION and fix['reproducer']['passed'] and fix['directed']['passed']:
             log("Regression", f"Independently checking fix {attempt}: {REGRESSION_COMMAND}")
             fix["regression"] = remote(
                 verify_command, scratch, REGRESSION_COMMAND, f"{test_dir}/logs/fix-{attempt}-regression.log",
                 REGRESSION_TIMEOUT)
         context.update(phase="fix_review", fix=fix)
         log("Critic", "Reviewing the RTL diff and independent verification logs...")
-        fix["review"] = remote(critic, scratch, context)
+        fix["review"] = agent_stage(critic, scratch, context)
         if remote(check_changes, scratch, base, True, test_dir) != diff:
             raise ArtifactError("RTL changed during verification or review")
         if remote(test_fingerprint, scratch, test_dir) != frozen_tests:
@@ -819,10 +868,15 @@ def run_attempt(record: dict, history: list[dict], max_fix_attempts: int) -> Non
                                 json.dumps(fingerprint_changes(frozen_tests, remote(test_fingerprint, scratch, test_dir))))
         remote(save_attempt, WALLY_PATH, record)
         log("Critic", fix["review"]["critique"])
-        passed = fix["reproducer"]["passed"] and (not RUN_REGRESSION or fix["regression"]["passed"])
-        if passed and fix["review"]["verdict"] == "approve":
-            record["patch"] = remote(export_patch, WALLY_PATH, record, diff)
-            record["status"] = "confirmed"
+        passed = fix['reproducer']['passed'] and fix['directed']['passed'] and fix['regression']['passed'] is True
+        if passed and confirmation_allowed(record):
+            record['status'] = 'full_regression_passed'
+            record['patch'] = remote(export_patch, WALLY_PATH, record, diff)
+            record['status'] = 'confirmed'
+            return
+        if fix['reproducer']['passed'] and (not RUN_REGRESSION or not DIRECTED_COMMAND) and fix['review']['verdict'] == 'approve':
+            record['status'] = 'candidate_fix_verified'
+            record['patch'] = remote(export_patch, WALLY_PATH, record, diff)
             return
         if fix["review"]["verdict"] == "reject":
             record["status"] = "fix_rejected"
@@ -842,7 +896,7 @@ def main(max_iterations: int | None = MAX_ITERATIONS, max_fix_attempts: int = MA
     while max_iterations is None or i < max_iterations:
         i += 1
         tag = f"{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}-{uuid.uuid4().hex[:8]}"
-        record = {"tag": tag, "iteration": i, "status": "in_progress"}
+        record = {"tag": tag, "iteration": i, "status": "in_progress", "active": True}
         log("LOOP", f"Iteration {i}: {tag}")
         try:
             run_attempt(record, history, max_fix_attempts)
@@ -856,24 +910,37 @@ def main(max_iterations: int | None = MAX_ITERATIONS, max_fix_attempts: int = MA
             record.update(status="workspace_unavailable", error=str(exc))
             log("LOOP", f"Stopping: {exc}")
             raise  # Ray must not report a workspace-blocked run as succeeded.
-        except ArtifactError as exc:
+        except ArtifactViolation as exc:
             record.update(status="invalid_artifacts", error=str(exc))
             log("LOOP", f"Evidence rejected; artifacts preserved: {exc}")
-        except (AgentCallError, RateLimitError, InvalidRequestError) as exc:
-            record.update(status="agent_failed", error=str(exc))
+        except AgentOutputInvalid as exc:
+            record.update(status='agent_output_invalid', error=str(exc))
+            log('LOOP', 'AGENT_OUTPUT_INVALID: artifacts preserved')
+        except MCPFailure as exc:
+            record.update(status='mcp_server_timeout', error=str(exc))
+            log('LOOP', 'MCP_SERVER_TIMEOUT: artifacts preserved')
+        except (AgentCallError, AgentCallFailure, RateLimitError, ProviderRateLimited, InvalidRequestError) as exc:
+            record.update(status="api_rate_limit" if isinstance(exc, (RateLimitError, ProviderRateLimited)) else "agent_failed", error=str(redact(str(exc))))
             log("LOOP", f"Agent could not finish; artifacts preserved: {exc}")
         except Exception as exc:
-            record.update(status="error", error=repr(exc))
-            log("LOOP", f"Attempt failed: {exc!r}; continuing")
+            record.update(status="controller_error", error=redact(repr(exc)))
+            log("LOOP", f"Controller failure: {exc!r}; preserving current candidate")
         finally:
+            record['active'] = False
             try:
                 remote(save_attempt, WALLY_PATH, record)
             except Exception as exc:
                 log("LOOP", f"Archive failed: {exc!r}; files remain in {record.get('scratch')}")
             history.append(history_entry(record))
             log("LOOP", f"Outcome: {record['status']}; worktree retained: {record.get('scratch')}")
+        if record['status'] in {'fix_attempts_exhausted', 'fix_rejected', 'regression_blocked',
+                                'api_rate_limit', 'mcp_server_timeout', 'agent_failed',
+                                'agent_output_invalid', 'controller_error'}:
+            log('LOOP', 'Stopping discovery; unresolved candidate and evidence retained')
+            return 1
     log("LOOP", f"Stopped after {i} iterations. Confirmed patches: {confirmed_bugs}")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
