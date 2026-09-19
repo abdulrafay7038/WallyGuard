@@ -1,0 +1,88 @@
+Started: 2026-09-18T09:47:16.382749+00:00
+Command: bash -o pipefail -c 'sed -n '"'"'240,320p'"'"' src/privileged/csrm.sv'
+
+  // the spec permits because the hypervisor extension is not implemented and sstateen1-3 are
+  // read-only zero.  Bit 63 of each mstateen controls access to the matching sstateen.
+  if (P.SMSTATEEN_SUPPORTED) begin : mstateen // stateen registers only exist if there is a lower privilege to control
+    logic WriteMSTATEEN0M;
+    logic [63:0] MSTATEEN0_PreWriteValM, MSTATEEN0_WriteValM;
+    assign WriteMSTATEEN0M = CSRMWriteM & (CSRAdrM == MSTATEEN0);
+    // MSTATEEN0 is always 64 bits even for RV32
+    assign MSTATEEN0_WriteValM = {
+      MSTATEEN0_PreWriteValM[63],                        // SE0: access to sstateen0
+      MSTATEEN0_PreWriteValM[62],                        // ENVCFG: access to senvcfg; senvcfg always exists because Wally is Sm1p12 compatible
+      1'b0,                                              // 61: reserved
+      MSTATEEN0_PreWriteValM[60] & P.SSCSRIND_SUPPORTED, // CSRIND: access to siselect and sireg*
+      MSTATEEN0_PreWriteValM[59] & P.SSAIA_SUPPORTED,    // AIA: access to other Ssaia state
+      MSTATEEN0_PreWriteValM[58] & P.SSAIA_SUPPORTED,    // IMSIC: access to stopei and other IMSIC state
+      MSTATEEN0_PreWriteValM[57] & P.SDTRIG_SUPPORTED,   // CONTEXT: access to scontext
+      MSTATEEN0_PreWriteValM[56] & P.SMP1P13_SUPPORTED,  // P1P13: access to hedelegh
+      MSTATEEN0_PreWriteValM[55] & P.SSQOSID_SUPPORTED,  // SRMCFG: access to srmcfg
+      MSTATEEN0_PreWriteValM[54] & P.SMCTR_SUPPORTED,    // CTR: access to control transfer records
+      51'b0,                                             // 53:3 reserved
+      MSTATEEN0_PreWriteValM[2] & P.ZCMT_SUPPORTED,      // JVT: access to jvt
+      MSTATEEN0_PreWriteValM[1] & P.ZFINX_SUPPORTED,     // FCSR: access to fcsr when floating point uses x registers
+      1'b0                                               // C: Wally has no custom state
+    };
+    if (P.XLEN == 64) begin
+      assign MSTATEEN0_PreWriteValM = CSRWriteValM;
+      flopenr #(P.XLEN) MSTATEEN0reg(clk, reset, WriteMSTATEEN0M, MSTATEEN0_WriteValM, MSTATEEN0_REGW);
+    end else begin // RV32 has high and low halves
+      logic WriteMSTATEEN0HM;
+      assign MSTATEEN0_PreWriteValM = {CSRWriteValM, CSRWriteValM};
+      assign WriteMSTATEEN0HM = CSRMWriteM & (CSRAdrM == MSTATEEN0H) & (P.XLEN==32);
+      flopenr #(P.XLEN) MSTATEEN0reg(clk, reset, WriteMSTATEEN0M, MSTATEEN0_WriteValM[31:0], MSTATEEN0_REGW[31:0]);
+      flopenr #(P.XLEN) MSTATEEN0Hreg(clk, reset, WriteMSTATEEN0HM, MSTATEEN0_WriteValM[63:32], MSTATEEN0_REGW[63:32]);
+    end
+  end else assign MSTATEEN0_REGW = '0;
+
+  // Grain alignment for PMPADDR read values.
+  for(i=0; i<P.PMP_ENTRIES; i++)
+    always_comb begin
+      logic [P.XLEN-1:0] pmpaddr;
+      pmpaddr = {{(P.XLEN-(P.PA_BITS-2)){1'b0}}, PMPADDR_ARRAY_PREGRAIN_REGW[i]}; // raw value in PMP registers
+      if (PMPCFG_ARRAY_REGW[i][4]) PMPADDR_ARRAY_REGW[i] = {pmpaddr[P.PA_BITS-3:Gm1],     {Gm1    {1'b1}}}; // in NAPOT/NA4, bottom G-1 bits read as all 1s (but no bits affected for NA4)
+      else                         PMPADDR_ARRAY_REGW[i] = {pmpaddr[P.PA_BITS-3:P.PMP_G], {P.PMP_G{1'b0}}}; // in TOR/OFF, bottom G bits read as 0s
+    end
+
+  // Read machine mode CSRs
+  // verilator lint_off WIDTH
+  logic [5:0] entry;
+  always_comb begin
+    entry = '0;
+    CSRMReadValM = '0;
+    IllegalCSRMAccessM = !(P.S_SUPPORTED) & (CSRAdrM == MEDELEG | CSRAdrM == MIDELEG); // trap on DELEG register access when no S or N-mode
+    if ($unsigned(CSRAdrM) >= PMPADDR0 & $unsigned(CSRAdrM) < PMPADDR0 + P.PMP_ENTRIES)
+      CSRMReadValM = {{(P.XLEN-(P.PA_BITS-2)){1'b0}}, PMPADDR_ARRAY_REGW[CSRAdrM - PMPADDR0]}; // read PMPADDR entry with lsbs aligned to grain based on NAPOT vs. TOR
+    else if ($unsigned(CSRAdrM) >= PMPCFG0 & $unsigned(CSRAdrM) < PMPCFG0 + P.PMP_ENTRIES/4 & (P.XLEN==32 | CSRAdrM[0] == 0)) begin
+      // only odd-numbered PMPCFG entries exist in RV64
+      if (P.XLEN==64) begin
+        entry = ({CSRAdrM[11:1], 1'b0} - PMPCFG0)*4; // disregard odd entries in RV64
+        CSRMReadValM = {PMPCFG_ARRAY_REGW[entry+7],PMPCFG_ARRAY_REGW[entry+6],PMPCFG_ARRAY_REGW[entry+5],PMPCFG_ARRAY_REGW[entry+4],
+                        PMPCFG_ARRAY_REGW[entry+3],PMPCFG_ARRAY_REGW[entry+2],PMPCFG_ARRAY_REGW[entry+1],PMPCFG_ARRAY_REGW[entry]};
+      end else begin
+        entry = (CSRAdrM - PMPCFG0)*4;
+        CSRMReadValM = {PMPCFG_ARRAY_REGW[entry+3],PMPCFG_ARRAY_REGW[entry+2],PMPCFG_ARRAY_REGW[entry+1],PMPCFG_ARRAY_REGW[entry]};
+      end
+    end
+    else case (CSRAdrM)
+      MISA_ADR:      CSRMReadValM = MISA_REGW;
+      MVENDORID:     CSRMReadValM = {{(P.XLEN-32){1'b0}}, 32'h0000_0602}; // OpenHW JEDEC
+      MARCHID:       CSRMReadValM = {{(P.XLEN-32){1'b0}}, 32'h24}; // 36 for CV-Wally
+      MIMPID:        CSRMReadValM = {{P.XLEN-12{1'b0}}, 12'h100}; // pipelined implementation
+      MHARTID:       CSRMReadValM = MHARTID_REGW; // hardwired to 0
+      MCONFIGPTR:    CSRMReadValM = '0; // hardwired to 0
+      MSTATUS:       CSRMReadValM = MSTATUS_REGW;
+      MSTATUSH:      if (P.XLEN==32) CSRMReadValM = MSTATUSH_REGW;
+                     else IllegalCSRMAccessM = 1'b1;
+      MTVEC:         CSRMReadValM = MTVEC_REGW;
+      MEDELEG:       CSRMReadValM = {{(P.XLEN-16){1'b0}}, MEDELEG_REGW};
+      MIDELEG:       CSRMReadValM = {{(P.XLEN-12){1'b0}}, MIDELEG_REGW};
+      MIP:           CSRMReadValM = {{(P.XLEN-12){1'b0}}, MIP_REGW};
+      MIE:           CSRMReadValM = {{(P.XLEN-12){1'b0}}, MIE_REGW};
+      MSCRATCH:      CSRMReadValM = MSCRATCH_REGW;
+      MEPC:          CSRMReadValM = MEPC_REGW;
+
+Finished: 2026-09-18T09:47:16.466003+00:00
+Return code: 0
+Status: PASS

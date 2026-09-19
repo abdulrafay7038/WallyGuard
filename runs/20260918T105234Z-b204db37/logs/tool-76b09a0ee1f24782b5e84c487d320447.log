@@ -1,0 +1,24 @@
+Started: 2026-09-18T11:17:54.283974+00:00
+Command: bash -o pipefail -c 'cat /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/tests/riscof/spike/env/link.ld'
+
+OUTPUT_ARCH( "riscv" )
+ENTRY(rvtest_entry_point)
+
+SECTIONS
+{
+  . = 0x80000000;
+  .text.init : { *(.text.init) }
+  . = ALIGN(0x1000);
+  .tohost : { *(.tohost) }
+  . = ALIGN(0x1000);
+  .text : { *(.text) }
+  . = ALIGN(0x1000);
+  .data : { *(.data) }
+  .data.string : { *(.data.string)}
+  .bss : { *(.bss) }
+  _end = .;
+}
+
+Finished: 2026-09-18T11:17:54.365383+00:00
+Return code: 0
+Status: PASS

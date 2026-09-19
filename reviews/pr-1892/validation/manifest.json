@@ -1,0 +1,244 @@
+{
+  "pr_head": "519500de4a750485931090accc8df233a86307f8",
+  "baseline": "275695cdb900351afa0e3634acb55f95275f7b13",
+  "files": {
+    "src/mmu/hptw.sv": "4ad952245de9521f6e28e67c46f46d8f920a7edc014d816d454a1de98ddce2d5",
+    "tests/custom/hptw-superpage/README.md": "6e3b11fdda476da910ae3639e24cb97aaa9c7d15aeb0ce3e7f87bced80b315b1",
+    "tests/custom/hptw-superpage/run.py": "c06d1f3e774dae93dfb130494de8118c0a5df802a6ef088d9b698cd934ec976a",
+    "tests/custom/hptw-superpage/superpage.S": "0336f4414b6a4e3aa3b0f2dc0736acf9a941b6b57c23d746c44282fdb955507e"
+  },
+  "binaries": {
+    "fixed": "eb4cb408245714a5651e08eb941c95d53e35eb579918ba3f0a8bc6ba0bd0a217",
+    "baseline": "ebb3951bf1d24746b944dc4f73a427876942fc9656befce49ba86f63ca86e1e0"
+  },
+  "results": {
+    "fixed": [
+      {
+        "test": "l1-load-aligned-ad00",
+        "spike": "pass",
+        "wally": "pass",
+        "wally_returncode": 0,
+        "ok": true
+      },
+      {
+        "test": "l1-load-misaligned-ad00",
+        "spike": "pass",
+        "wally": "pass",
+        "wally_returncode": 0,
+        "ok": true
+      },
+      {
+        "test": "l1-store-aligned-ad00",
+        "spike": "pass",
+        "wally": "pass",
+        "wally_returncode": 0,
+        "ok": true
+      },
+      {
+        "test": "l1-store-aligned-ad40",
+        "spike": "pass",
+        "wally": "pass",
+        "wally_returncode": 0,
+        "ok": true
+      },
+      {
+        "test": "l1-store-misaligned-ad00",
+        "spike": "pass",
+        "wally": "pass",
+        "wally_returncode": 0,
+        "ok": true
+      },
+      {
+        "test": "l1-store-misaligned-ad40",
+        "spike": "pass",
+        "wally": "pass",
+        "wally_returncode": 0,
+        "ok": true
+      },
+      {
+        "test": "l1-fetch-aligned-ad00",
+        "spike": "pass",
+        "wally": "pass",
+        "wally_returncode": 0,
+        "ok": true
+      },
+      {
+        "test": "l1-fetch-misaligned-ad00",
+        "spike": "pass",
+        "wally": "pass",
+        "wally_returncode": 0,
+        "ok": true
+      },
+      {
+        "test": "l2-load-aligned-ad00",
+        "spike": "pass",
+        "wally": "pass",
+        "wally_returncode": 0,
+        "ok": true
+      },
+      {
+        "test": "l2-load-misaligned-ad00",
+        "spike": "pass",
+        "wally": "pass",
+        "wally_returncode": 0,
+        "ok": true
+      },
+      {
+        "test": "l2-store-aligned-ad00",
+        "spike": "pass",
+        "wally": "pass",
+        "wally_returncode": 0,
+        "ok": true
+      },
+      {
+        "test": "l2-store-aligned-ad40",
+        "spike": "pass",
+        "wally": "pass",
+        "wally_returncode": 0,
+        "ok": true
+      },
+      {
+        "test": "l2-store-misaligned-ad00",
+        "spike": "pass",
+        "wally": "pass",
+        "wally_returncode": 0,
+        "ok": true
+      },
+      {
+        "test": "l2-store-misaligned-ad40",
+        "spike": "pass",
+        "wally": "pass",
+        "wally_returncode": 0,
+        "ok": true
+      },
+      {
+        "test": "l2-fetch-aligned-ad00",
+        "spike": "pass",
+        "wally": "pass",
+        "wally_returncode": 0,
+        "ok": true
+      },
+      {
+        "test": "l2-fetch-misaligned-ad00",
+        "spike": "pass",
+        "wally": "pass",
+        "wally_returncode": 0,
+        "ok": true
+      }
+    ],
+    "baseline": [
+      {
+        "test": "l1-load-aligned-ad00",
+        "spike": "pass",
+        "wally": "pass",
+        "wally_returncode": 0,
+        "ok": true
+      },
+      {
+        "test": "l1-load-misaligned-ad00",
+        "spike": "pass",
+        "wally": "expected A/D mismatch",
+        "wally_returncode": -6,
+        "ok": true
+      },
+      {
+        "test": "l1-store-aligned-ad00",
+        "spike": "pass",
+        "wally": "pass",
+        "wally_returncode": 0,
+        "ok": true
+      },
+      {
+        "test": "l1-store-aligned-ad40",
+        "spike": "pass",
+        "wally": "pass",
+        "wally_returncode": 0,
+        "ok": true
+      },
+      {
+        "test": "l1-store-misaligned-ad00",
+        "spike": "pass",
+        "wally": "expected A/D mismatch",
+        "wally_returncode": -6,
+        "ok": true
+      },
+      {
+        "test": "l1-store-misaligned-ad40",
+        "spike": "pass",
+        "wally": "expected A/D mismatch",
+        "wally_returncode": -6,
+        "ok": true
+      },
+      {
+        "test": "l1-fetch-aligned-ad00",
+        "spike": "pass",
+        "wally": "pass",
+        "wally_returncode": 0,
+        "ok": true
+      },
+      {
+        "test": "l1-fetch-misaligned-ad00",
+        "spike": "pass",
+        "wally": "expected A/D mismatch",
+        "wally_returncode": -6,
+        "ok": true
+      },
+      {
+        "test": "l2-load-aligned-ad00",
+        "spike": "pass",
+        "wally": "pass",
+        "wally_returncode": 0,
+        "ok": true
+      },
+      {
+        "test": "l2-load-misaligned-ad00",
+        "spike": "pass",
+        "wally": "expected A/D mismatch",
+        "wally_returncode": -6,
+        "ok": true
+      },
+      {
+        "test": "l2-store-aligned-ad00",
+        "spike": "pass",
+        "wally": "pass",
+        "wally_returncode": 0,
+        "ok": true
+      },
+      {
+        "test": "l2-store-aligned-ad40",
+        "spike": "pass",
+        "wally": "pass",
+        "wally_returncode": 0,
+        "ok": true
+      },
+      {
+        "test": "l2-store-misaligned-ad00",
+        "spike": "pass",
+        "wally": "expected A/D mismatch",
+        "wally_returncode": -6,
+        "ok": true
+      },
+      {
+        "test": "l2-store-misaligned-ad40",
+        "spike": "pass",
+        "wally": "expected A/D mismatch",
+        "wally_returncode": -6,
+        "ok": true
+      },
+      {
+        "test": "l2-fetch-aligned-ad00",
+        "spike": "pass",
+        "wally": "pass",
+        "wally_returncode": 0,
+        "ok": true
+      },
+      {
+        "test": "l2-fetch-misaligned-ad00",
+        "spike": "pass",
+        "wally": "expected A/D mismatch",
+        "wally_returncode": -6,
+        "ok": true
+      }
+    ]
+  }
+}

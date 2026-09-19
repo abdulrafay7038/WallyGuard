@@ -1,0 +1,10 @@
+Started: 2026-09-18T09:55:03.613684+00:00
+Command: bash -o pipefail -c 'git grep -rn "SFenceVmaD" src/'
+
+src/ieu/controller.sv:142:  logic        SFenceVmaD;                     // sfence.vma instruction
+src/ieu/controller.sv:353:  assign SFenceVmaD = PrivilegedD & (InstrD[31:25] ==  7'b0001001);
+src/ieu/controller.sv:354:  assign FenceD = SFenceVmaD | FenceXD; // possible sfence.vma or fence.i
+
+Finished: 2026-09-18T09:55:03.702471+00:00
+Return code: 0
+Status: PASS

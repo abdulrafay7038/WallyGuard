@@ -1,0 +1,62 @@
+# Normative rule to coverpoint mappings
+# Generated from riscv-isa-manual normative rule definitions
+
+normative_rule_definitions:
+  - name: mhpmevent_inh_op
+    coverpoint:
+      [
+        "{SscofpmfSm_cg,SscofpmfS_cg,SscofpmfU_cg}/{cp_minh_inhibits_mmode,cp_sinh_inhibits_smode,cp_uinh_inhibits_umode}",
+      ]
+
+  - name:
+      [
+        mhpmevent_of_op,
+        mhpmevent_of_bit_set,
+        hpmcounter_overflow,
+        count_overflow_interrupt,
+        LCOFIP_op,
+      ]
+    coverpoint:
+      ["{SscofpmfSm_cg,SscofpmfS_cg,SscofpmfU_cg}/{cp_of_set_on_overflow}"]
+
+  - name: count_overflow_trigger
+    coverpoint:
+      ["{SscofpmfSm_cg,SscofpmfS_cg,SscofpmfU_cg}/{cp_overflow_hw_only}"]
+
+  - names: LCOFIP_op
+    coverpoint: ["SscofpmfS_cg/cp_lcofip_hw_only"]
+
+  - name: scountovf_op
+    coverpoint: ["SscofpmfS_cg/cp_scountovf_shadow"]
+
+  - name: [scountovf_mmode_read_access, scountovf_smode_read_access]
+    coverpoint: ["{SscofpmfSm_cg,SscofpmfS_cg}/{cp_scountovf_mcounteren}"]
+
+  - name:
+      [
+        scountovf_mmode_read_access,
+        scountovf_smode_read_access,
+        mhpmeventh_presence,
+      ]
+    coverpoint: ["{SscofpmfSm_cg,SscofpmfS_cg}/{cp_sscofpmf_access}"]
+
+  - name:
+      [
+        count_overflow_triggermip_lcofip_mie_lcofie_op,
+        mip_lcofip_acc,
+        sip_sie_Sscofpmf,
+      ]
+    coverpoint: ["{SscofpmfSm_cg,SscofpmfS_cg,SscofpmfU_cg}/{cp_lcofi}"]
+
+  - name: sip_sie_Sscofpmf
+    coverpoint: ["SscofpmfS_cg/cp_lcofi_sip_s"]
+
+  - names: sip_sie_Sscofpmf
+    coverpoint: ["SscofpmfU_cg/cp_lcofi_sip_u"]
+
+  - name: [intr_M_mode_pri, sip_sie_priority_bit_order]
+    coverpoint:
+      ["{SscofpmfSm_cg,SscofpmfS_cg,SscofpmfU_cg}/{cp_lcofip_priority}"]
+
+  - name: scountovf_vsmode_read_access
+    coverpoint: [""]

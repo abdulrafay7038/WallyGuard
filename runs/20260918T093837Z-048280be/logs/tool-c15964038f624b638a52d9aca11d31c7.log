@@ -1,0 +1,9 @@
+Started: 2026-09-18T10:31:49.618050+00:00
+Command: bash -o pipefail -c 'cat $WALLY_CLEAN/src/fpu/postproc/round.sv | sed -n '"'"'40,65p'"'"''
+
+cat: /src/fpu/postproc/round.sv: No such file or directory
+
+Finished: 2026-09-18T10:31:49.721089+00:00
+Return code: 1
+Status: COMMAND_FAILED
+ERROR: Command exited with code 1

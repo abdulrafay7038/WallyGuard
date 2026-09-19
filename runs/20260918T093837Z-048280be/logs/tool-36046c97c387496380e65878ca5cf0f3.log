@@ -1,0 +1,33 @@
+Started: 2026-09-18T09:56:28.700937+00:00
+Command: bash -o pipefail -c 'sed -n '"'"'410,435p'"'"' src/wally/wallypipelinedcore.sv'
+
+      .DebugFPREnable,
+      .DebugFRD1D,
+      .DebugRegWDATA(DebugRegWDATA[P.FLEN-1:0]),
+      .DebugRegAddr,
+      .DebugRegWrite
+      );
+  end else begin                           // no F_SUPPORTED or D_SUPPORTED; tie outputs low
+    assign {FPUStallD, FWriteIntE, FCvtIntE, FIntResM, FCvtIntW, FRegWriteM,
+            IllegalFPUInstrD, SetFflagsM, FpLoadStoreM,
+            FWriteDataM, FCvtIntResW, FIntDivResultW, FDivBusyE} = '0;
+  end
+
+  // *** fix me replace with driver from LSU
+  genvar i;
+  for(i = 0; i < P.VPU_LSU_LANES; i++) begin
+      assign VReadDataM[i] = '0;
+  end
+  if (P.V_SUPPORTED) begin : vpu
+    vpu #(P) vpu(.clk, .reset, .StallD, .StallE, .StallM, .StallW,
+                 .FlushD, .FlushE, .FlushM, .FlushW, .VPUFrontEndBusyD,
+                 .InstrD, .VectorD, .ForwardedSrcAE, .ForwardedSrcBE,
+                 .VWriteDataM, .VEUAdrM, .IllegalVectorInstructionD, .VReadDataM, .VIEUFPResultW);
+  end else begin
+    //assign {VPUFrontEndBusyD, IllegalVPUInstrD, VResultIntFPW} = '0;
+  end
+
+
+Finished: 2026-09-18T09:56:28.774459+00:00
+Return code: 0
+Status: PASS

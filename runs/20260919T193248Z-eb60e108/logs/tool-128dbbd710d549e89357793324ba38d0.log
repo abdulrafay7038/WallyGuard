@@ -1,0 +1,23 @@
+Started: 2026-09-19T19:40:39.349678+00:00
+Command: bash -o pipefail -c 'git grep -n "SENVCFG" src/'
+
+src/debug/debug.sv:115:  localparam SENVCFG    = 16'h010A;
+src/debug/debug.sv:726:          SEPC, SCAUSE, STVAL, SCOUNTEREN, SENVCFG: begin
+src/privileged/csr.sv:157:  logic [P.XLEN-1:0]       SENVCFG_REGW;
+src/privileged/csr.sv:295:      .WriteSSTATUSM, .IllegalCSRSAccessM, .STimerInt, .SENVCFG_REGW,
+src/privileged/csr.sv:306:    assign SENVCFG_REGW = '0;
+src/privileged/csr.sv:380:                                                                       (MENVCFG_REGW[7:4] & SENVCFG_REGW[7:4]);
+src/privileged/csr.sv:384:                                                                       (MENVCFG_REGW[0] & SENVCFG_REGW[0]);
+src/privileged/csrs.sv:51:  output logic [P.XLEN-1:0] SENVCFG_REGW,
+src/privileged/csrs.sv:62:  localparam SENVCFG    = 12'h10A;
+src/privileged/csrs.sv:84:  logic                    WriteSENVCFGM;
+src/privileged/csrs.sv:88:  logic [P.XLEN-1:0]       SENVCFG_WriteValM;
+src/privileged/csrs.sv:110:  assign WriteSENVCFGM    = CSRSWriteM & (CSRAdrM == SENVCFG) & ENVCFGAccessM;
+src/privileged/csrs.sv:146:  assign LegalizedCBIE = CSRWriteValM[5:4] == 2'b10 ? SENVCFG_REGW[5:4] : CSRWriteValM[5:4]; // Assume WARL for reserved CBIE = 10, keeps old value
+src/privileged/csrs.sv:147:  assign SENVCFG_WriteValM = {
+src/privileged/csrs.sv:156:  flopenr #(P.XLEN) SENVCFGreg(clk, reset, WriteSENVCFGM, SENVCFG_WriteValM, SENVCFG_REGW);
+src/privileged/csrs.sv:187:      SENVCFG:   if (ENVCFGAccessM) CSRSReadValM = SENVCFG_REGW;
+
+Finished: 2026-09-19T19:40:39.413396+00:00
+Return code: 0
+Status: PASS

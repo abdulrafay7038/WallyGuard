@@ -1,0 +1,12 @@
+Started: 2026-09-19T19:42:25.924570+00:00
+Command: bash -o pipefail -c 'git grep -n "Bf16UfRes" src/fpu/postproc/specialcase.sv'
+
+src/fpu/postproc/specialcase.sv:73:  logic [P.FLEN-1:0]   Bf16UfRes;  // underflowed result for a BF16 destination
+src/fpu/postproc/specialcase.sv:89:  if (P.ZFBFMIN_SUPPORTED) assign Bf16UfRes = {{P.FLEN-32{1'b1}}, Rs, 14'b0, Plus1&Frm[1]&~(DivOp&YInf), 16'b0};
+src/fpu/postproc/specialcase.sv:90:  else                     assign Bf16UfRes = '0;
+src/fpu/postproc/specialcase.sv:268:      else if(KillRes)            PostProcResPreBox = Bf16Dst ? Bf16UfRes : UfRes;
+src/fpu/postproc/specialcase.sv:274:      else if(KillRes)            PostProcResPreBox = Bf16Dst ? Bf16UfRes : UfRes;
+
+Finished: 2026-09-19T19:42:25.984756+00:00
+Return code: 0
+Status: PASS

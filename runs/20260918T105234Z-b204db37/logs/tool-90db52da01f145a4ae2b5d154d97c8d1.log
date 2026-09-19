@@ -1,0 +1,385 @@
+Started: 2026-09-18T10:58:27.810406+00:00
+Command: bash -o pipefail -c 'git show 1cd134f49'
+
+commit 1cd134f49c6dde7694685490245ea9723ac865f3
+Author: WallyGuard <wallyguard@localhost>
+Date:   Fri Sep 18 09:41:39 2026 +0000
+
+    Initial local cvw snapshot for shared workspace
+
+diff --git a/config/rv32e/config.vh b/config/rv32e/config.vh
+index 04c6eac06..40b83a4ff 100644
+--- a/config/rv32e/config.vh
++++ b/config/rv32e/config.vh
+@@ -90,6 +90,7 @@ localparam logic Q_SUPPORTED   = 0;
+ localparam logic ZFH_SUPPORTED = 0;
+ localparam logic ZFA_SUPPORTED = 0;
+ localparam logic ZFBFMIN_SUPPORTED = 0; // BF16 converts, requires F
++<<<<<<< HEAD
+ 
+ // Vector extensions
+ localparam logic V_SUPPORTED = 0;
+@@ -103,6 +104,8 @@ localparam VPU_FP_EU = 32'd2;
+ localparam VPU_FP_LANES = 32'd2;
+ localparam VPU_LSU_EU = 32'd2;
+ localparam VPU_LSU_LANES = 32'd2;
++=======
++>>>>>>> wallyguard-pr-1879
+ 
+ // privilege modes
+ localparam logic S_SUPPORTED = 0; // Supervisor mode
+diff --git a/config/rv32gc/config.vh b/config/rv32gc/config.vh
+index 3cca43eee..9f0de086a 100644
+--- a/config/rv32gc/config.vh
++++ b/config/rv32gc/config.vh
+@@ -90,6 +90,7 @@ localparam logic Q_SUPPORTED   = 0;
+ localparam logic ZFH_SUPPORTED = 1;
+ localparam logic ZFA_SUPPORTED = 1;
+ localparam logic ZFBFMIN_SUPPORTED = 1; // BF16 converts, requires F
++<<<<<<< HEAD
+ 
+ // Vector extensions
+ localparam logic V_SUPPORTED = 1;
+@@ -103,6 +104,8 @@ localparam VPU_FP_EU = 32'd2;
+ localparam VPU_FP_LANES = 32'd2;
+ localparam VPU_LSU_EU = 32'd2;
+ localparam VPU_LSU_LANES = 32'd2;
++=======
++>>>>>>> wallyguard-pr-1879
+ 
+ // privilege modes
+ localparam logic S_SUPPORTED = 1; // Supervisor mode
+diff --git a/config/rv32i/config.vh b/config/rv32i/config.vh
+index 5821b387a..d890511f1 100644
+--- a/config/rv32i/config.vh
++++ b/config/rv32i/config.vh
+@@ -90,6 +90,7 @@ localparam logic Q_SUPPORTED   = 0;
+ localparam logic ZFH_SUPPORTED = 0;
+ localparam logic ZFA_SUPPORTED = 0;
+ localparam logic ZFBFMIN_SUPPORTED = 0; // BF16 converts, requires F
++<<<<<<< HEAD
+ 
+ // Vector extensions
+ localparam logic V_SUPPORTED = 0;
+@@ -103,6 +104,8 @@ localparam VPU_FP_EU = 32'd2;
+ localparam VPU_FP_LANES = 32'd2;
+ localparam VPU_LSU_EU = 32'd2;
+ localparam VPU_LSU_LANES = 32'd2;
++=======
++>>>>>>> wallyguard-pr-1879
+ 
+ // privilege modes
+ localparam logic S_SUPPORTED = 0; // Supervisor mode
+diff --git a/config/rv32imc/config.vh b/config/rv32imc/config.vh
+index df65f2ac7..0d182e438 100644
+--- a/config/rv32imc/config.vh
++++ b/config/rv32imc/config.vh
+@@ -90,6 +90,7 @@ localparam logic Q_SUPPORTED   = 0;
+ localparam logic ZFH_SUPPORTED = 0;
+ localparam logic ZFA_SUPPORTED = 0;
+ localparam logic ZFBFMIN_SUPPORTED = 0; // BF16 converts, requires F
++<<<<<<< HEAD
+ 
+ // Vector extensions
+ localparam logic V_SUPPORTED = 0;
+@@ -103,6 +104,8 @@ localparam VPU_FP_EU = 32'd2;
+ localparam VPU_FP_LANES = 32'd2;
+ localparam VPU_LSU_EU = 32'd2;
+ localparam VPU_LSU_LANES = 32'd2;
++=======
++>>>>>>> wallyguard-pr-1879
+ 
+ // privilege modes
+ localparam logic S_SUPPORTED = 0; // Supervisor mode
+diff --git a/config/rv64gc/config.vh b/config/rv64gc/config.vh
+index 3d33be22e..5af68c38d 100644
+--- a/config/rv64gc/config.vh
++++ b/config/rv64gc/config.vh
+@@ -90,6 +90,7 @@ localparam logic Q_SUPPORTED   = 0;
+ localparam logic ZFH_SUPPORTED = 1;
+ localparam logic ZFA_SUPPORTED = 1;
+ localparam logic ZFBFMIN_SUPPORTED = 1; // BF16 converts, requires F
++<<<<<<< HEAD
+ 
+ // Vector extensions
+ localparam logic V_SUPPORTED = 0;
+@@ -103,6 +104,8 @@ localparam VPU_FP_EU = 32'd2;
+ localparam VPU_FP_LANES = 32'd2;
+ localparam VPU_LSU_EU = 32'd2;
+ localparam VPU_LSU_LANES = 32'd2;
++=======
++>>>>>>> wallyguard-pr-1879
+ 
+ // privilege modes
+ localparam logic S_SUPPORTED = 1; // Supervisor mode
+diff --git a/config/rv64i/config.vh b/config/rv64i/config.vh
+index 9b03b6c28..02ab89fd1 100644
+--- a/config/rv64i/config.vh
++++ b/config/rv64i/config.vh
+@@ -90,6 +90,7 @@ localparam logic Q_SUPPORTED   = 0;
+ localparam logic ZFH_SUPPORTED = 0;
+ localparam logic ZFA_SUPPORTED = 0;
+ localparam logic ZFBFMIN_SUPPORTED = 0; // BF16 converts, requires F
++<<<<<<< HEAD
+ 
+ // Vector extensions
+ localparam logic V_SUPPORTED = 0;
+@@ -103,6 +104,8 @@ localparam VPU_FP_EU = 32'd2;
+ localparam VPU_FP_LANES = 32'd2;
+ localparam VPU_LSU_EU = 32'd2;
+ localparam VPU_LSU_LANES = 32'd2;
++=======
++>>>>>>> wallyguard-pr-1879
+ 
+ // privilege modes
+ localparam logic S_SUPPORTED = 0; // Supervisor mode
+diff --git a/config/shared/parameter-defs.vh b/config/shared/parameter-defs.vh
+index 3da776f50..e9d9a6c18 100644
+--- a/config/shared/parameter-defs.vh
++++ b/config/shared/parameter-defs.vh
+@@ -18,6 +18,7 @@ localparam cvw_t P = '{
+   ZFH_SUPPORTED :        ZFH_SUPPORTED,
+   ZFA_SUPPORTED :        ZFA_SUPPORTED,
+   ZFBFMIN_SUPPORTED :    ZFBFMIN_SUPPORTED,
++<<<<<<< HEAD
+   V_SUPPORTED :          V_SUPPORTED,
+   VLEN :                 VLEN,
+   VPU_MAX_EU :           VPU_MAX_EU,
+@@ -33,6 +34,8 @@ localparam cvw_t P = '{
+   VPU_INT_BLEN : VPU_INT_BLEN,
+   VPU_INT_MUL_BLEN : VPU_INT_MUL_BLEN,
+   VPU_FP_BLEN : VPU_FP_BLEN,
++=======
++>>>>>>> wallyguard-pr-1879
+   SSTC_SUPPORTED :       SSTC_SUPPORTED,
+   SMSTATEEN_SUPPORTED :  SMSTATEEN_SUPPORTED,
+   SSSTATEEN_SUPPORTED :  SSSTATEEN_SUPPORTED,
+diff --git a/src/fpu/fcvt.sv b/src/fpu/fcvt.sv
+index c3a0b830f..1a0706615 100644
+--- a/src/fpu/fcvt.sv
++++ b/src/fpu/fcvt.sv
+@@ -57,6 +57,7 @@ module fcvt import cvw::*;  #(parameter cvw_t P) (
+   logic [P.XLEN-1:0]              PosInt;       // the positive integer input
+   logic [P.XLEN-1:0]              TrimInt;      // integer trimmed to the correct size
+   logic [P.NE-2:0]                NewBias;      // the bias of the final result
++  logic [P.NE:0]                  CeNoLz;       // Ce before the normalization shift is subtracted
+   logic [P.NE-1:0]                OldExp;       // the old exponent
+   logic                           Signed;       // is the operation with a signed integer?
+   logic                           Int64;        // is the integer 64 bits?
+@@ -178,8 +179,10 @@ module fcvt import cvw::*;  #(parameter cvw_t P) (
+   //                      000001.stuff
+   //                  - newBias to make the biased exponent
+   //
+-  //          oldexp         - biasold         - LeadingZeros                               + newbias
+-  assign Ce = {1'b0, OldExp} - (P.NE+1)'(P.BIAS) - {{P.NE-P.LOGCVTLEN+1{1'b0}}, (LeadingZeros)} + {2'b0, NewBias};
++  //          oldexp         - biasold         + newbias, before the normalization shift is taken out
++  assign CeNoLz = {1'b0, OldExp} - (P.NE+1)'(P.BIAS) + {2'b0, NewBias};
++  //          ... - LeadingZeros
++  assign Ce = CeNoLz - {{P.NE-P.LOGCVTLEN+1{1'b0}}, (LeadingZeros)};
+ 
+   // find if the result is dnormal or underflows
+   //      - if Calculated expoenent is 0 or negative (and the input/result is not exactaly 0)
+@@ -204,10 +207,18 @@ module fcvt import cvw::*;  #(parameter cvw_t P) (
+   //                  - rather have a few and-gates than an extra bit in the priority encoder???
+   always_comb
+       if(ToInt)                       ShiftAmt = Ce[P.LOGCVTLEN-1:0]&{P.LOGCVTLEN{~Ce[P.NE]}};
++<<<<<<< HEAD
+       // Undo the leading zero shift: a subnormal source needs no normalizing when the result is also
+       // subnormal, and LeadingZeros is already zero for a normal one.  Only same-precision converts
+       // reach that combination: narrowing flushes such a source to zero and widening normalizes it.
+       else if (ResSubnormUf)          ShiftAmt = (P.LOGCVTLEN)'(P.NF-1)+Ce[P.LOGCVTLEN-1:0]+LeadingZeros;
++=======
++      // Use the exponent from before the normalization shift: a subnormal source needs no normalizing
++      // when the result is also subnormal, and the two are identical for a normal source.  Only
++      // same-precision converts reach that combination: narrowing flushes such a source to zero
++      // and widening normalizes it.
++      else if (ResSubnormUf)          ShiftAmt = (P.LOGCVTLEN)'(P.NF-1)+CeNoLz[P.LOGCVTLEN-1:0];
++>>>>>>> wallyguard-pr-1879
+       else                            ShiftAmt = LeadingZeros;
+ 
+   ///////////////////////////////////////////////////////////////////////////
+diff --git a/src/fpu/postproc/cvtshiftcalc.sv b/src/fpu/postproc/cvtshiftcalc.sv
+index 8e61a80ec..cefc105f7 100644
+--- a/src/fpu/postproc/cvtshiftcalc.sv
++++ b/src/fpu/postproc/cvtshiftcalc.sv
+@@ -103,6 +103,8 @@ module cvtshiftcalc import cvw::*;  #(parameter cvw_t P) (
+   // determine if the result underflows ??? -> fp
+   //      - if the first 1 is shifted out of the result then the result underflows
+   //      - can't underflow an integer to fp conversions
+-  assign CvtResUf = ($signed(CvtCe) < $signed({{P.NE-$clog2(P.NF){1'b1}}, ResNegNF}))&~XZero&~IntToFp;
++  // a BF16 result underflows at its own narrower fraction width
++  assign CvtResUf = ($signed(CvtCe) < $signed({{P.NE-$clog2(P.NF){1'b1}},
++                    (Bf16Dst ? -($clog2(P.NF)+1)'(P.BF16_NF) : ResNegNF)}))&~XZero&~IntToFp;
+ 
+ endmodule
+diff --git a/src/fpu/postproc/round.sv b/src/fpu/postproc/round.sv
+index 4c41a3b86..7d1e5ee6a 100644
+--- a/src/fpu/postproc/round.sv
++++ b/src/fpu/postproc/round.sv
+@@ -29,7 +29,11 @@
+ 
+ module round import cvw::*;  #(parameter cvw_t P) (
+   input  logic [P.FMTBITS-1:0]     OutFmt,             // output format
++<<<<<<< HEAD
+   input  logic                     Bf16Dst,            // Zfbfmin: round the fraction to BF16 instead of single
++=======
++  input  logic                     Bf16Dst,            // Zfbfmin: round the fraction to BF16
++>>>>>>> wallyguard-pr-1879
+   input  logic [2:0]               Frm,                // rounding mode
+   input  logic [1:0]               PostProcSel,        // select the postprocessor output
+   input  logic                     Ms,                 // normalized sign
+@@ -72,7 +76,12 @@ module round import cvw::*;  #(parameter cvw_t P) (
+   logic                            CalcPlus1;          // calculated plus1
+   logic                            FpPlus1;            // do you add one to the fp result
+   logic [P.FLEN:0]                 RoundAdd;           // how much to add to the result
++<<<<<<< HEAD
+   logic [P.FLEN:0]                 RoundAddFmt;        // RoundAdd for the formats in OutFmt
++=======
++  logic [P.FLEN:0]                 Bf16RoundAdd;       // RoundAdd for a BF16 result
++  logic                            Bf16Sticky;         // sticky bit for a BF16 result
++>>>>>>> wallyguard-pr-1879
+   logic                            CvtToInt;           // Convert to integer operation
+ 
+ // what position is XLEN in?
+@@ -191,7 +200,18 @@ module round import cvw::*;  #(parameter cvw_t P) (
+ 
+   // only add the Addend sticky if doing an FMA operation
+   //      - the shifter shifts too far left when there's an underflow (shifting out all possible sticky bits)
+-  assign Sticky = FmaASticky&FmaOp | NormSticky | CvtResUf&CvtOp | FmaMe[P.NE+1]&FmaOp | DivSticky&DivOp;
++  // BF16 overrides replace the format-generic values at their only use, here and for
++  // Guard/LsbRes/Round and RoundAdd below.  A single source reaches Mf with at most S_NF+1
++  // significand bits, plus BF16_NF of denormalization, so the sticky window is that narrow.
++  localparam BF16STICKYLSB = P.NORMSHIFTSZ - (P.S_NF+1) - P.BF16_NF - 1;
++  if (P.ZFBFMIN_SUPPORTED) begin : bf16round
++    assign Bf16Sticky  = |Mf[P.NORMSHIFTSZ-P.BF16_NF-2:BF16STICKYLSB];
++    assign Bf16RoundAdd = {(P.NE+1+P.BF16_NF)'(0), FpPlus1, (P.NF-P.BF16_NF)'(0)};
++  end else begin
++    assign Bf16Sticky   = 1'b0;
++    assign Bf16RoundAdd = '0;
++  end
++  assign Sticky = FmaASticky&FmaOp | (Bf16Dst ? Bf16Sticky : NormSticky) | CvtResUf&CvtOp | FmaMe[P.NE+1]&FmaOp | DivSticky&DivOp;
+ 
+   assign FpGuard  = Bf16Dst ? Mf[P.NORMSHIFTSZ-P.BF16_NF-1] : FpGuardFmt;
+   assign FpLsbRes = Bf16Dst ? Mf[P.NORMSHIFTSZ-P.BF16_NF]   : FpLsbResFmt;
+@@ -259,9 +279,9 @@ module round import cvw::*;  #(parameter cvw_t P) (
+           endcase
+   end
+ 
+-  assign Guard  = CvtToInt ? Mf[P.NORMSHIFTSZ-P.XLEN-1] : FpGuard;
+-  assign LsbRes = CvtToInt ? Mf[P.NORMSHIFTSZ-P.XLEN] : FpLsbRes;
+-  assign Round  = CvtToInt ? Mf[P.NORMSHIFTSZ-P.XLEN-2] : FpRound;
++  assign Guard  = CvtToInt ? Mf[P.NORMSHIFTSZ-P.XLEN-1] : Bf16Dst ? Mf[P.NORMSHIFTSZ-P.BF16_NF-1] : FpGuard;
++  assign LsbRes = CvtToInt ? Mf[P.NORMSHIFTSZ-P.XLEN]   : Bf16Dst ? Mf[P.NORMSHIFTSZ-P.BF16_NF]   : FpLsbRes;
++  assign Round  = CvtToInt ? Mf[P.NORMSHIFTSZ-P.XLEN-2] : Bf16Dst ? Mf[P.NORMSHIFTSZ-P.BF16_NF-2] : FpRound;
+ 
+   always_comb begin
+       // Determine if you add 1
+@@ -326,7 +346,7 @@ module round import cvw::*;  #(parameter cvw_t P) (
+ 
+   // round the result
+   //      - if the fraction overflows one should be added to the exponent
+-  assign {FullRe, Rf} = {Me, RoundFrac} + RoundAdd;
++  assign {FullRe, Rf} = {Me, RoundFrac} + (Bf16Dst ? Bf16RoundAdd : RoundAdd);
+   assign Re           = FullRe[P.NE-1:0];
+ 
+ endmodule
+diff --git a/src/fpu/postproc/specialcase.sv b/src/fpu/postproc/specialcase.sv
+index 8aaf2528b..8bebed776 100644
+--- a/src/fpu/postproc/specialcase.sv
++++ b/src/fpu/postproc/specialcase.sv
+@@ -70,7 +70,12 @@ module specialcase import cvw::*;  #(parameter cvw_t P) (
+   logic [P.FLEN-1:0]   ZNaNRes;    // Z is NaN result
+   logic [P.FLEN-1:0]   InvalidRes; // Invalid result result
+   logic [P.FLEN-1:0]   UfRes;      // underflowed result result
++<<<<<<< HEAD
+   logic [P.FLEN-1:0]   UfResFmt;   // underflowed result for the formats in OutFmt
++=======
++  logic [P.FLEN-1:0]   Bf16UfRes;  // underflowed result for a BF16 destination
++  logic [P.FLEN-1:0]   PostProcResPreBox; // result in single precision form, before BF16 reboxing
++>>>>>>> wallyguard-pr-1879
+   logic [P.FLEN-1:0]   OfRes;      // overflowed result result
+   logic [P.FLEN-1:0]   NormRes;    // normal result
+   logic [P.FLEN-1:0]   PostProcResFmt; // result before BF16 reboxing
+@@ -84,10 +89,17 @@ module specialcase import cvw::*;  #(parameter cvw_t P) (
+ 
+   // does the overflow result output the maximum normalized floating point number
+   //                output infinity if the input is infinity
++<<<<<<< HEAD
+ 
+   // BF16 shares single's exponent field, so a BF16 result is just the top half of the single
+   // precision one; only the underflow result, whose single precision LSB would be lost, differs
+   assign UfRes = Bf16Dst ? {{P.FLEN-32{1'b1}}, Rs, 14'b0, Plus1&Frm[1]&~(DivOp&YInf), 16'b0} : UfResFmt;
++=======
++  // the underflow result's one nonzero bit is the single precision LSB, which the rebox below
++  // would drop, so place it at the BF16 LSB instead
++  if (P.ZFBFMIN_SUPPORTED) assign Bf16UfRes = {{P.FLEN-32{1'b1}}, Rs, 14'b0, Plus1&Frm[1]&~(DivOp&YInf), 16'b0};
++  else                     assign Bf16UfRes = '0;
++>>>>>>> wallyguard-pr-1879
+ 
+   assign OfResMax = (~InfIn|(IntToFp&CvtOp))&~DivByZero&((Frm[1:0]==2'b01) | (Frm[1:0]==2'b10&~Rs) | (Frm[1:0]==2'b11&Rs));
+ 
+@@ -260,6 +272,7 @@ module specialcase import cvw::*;  #(parameter cvw_t P) (
+   // output infinity with result sign if divide by zero
+   if(P.IEEE754)
+     always_comb
++<<<<<<< HEAD
+       if(XNaN&~(IntToFp&CvtOp))   PostProcResFmt = XNaNRes;
+       else if(YNaN&~CvtOp)        PostProcResFmt = YNaNRes;
+       else if(ZNaN&FmaOp)         PostProcResFmt = ZNaNRes;
+@@ -273,6 +286,21 @@ module specialcase import cvw::*;  #(parameter cvw_t P) (
+       else if(SelOfRes)           PostProcResFmt = OfRes;
+       else if(KillRes)            PostProcResFmt = UfRes;
+       else                        PostProcResFmt = NormRes;
++=======
++      if(XNaN&~(IntToFp&CvtOp))   PostProcResPreBox = XNaNRes;
++      else if(YNaN&~CvtOp)        PostProcResPreBox = YNaNRes;
++      else if(ZNaN&FmaOp)         PostProcResPreBox = ZNaNRes;
++      else if(Invalid)            PostProcResPreBox = InvalidRes;
++      else if(SelOfRes)           PostProcResPreBox = OfRes;
++      else if(KillRes)            PostProcResPreBox = Bf16Dst ? Bf16UfRes : UfRes;
++      else                        PostProcResPreBox = NormRes;
++  else
++    always_comb
++      if(NaNIn|Invalid)           PostProcResPreBox = InvalidRes;
++      else if(SelOfRes)           PostProcResPreBox = OfRes;
++      else if(KillRes)            PostProcResPreBox = Bf16Dst ? Bf16UfRes : UfRes;
++      else                        PostProcResPreBox = NormRes;
++>>>>>>> wallyguard-pr-1879
+ 
+   ///////////////////////////////////////////////////////////////////////////////////////
+   // integer result selection
+@@ -374,6 +402,13 @@ module specialcase import cvw::*;  #(parameter cvw_t P) (
+       else                  FCvtIntRes = {{P.XLEN-1{1'b0}}, Plus1};
+     else if(Int64)          FCvtIntRes = Int64Res;
+     else                    FCvtIntRes = {{P.XLEN-32{CvtNegRes[31]}}, CvtNegRes[31:0]};
++<<<<<<< HEAD
+   assign PostProcRes = Bf16Dst ? {{P.FLEN-16{1'b1}}, PostProcResFmt[31:16]} : PostProcResFmt;
++=======
++
++  // BF16 shares single's exponent field and the fraction was rounded to BF16 precision, so a BF16
++  // result is the top half of the single precision one
++  assign PostProcRes = Bf16Dst ? {{P.FLEN-16{1'b1}}, PostProcResPreBox[31:16]} : PostProcResPreBox;
++>>>>>>> wallyguard-pr-1879
+ 
+ endmodule
+diff --git a/src/fpu/unpack.sv b/src/fpu/unpack.sv
+index 2b2850baa..6fc0d6dd6 100644
+--- a/src/fpu/unpack.sv
++++ b/src/fpu/unpack.sv
+@@ -55,8 +55,12 @@ module unpack import cvw::*;  #(parameter cvw_t P) (
+   if (P.ZFBFMIN_SUPPORTED) begin : bf16src
+     logic [31:0] Bf16Wide;
+     assign Bf16Wide = &X[P.FLEN-1:16] ? {X[15:0], 16'b0} : 32'h7FC00000;
++<<<<<<< HEAD
+     if (P.FLEN == 32) assign XIn = Bf16Src ? Bf16Wide : X;
+     else              assign XIn = Bf16Src ? {{P.FLEN-32{1'b1}}, Bf16Wide} : X;
++=======
++    assign XIn = Bf16Src ? {{P.FLEN-32{1'b1}}, Bf16Wide} : X;
++>>>>>>> wallyguard-pr-1879
+   end else assign XIn = X;
+ 
+   unpackinput #(P) unpackinputX (.A(XIn), .Fmt, .Sgn(Xs), .Exp(Xe), .Man(Xm), .En(XEn), .FPUActive,
+
+Finished: 2026-09-18T10:58:27.880347+00:00
+Return code: 0
+Status: PASS

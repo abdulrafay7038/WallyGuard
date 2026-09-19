@@ -1,0 +1,22 @@
+Started: 2026-09-18T09:49:40.307902+00:00
+Command: bash -o pipefail -c 'git grep "<<<<<<<"'
+
+config/rv32e/config.vh:<<<<<<< HEAD
+config/rv32gc/config.vh:<<<<<<< HEAD
+config/rv32i/config.vh:<<<<<<< HEAD
+config/rv32imc/config.vh:<<<<<<< HEAD
+config/rv64gc/config.vh:<<<<<<< HEAD
+config/rv64i/config.vh:<<<<<<< HEAD
+config/shared/parameter-defs.vh:<<<<<<< HEAD
+src/fpu/fcvt.sv:<<<<<<< HEAD
+src/fpu/postproc/round.sv:<<<<<<< HEAD
+src/fpu/postproc/round.sv:<<<<<<< HEAD
+src/fpu/postproc/specialcase.sv:<<<<<<< HEAD
+src/fpu/postproc/specialcase.sv:<<<<<<< HEAD
+src/fpu/postproc/specialcase.sv:<<<<<<< HEAD
+src/fpu/postproc/specialcase.sv:<<<<<<< HEAD
+src/fpu/unpack.sv:<<<<<<< HEAD
+
+Finished: 2026-09-18T09:49:40.618222+00:00
+Return code: 0
+Status: PASS

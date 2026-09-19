@@ -1,0 +1,48 @@
+Started: 2026-09-19T19:42:22.658629+00:00
+Command: bash -o pipefail -c 'sed -n '"'"'70,110p'"'"' src/fpu/postproc/specialcase.sv'
+
+  logic [P.FLEN-1:0]   ZNaNRes;    // Z is NaN result
+  logic [P.FLEN-1:0]   InvalidRes; // Invalid result result
+  logic [P.FLEN-1:0]   UfRes;      // underflowed result result
+  logic [P.FLEN-1:0]   Bf16UfRes;  // underflowed result for a BF16 destination
+  logic [P.FLEN-1:0]   PostProcResPreBox; // result in single precision form, before BF16 reboxing
+  logic [P.FLEN-1:0]   OfRes;      // overflowed result result
+  logic [P.FLEN-1:0]   NormRes;    // normal result
+  logic [P.XLEN-1:0]   OfIntRes;   // the overflow result for integer output
+  logic [P.XLEN-1:0]   OfIntRes2;  // the overflow result for integer output after accounting for fcvtmod.w.d
+  logic [P.XLEN-1:0]   Int64Res;   // Result for conversion to 64-bit int after accounting for fcvtmod.w.d
+  logic                OfResMax;   // does the of result output maximum norm fp number
+  logic                KillRes;    // kill the result for underflow
+  logic                SelOfRes;   // should the overflow result be selected (excluding convert)
+  logic                SelCvtOfRes; // select overflow result for convert instruction
+
+  // does the overflow result output the maximum normalized floating point number
+  //                output infinity if the input is infinity
+  // the underflow result's one nonzero bit is the single precision LSB, which the rebox below
+  // would drop, so place it at the BF16 LSB instead
+  if (P.ZFBFMIN_SUPPORTED) assign Bf16UfRes = {{P.FLEN-32{1'b1}}, Rs, 14'b0, Plus1&Frm[1]&~(DivOp&YInf), 16'b0};
+  else                     assign Bf16UfRes = '0;
+
+  assign OfResMax = (~InfIn|(IntToFp&CvtOp))&~DivByZero&((Frm[1:0]==2'b01) | (Frm[1:0]==2'b10&~Rs) | (Frm[1:0]==2'b11&Rs));
+
+  // select correct outputs for special cases
+  if (P.FPSIZES == 1) begin
+      //NaN res selection depending on standard
+      if(P.IEEE754) begin
+          assign XNaNRes    = {1'b0, {P.NE{1'b1}}, 1'b1, Xm[P.NF-2:0]};
+          assign YNaNRes    = {1'b0, {P.NE{1'b1}}, 1'b1, Ym[P.NF-2:0]};
+          assign ZNaNRes    = {1'b0, {P.NE{1'b1}}, 1'b1, Zm[P.NF-2:0]};
+          assign InvalidRes = {1'b0, {P.NE{1'b1}}, 1'b1, {P.NF-1{1'b0}}};
+      end else begin
+          assign InvalidRes = {1'b0, {P.NE{1'b1}}, 1'b1, {P.NF-1{1'b0}}};
+      end
+
+      assign OfRes   =  OfResMax ? {Rs, {P.NE-1{1'b1}}, 1'b0, {P.NF{1'b1}}} : {Rs, {P.NE{1'b1}}, {P.NF{1'b0}}};
+      assign UfRes   = {Rs, {P.FLEN-2{1'b0}}, Plus1&Frm[1]&~(DivOp&YInf)};
+      assign NormRes = {Rs, Re, Rf};
+
+  end else if (P.FPSIZES == 2) begin
+
+Finished: 2026-09-19T19:42:22.725664+00:00
+Return code: 0
+Status: PASS

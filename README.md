@@ -82,6 +82,37 @@ A targeted fix with regression disabled or directed tests unconfigured is only
 The final confirmation gate is checked again when exporting to `confirmed-bugs/`.
 Historical patches may predate these gates; inspect their associated run records.
 
+### Faster iterations, same verification gates
+
+Each new run includes a native self-check harness, a build script, and a
+`reproducer.json` contract. The Tester adapts the RV64 starter to the target and
+calls `validate_reproducer` to catch contract mistakes during its conversation.
+The assembly example deliberately fails compilation until real assertions are
+added. The controller repeats preflight and independently executes the tests;
+an agent tool's `PREFLIGHT_READY` is never evidence of a hardware bug.
+
+Command status calls wait up to ten seconds for completion instead of making the
+model repeatedly poll. The Architect receives a compact index of the last 40
+attempts; other agents receive their current assignment and relevant verification
+feedback. Full history and evidence remain available on disk. Unresolved merge
+conflicts block a campaign before agents start.
+
+Every run records stage durations and prompt-context sizes in `attempt.json`.
+Tool counts and command durations live in `controller/agent-*/tool-metrics.json`.
+Inspect a run with:
+
+```bash
+python -m orchestration.performance runs/<iteration-tag>
+```
+
+Chia profiling is enabled for the CLI by default. It records task timing and
+dependencies under Chia's default `/tmp/ray/<job-id>` directory on the driver
+host; use `WALLY_PROFILE_DIR` for persistent storage and `chia viz-profile` for
+the timeline. Set `WALLY_PROFILE=0` to disable it. None of these changes reduces
+the required baseline repetitions, skips controller verification, or reuses a
+previous hardware verdict. Measure comparable completed runs before claiming an
+end-to-end speedup.
+
 ## Repository structure
 
 ```text
@@ -269,11 +300,12 @@ keys = (
     "WALLY_REGRESSION_COMMAND", "WALLY_REGRESSION_TIMEOUT",
     "WALLY_REPRODUCER_TIMEOUT", "WALLY_AGENT_TIMEOUT", "WALLY_BASELINE_RUNS",
     "WALLY_LLM_CONCURRENCY", "WALLY_ISA_DOCS", "GOOGLE_CLOUD_PROJECT",
+    "WALLY_PROFILE", "WALLY_PROFILE_DIR",
     "CHIA_ARCHITECT_MODEL", "CHIA_TESTER_MODEL", "CHIA_CRITIC_MODEL",
 )
 print(json.dumps({
     "working_dir": os.getcwd(),
-    "excludes": ["cvw/", "runs/", "wally-worktrees/", "confirmed-bugs/",
+    "excludes": ["cvw/", "runs/", "reviews/", "wally-worktrees/", "confirmed-bugs/",
                  "candidate-bugs/", ".git/", "__pycache__/"],
     "env_vars": {key: os.environ[key] for key in keys if key in os.environ},
 }))
@@ -310,6 +342,8 @@ Environment settings are read when `loop.py` is imported.
 | `WALLY_AGENT_TIMEOUT` | `14400` | Deadline in seconds for an LLM call. |
 | `WALLY_BASELINE_RUNS` | `2` | Baseline repetitions; values below two are raised to two. |
 | `WALLY_LLM_CONCURRENCY` | `1` | Global LLM capacity; an existing named Ray capacity actor retains its initial limit. |
+| `WALLY_PROFILE` | `1` | Enable Chia task profiling when running `loop.py` as the CLI. |
+| `WALLY_PROFILE_DIR` | Chia default | Profile output directory on the driver host; use a persistent path to retain timelines. |
 | `WALLY_ISA_DOCS` | Empty | Optional local ISA documentation path supplied to agents. |
 | `GOOGLE_CLOUD_PROJECT` | Deployment-specific fallback in `loop.py` | Set explicitly for your Vertex project; provider location is `global`. |
 

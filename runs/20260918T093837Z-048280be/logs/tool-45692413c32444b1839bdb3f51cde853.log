@@ -1,0 +1,9 @@
+Started: 2026-09-18T10:40:06.560788+00:00
+Command: bash -o pipefail -c 'grep -i signature $TEST_DIR/build/wally_clean/testbench/testbench.sv'
+
+grep: /build/wally_clean/testbench/testbench.sv: No such file or directory
+
+Finished: 2026-09-18T10:40:06.635885+00:00
+Return code: 2
+Status: COMMAND_FAILED
+ERROR: Command exited with code 2

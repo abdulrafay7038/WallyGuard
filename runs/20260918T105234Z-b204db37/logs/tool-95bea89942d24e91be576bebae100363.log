@@ -1,0 +1,95 @@
+Started: 2026-09-18T11:05:38.526608+00:00
+Command: bash -o pipefail -c 'cat /home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/tests/test_pmp_mmode_store_cross.S'
+
+.section .text.init
+.globl rvtest_entry_point
+rvtest_entry_point:
+    la t0, test_buf
+    addi t1, t0, 4
+    srli t1, t1, 2
+    csrw pmpaddr0, t1
+
+    addi t1, t0, 16
+    srli t1, t1, 2
+    csrw pmpaddr1, t1
+
+    li t1, -1
+    csrw pmpaddr2, t1
+
+    li t1, 0x000F8D0F
+    csrw pmpcfg0, t1
+
+    la t1, mtvec_handler
+    csrw mtvec, t1
+    sfence.vma
+
+    li t1, 0x12345678
+    la s0, test_buf
+    sd t1, 0(s0)
+
+fail:
+    la t0, selfcheck_record
+    li t1, 2          # Status (Mismatch)
+    sd t1, 0(t0)
+    li t1, 0
+    sd t1, 8(t0)      # Index
+    sd t1, 16(t0)     # Adr
+    li t1, 0x1111
+    sd t1, 24(t0)     # Expected
+    li t1, 0x9999
+    sd t1, 32(t0)     # Actual
+    j end_test
+
+.align 2
+mtvec_handler:
+    csrr t2, mcause
+    li t3, 7
+    beq t2, t3, pass
+    j fail
+
+pass:
+    la t0, selfcheck_record
+    li t1, 1          # Status (Pass)
+    sd t1, 0(t0)
+    li t1, 0
+    sd t1, 8(t0)
+    sd t1, 16(t0)
+    li t1, 0x1111
+    sd t1, 24(t0)
+    sd t1, 32(t0)
+
+end_test:
+    li t1, 1
+    la t0, tohost
+    sw t1, 0(t0)
+    .option norvc
+1:  j 1b
+
+.section .data
+.align 6
+.globl tohost
+tohost: .dword 0
+.globl fromhost
+fromhost: .dword 0
+
+.align 6
+.globl selfcheck_record
+selfcheck_record:
+.dword 0 # Status
+.dword 0 # Index
+.dword 0 # Adr
+.dword 0 # Expected
+.dword 0 # Actual
+.globl begin_signature
+begin_signature:
+.globl end_signature
+end_signature:
+
+.align 3
+test_buf:
+.dword 0
+.dword 0
+
+Finished: 2026-09-18T11:05:38.603281+00:00
+Return code: 0
+Status: PASS

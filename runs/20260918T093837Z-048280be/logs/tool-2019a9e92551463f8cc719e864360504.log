@@ -1,0 +1,12 @@
+Started: 2026-09-18T10:11:12.360361+00:00
+Command: bash -o pipefail -c 'mkdir -p $TEST_DIR/tests $TEST_DIR/build/clean_src $TEST_DIR/logs
+'
+
+mkdir: Permission denied
+mkdir: Permission denied
+mkdir: Permission denied
+
+Finished: 2026-09-18T10:11:12.432772+00:00
+Return code: 1
+Status: COMMAND_FAILED
+ERROR: Command exited with code 1

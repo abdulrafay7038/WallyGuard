@@ -1,0 +1,53 @@
+Started: 2026-09-18T10:16:24.863237+00:00
+Command: bash -o pipefail -c 'TEST_DIR=/home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be
+make -C $WALLY/sim/verilator clean WORKDIR=$TEST_DIR/build/rv64gc_testbench
+make -C $WALLY/sim/verilator compile WALLYCONF=rv64gc WORKDIR=$TEST_DIR/build/rv64gc_testbench SOURCES="$WALLY/src/cvw.sv $WALLY/testbench/testbench.sv $WALLY/testbench/common/*.sv $TEST_DIR/build/clean_src/fcvt.sv $TEST_DIR/build/clean_src/round.sv $TEST_DIR/build/clean_src/specialcase.sv $TEST_DIR/build/clean_src/unpack.sv"'
+
+make: Entering directory '/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/sim/verilator'
+rm -rf /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/sim/verilator/wkdir /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/sim/verilator/logs
+make: Leaving directory '/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/sim/verilator'
+make: Entering directory '/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/sim/verilator'
+mkdir -p /home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/rv64gc_testbench
+verilator \
+--Mdir /home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/rv64gc_testbench -o Vtestbench      \
+--binary --trace \
+--assert --no-trace-top --stats \
+--top-module testbench       --relative-includes \
+"-I/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/config/shared" "-I/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/config/rv64gc" "-I/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/config/deriv/rv64gc" \
+ \
+ \
+ \
+/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/src/cvw.sv /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/testbench.sv /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/*.sv /home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/clean_src/fcvt.sv /home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/clean_src/round.sv /home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/clean_src/specialcase.sv /home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/clean_src/unpack.sv
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/config/rv64gc/config.vh:93:1: Version control conflict marker in file
+   93 | <<<<<<< HEAD
+      | ^~~~~~~~~~~~
+        /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/testbench.sv:30:1: ... note: In file included from 'testbench.sv'
+        ... See the manual at https://verilator.org/verilator_doc.html?v=5.036 for more assistance.
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/config/rv64gc/config.vh:107:1: Version control conflict marker in file
+  107 | =======
+      | ^~~~~~~
+        /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/testbench.sv:30:1: ... note: In file included from 'testbench.sv'
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/config/rv64gc/config.vh:108:1: Version control conflict marker in file
+  108 | >>>>>>> wallyguard-pr-1879
+      | ^~~~~~~~~~~~~~~~~~~~~~~~~~
+        /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/testbench.sv:30:1: ... note: In file included from 'testbench.sv'
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/config/shared/parameter-defs.vh:21:1: Version control conflict marker in file
+   21 | <<<<<<< HEAD
+      | ^~~~~~~~~~~~
+        /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/testbench.sv:83:1: ... note: In file included from 'testbench.sv'
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/config/shared/parameter-defs.vh:37:1: Version control conflict marker in file
+   37 | =======
+      | ^~~~~~~
+        /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/testbench.sv:83:1: ... note: In file included from 'testbench.sv'
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/config/shared/parameter-defs.vh:38:1: Version control conflict marker in file
+   38 | >>>>>>> wallyguard-pr-1879
+      | ^~~~~~~~~~~~~~~~~~~~~~~~~~
+        /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/testbench.sv:83:1: ... note: In file included from 'testbench.sv'
+%Error: Exiting due to 6 error(s)
+make: *** [Makefile:53: compile] Error 1
+make: Leaving directory '/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/sim/verilator'
+
+Finished: 2026-09-18T10:16:25.276404+00:00
+Return code: 2
+Status: COMMAND_FAILED
+ERROR: Command exited with code 2

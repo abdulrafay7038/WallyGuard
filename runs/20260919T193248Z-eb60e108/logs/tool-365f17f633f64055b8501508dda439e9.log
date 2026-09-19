@@ -1,0 +1,16 @@
+Started: 2026-09-19T19:38:03.563494+00:00
+Command: bash -o pipefail -c 'git grep -w -i "TODO\|FIXME" src/'
+
+src/debug/data_reg.sv:  // DTMCS TODO (JACOB): Debug Spec Section 6.1.4
+src/ifu/bpred/localrepairbp.sv:  // RT: TODO active research: replace with a small CAM, quantify benefit
+src/ifu/bpred/localrepairbp.sv:  // RT: TODO active research: replace with small CAM, quantify benefit
+src/uncore/spi_controller.sv:  // logic       TransmitRegLoaded; // TODO: Could be replaced by TransmitRegLoaded?
+src/vpu/fpeu/vfma.sv:// Documentation: TODO: RISC-V System on Chip Design
+src/vpu/fpeu/vfma.sv:  // assuming  P.FLEN >= P.D_LEN and P.D_SUPPORT == 1, TODO: add ELEN support
+src/vpu/fpeu/vfma.sv:  // Postprocess: round to OutFmt, TODO: make work with ELEN, make more compact with lane specific operations
+src/vpu/vpu.sv:  // TODO ***
+src/vpu/vpu.sv:  // TODO *** Cannot use decoded control from IEU because the there are overlapping vector instructions?
+
+Finished: 2026-09-19T19:38:03.632852+00:00
+Return code: 0
+Status: PASS

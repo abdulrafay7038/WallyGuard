@@ -1,0 +1,14 @@
+Started: 2026-09-18T10:38:58.439978+00:00
+Command: bash -o pipefail -c 'TEST_DIR=/home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be
+sed -i "s|export PATH=/home/rafay/riscv/bin:\$PATH|export PATH=$TEST_DIR/build/wally_clean/bin:/home/rafay/riscv/bin:\$PATH|" $TEST_DIR/reproducer.sh
+$TEST_DIR/reproducer.sh'
+
+Running Wally control...
+Running Wally reproducer (store)...
+Running Wally reproducer (load)...
+Successfully reproduced bug!
+
+Finished: 2026-09-18T10:39:02.117385+00:00
+Return code: 1
+Status: COMMAND_FAILED
+ERROR: Command exited with code 1

@@ -1,0 +1,52 @@
+Started: 2026-09-18T10:58:30.571750+00:00
+Command: bash -o pipefail -c 'git show 1cd134f49 | grep -E '"'"'(<<<<<<<|=======|>>>>>>>)'"'"''
+
++<<<<<<< HEAD
++=======
++>>>>>>> wallyguard-pr-1879
++<<<<<<< HEAD
++=======
++>>>>>>> wallyguard-pr-1879
++<<<<<<< HEAD
++=======
++>>>>>>> wallyguard-pr-1879
++<<<<<<< HEAD
++=======
++>>>>>>> wallyguard-pr-1879
++<<<<<<< HEAD
++=======
++>>>>>>> wallyguard-pr-1879
++<<<<<<< HEAD
++=======
++>>>>>>> wallyguard-pr-1879
++<<<<<<< HEAD
++=======
++>>>>>>> wallyguard-pr-1879
++<<<<<<< HEAD
++=======
++>>>>>>> wallyguard-pr-1879
++<<<<<<< HEAD
++=======
++>>>>>>> wallyguard-pr-1879
++<<<<<<< HEAD
++=======
++>>>>>>> wallyguard-pr-1879
++<<<<<<< HEAD
++=======
++>>>>>>> wallyguard-pr-1879
++<<<<<<< HEAD
++=======
++>>>>>>> wallyguard-pr-1879
++<<<<<<< HEAD
++=======
++>>>>>>> wallyguard-pr-1879
++<<<<<<< HEAD
++=======
++>>>>>>> wallyguard-pr-1879
++<<<<<<< HEAD
++=======
++>>>>>>> wallyguard-pr-1879
+
+Finished: 2026-09-18T10:58:30.669832+00:00
+Return code: 0
+Status: PASS

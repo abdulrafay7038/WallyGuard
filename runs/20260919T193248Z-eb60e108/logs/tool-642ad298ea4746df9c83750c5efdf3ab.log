@@ -1,0 +1,19 @@
+Started: 2026-09-19T19:41:43.159870+00:00
+Command: bash -o pipefail -c 'git grep -n "NormSticky" src/fpu/postproc/round.sv'
+
+src/fpu/postproc/round.sv:63:  logic                            NormSticky;         // normalized sum's sticky bit
+src/fpu/postproc/round.sv:129:      if (XLENPOS == 1)assign NormSticky = (|Mf[P.NORMSHIFTSZ-P.NF-2:P.NORMSHIFTSZ-P.XLEN-1]&FpRes)  |
+src/fpu/postproc/round.sv:132:      if (XLENPOS == 2)assign NormSticky = (|Mf[P.NORMSHIFTSZ-P.XLEN-2:P.NORMSHIFTSZ-P.NF-1]&IntRes) |
+src/fpu/postproc/round.sv:140:      if (XLENPOS == 1) assign NormSticky = (|Mf[P.NORMSHIFTSZ-P.NF1-2:P.NORMSHIFTSZ-P.NF-1]&FpRes&~OutFmt) |
+src/fpu/postproc/round.sv:144:      if (XLENPOS == 2) assign NormSticky = (|Mf[P.NORMSHIFTSZ-P.NF1-2:P.NORMSHIFTSZ-P.XLEN-1]&FpRes&~OutFmt) |
+src/fpu/postproc/round.sv:148:      if (XLENPOS == 3) assign NormSticky = (|Mf[P.NORMSHIFTSZ-P.XLEN-2:P.NORMSHIFTSZ-P.NF1-1]&IntRes) |
+src/fpu/postproc/round.sv:154:      if (XLENPOS == 1) assign NormSticky = (|Mf[P.NORMSHIFTSZ-P.NF2-2:P.NORMSHIFTSZ-P.NF1-1]&FpRes&(OutFmt==P.FMT2)) |
+src/fpu/postproc/round.sv:159:      if (XLENPOS == 2) assign NormSticky = (|Mf[P.NORMSHIFTSZ-P.NF2-2:P.NORMSHIFTSZ-P.NF1-1]&FpRes&(OutFmt==P.FMT2)) |
+src/fpu/postproc/round.sv:164:      if (XLENPOS == 3) assign NormSticky = (|Mf[P.NORMSHIFTSZ-P.NF2-2:P.NORMSHIFTSZ-P.XLEN-1]&FpRes&(OutFmt==P.FMT2)) |
+src/fpu/postproc/round.sv:172:      if (XLENPOS == 2) assign NormSticky = (|Mf[P.NORMSHIFTSZ-P.H_NF-2:P.NORMSHIFTSZ-P.S_NF-1]&FpRes&(OutFmt==P.H_FMT)) |
+src/fpu/postproc/round.sv:179:      if (XLENPOS == 3) assign NormSticky = (|Mf[P.NORMSHIFTSZ-P.H_NF-2:P.NORMSHIFTSZ-P.S_NF-1]&FpRes&(OutFmt==P.H_FMT)) |
+src/fpu/postproc/round.sv:200:  assign Sticky = FmaASticky&FmaOp | (Bf16Dst ? Bf16Sticky : NormSticky) | CvtResUf&CvtOp | FmaMe[P.NE+1]&FmaOp | DivSticky&DivOp;
+
+Finished: 2026-09-19T19:41:43.217031+00:00
+Return code: 0
+Status: PASS

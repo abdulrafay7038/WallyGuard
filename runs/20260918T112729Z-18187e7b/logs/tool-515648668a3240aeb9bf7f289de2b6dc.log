@@ -1,0 +1,88 @@
+Started: 2026-09-18T11:33:49.105685+00:00
+Command: bash -o pipefail -c 'sed -n '"'"'100,180p'"'"' /home/rafay/miniconda3/WallyGuard2/orchestration/test_preflight.py'
+
+    directory.mkdir(parents=True, exist_ok=False)
+    env = {**os.environ, 'WALLY': str(root), 'PATH': str(root / 'bin') + os.pathsep + os.environ.get('PATH', '')}
+    steps, captured = {}, {}
+    def capture(name: str, path: Path) -> None:
+        target = directory / name
+        shutil.copyfile(path, target)
+        def digest(file):
+            value = hashlib.sha256()
+            with file.open('rb') as stream:
+                for block in iter(lambda: stream.read(65536), b''):
+                    value.update(block)
+            return value.hexdigest()
+        checksum = digest(target)
+        if digest(path) != checksum:
+            raise ValueError('Evidence changed during archival')
+        captured[name] = dict(path=str(target), sha256=checksum)
+
+    def execute(name: str, argv) -> dict:
+        result = run_command(artifact_argv(argv, root, tests), directory / f'{name}.log', timeout, env, root)
+        steps[name] = result
+        return result
+    def pair(spec: dict, name: str) -> dict:
+        # Agents choose test inputs, not the executable implementing the oracle.
+        wally_args = artifact_argv(spec['wally'], root, tests)
+        oracle_args = artifact_argv(spec['oracle'], root, tests)
+        expected_spike = shutil.which('spike', path=env['PATH'])
+        if (root / wally_args[0]).resolve() != (root / 'bin/wsim').resolve():
+            raise ValueError('DUT command must directly execute this checkout bin/wsim')
+        if not expected_spike or (root / oracle_args[0]).resolve() != Path(expected_spike).resolve():
+            raise ValueError('Oracle command must directly execute the configured Spike')
+        if '--elf' not in wally_args:
+            raise ValueError('Wally command must specify the tested ELF')
+        elf = (root / wally_args[wally_args.index('--elf') + 1]).resolve()
+        if not elf.is_file() or not elf.is_relative_to(tests / 'build'):
+            raise ValueError('Test ELF must exist in test_dir/build')
+        if str(elf) not in oracle_args:
+            raise ValueError('Spike must run the same ELF as Wally')
+        capture(name + '.elf', elf)
+        if spec.get('mode') == 'selfcheck':
+            # Native CVW CheckSelfCheck: independent Spike must run the identical
+            # ELF successfully; an explicit expected/actual record is required.
+            # A watchdog, generic abort or incomplete self-check is not promoted.
+            nm = shutil.which('riscv64-unknown-elf-nm', path=env['PATH'])
+            if not nm:
+                raise ValueError('Self-check contract requires RISC-V nm')
+            symbols_run = execute(name + '-symbols', [nm, '-n', str(elf)])
+            symbols = dict((name, int(address, 16)) for address, name in re.findall(
+                r'^([0-9a-fA-F]+)\s+\w\s+(\S+)\s*$', Path(symbols_run['log_path']).read_text(errors='replace'), re.M))
+            with elf.open('rb') as stream:
+                header = stream.read(20)
+            if len(header) < 20 or header[:4] != b'\x7fELF' or header[4] not in (1, 2):
+                raise ValueError('Invalid ELF for native self-check')
+            width = 8 if header[4] == 2 else 4
+            if symbols_run['status'] != 'PASS' or any(symbol not in symbols for symbol in
+                    ('selfcheck_record', 'tohost', 'begin_signature', 'end_signature')):
+                raise ValueError('Self-check ELF requires selfcheck_record/tohost/signature symbols')
+            if symbols['selfcheck_record'] != symbols['begin_signature'] or symbols['end_signature'] < symbols['begin_signature'] + 5 * width:
+                raise ValueError('Spike signature must include the same five-word selfcheck_record')
+            signature = under(spec['oracle_signature'], tests)
+            if not signature.is_relative_to(tests / 'build') and not signature.is_relative_to(tests / 'logs'):
+                raise ValueError('Oracle signature must be a runtime output')
+            if f'+signature={signature}' not in oracle_args or f'+signature-granularity={width}' not in oracle_args:
+                raise ValueError('Spike must emit the controller-checked selfcheck signature and XLEN granularity')
+            signature.unlink(missing_ok=True)
+            oracle = execute(name + '-oracle', oracle_args)
+            oracle_log = log_markers(Path(oracle['log_path']))
+            if oracle['status'] != 'PASS' or FAILURE.search(oracle_log) or TOOL_ERROR.search(oracle_log):
+                return classify(oracle, oracle_log=oracle_log, oracle_ok=False).dict()
+            _signature(signature)
+            capture(name + '-oracle.sig', signature)
+            with signature.open() as stream:
+                values = [stream.readline().strip() for _ in range(5)]
+            if any(len(word) != width * 2 for word in values) or int(values[0], 16) != 1:
+                return ReproducerResult(Outcome.ORACLE_FAILURE, 'Spike selfcheck_record did not pass').dict()
+            wally = execute(name + '-wally', wally_args)
+            wally_log = log_markers(Path(wally['log_path']))
+            if wally.get('timed_out') or WATCHDOG.search(wally_log):
+                return classify(wally, wally_log).dict()
+            record = re.search(re.escape(str(elf)) + r' result \d+: adr = ([0-9a-fA-F]+) sim \(D\$\) ([0-9a-fA-F]+) signature = ([0-9a-fA-F]+)', wally_log)
+            if record and int(record[2], 16) != int(record[3], 16) and wally['returncode'] in (0, 1, 134, -6):
+                result = ReproducerResult(Outcome.MISMATCH_CONFIRMED,
+
+Finished: 2026-09-18T11:33:49.239156+00:00
+Return code: 0
+Status: PASS

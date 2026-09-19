@@ -1,0 +1,212 @@
+Started: 2026-09-19T19:38:31.475985+00:00
+Command: bash -o pipefail -c 'git show 934e36e044d39bf9eaf01b28c7bf815089860706'
+
+commit 934e36e044d39bf9eaf01b28c7bf815089860706
+Author: David Harris <David_Harris@hmc.edu>
+Date:   Tue Sep 15 20:56:57 2026 -0700
+
+    Add Zabha support
+    
+    Zabha adds byte and halfword AMOs. Most of the plumbing was already
+    width-generic: the byte mask is computed from the size field, the
+    misaligned check is a case on size, and the subword read and write paths
+    are shared with ordinary loads and stores.
+    
+    Two changes were needed. The decode splits the atomic width check in two
+    so the AMO forms accept funct3 of 000 and 001 while lr and sc stay at word
+    and doubleword, since Zabha does not add narrow reservations. The AMO ALU
+    narrows both comparands to the access width before the shared word
+    comparator; the memory operand arrives sign-extended from the subword
+    read, which is wrong for the unsigned min and max forms, so both operands
+    are re-extended from their raw low bits per the signedness bit.
+    
+    Enabled on rv64gc and rv32gc.
+    
+    Verified on rv64gc: all 18 Zabha arch tests pass, along with the 22
+    existing Zaamo and Zalrsc tests and the 48 Zimop and Zcmop tests. Lint is
+    clean on every config.
+    
+    Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
+
+diff --git a/config/rv32e/config.vh b/config/rv32e/config.vh
+index acd7262e0..1b3d246cb 100644
+--- a/config/rv32e/config.vh
++++ b/config/rv32e/config.vh
+@@ -54,6 +54,7 @@ localparam logic ZMMUL_SUPPORTED = 0;
+ // A extension is Zaamo + Zalrsc
+ localparam logic ZAAMO_SUPPORTED  = 0;
+ localparam logic ZALRSC_SUPPORTED = 0;
++localparam logic ZABHA_SUPPORTED  = 0; // Byte and halfword AMOs
+ 
+ // Bit manipulation extensions
+ // B extension is Zba + Zbb + Zbs
+diff --git a/config/rv32gc/config.vh b/config/rv32gc/config.vh
+index 314d8d311..f21c6fb0a 100644
+--- a/config/rv32gc/config.vh
++++ b/config/rv32gc/config.vh
+@@ -54,6 +54,7 @@ localparam logic ZMMUL_SUPPORTED = 1;
+ // A extension is Zaamo + Zalrsc
+ localparam logic ZAAMO_SUPPORTED  = 1;
+ localparam logic ZALRSC_SUPPORTED = 1;
++localparam logic ZABHA_SUPPORTED  = 1; // Byte and halfword AMOs
+ 
+ // Bit manipulation extensions
+ // B extension is Zba + Zbb + Zbs
+diff --git a/config/rv32i/config.vh b/config/rv32i/config.vh
+index 3af41bdbb..85b87be08 100644
+--- a/config/rv32i/config.vh
++++ b/config/rv32i/config.vh
+@@ -54,6 +54,7 @@ localparam logic ZMMUL_SUPPORTED = 0;
+ // A extension is Zaamo + Zalrsc
+ localparam logic ZAAMO_SUPPORTED  = 0;
+ localparam logic ZALRSC_SUPPORTED = 0;
++localparam logic ZABHA_SUPPORTED  = 0; // Byte and halfword AMOs
+ 
+ // Bit manipulation extensions
+ // B extension is Zba + Zbb + Zbs
+diff --git a/config/rv32imc/config.vh b/config/rv32imc/config.vh
+index 919425ceb..12d345376 100644
+--- a/config/rv32imc/config.vh
++++ b/config/rv32imc/config.vh
+@@ -54,6 +54,7 @@ localparam logic ZMMUL_SUPPORTED = 1;
+ // A extension is Zaamo + Zalrsc
+ localparam logic ZAAMO_SUPPORTED  = 0;
+ localparam logic ZALRSC_SUPPORTED = 0;
++localparam logic ZABHA_SUPPORTED  = 0; // Byte and halfword AMOs
+ 
+ // Bit manipulation extensions
+ // B extension is Zba + Zbb + Zbs
+diff --git a/config/rv64gc/config.vh b/config/rv64gc/config.vh
+index a1b3c3f9a..76769e524 100644
+--- a/config/rv64gc/config.vh
++++ b/config/rv64gc/config.vh
+@@ -54,6 +54,7 @@ localparam logic ZMMUL_SUPPORTED = 1;
+ // A extension is Zaamo + Zalrsc
+ localparam logic ZAAMO_SUPPORTED  = 1;
+ localparam logic ZALRSC_SUPPORTED = 1;
++localparam logic ZABHA_SUPPORTED  = 1; // Byte and halfword AMOs
+ 
+ // Bit manipulation extensions
+ // B extension is Zba + Zbb + Zbs
+diff --git a/config/rv64i/config.vh b/config/rv64i/config.vh
+index 07579d9d9..dd0aa7252 100644
+--- a/config/rv64i/config.vh
++++ b/config/rv64i/config.vh
+@@ -54,6 +54,7 @@ localparam logic ZMMUL_SUPPORTED = 0;
+ // A extension is Zaamo + Zalrsc
+ localparam logic ZAAMO_SUPPORTED  = 0;
+ localparam logic ZALRSC_SUPPORTED = 0;
++localparam logic ZABHA_SUPPORTED  = 0; // Byte and halfword AMOs
+ 
+ // Bit manipulation extensions
+ // B extension is Zba + Zbb + Zbs
+diff --git a/config/shared/parameter-defs.vh b/config/shared/parameter-defs.vh
+index e6e035f48..ef0d0451b 100644
+--- a/config/shared/parameter-defs.vh
++++ b/config/shared/parameter-defs.vh
+@@ -39,6 +39,7 @@ localparam cvw_t P = '{
+   SVINVAL_SUPPORTED :    SVINVAL_SUPPORTED,
+   ZAAMO_SUPPORTED :      ZAAMO_SUPPORTED,
+   ZALRSC_SUPPORTED :     ZALRSC_SUPPORTED,
++  ZABHA_SUPPORTED :      ZABHA_SUPPORTED,
+   BUS_SUPPORTED :        BUS_SUPPORTED,
+   DCACHE_SUPPORTED :     DCACHE_SUPPORTED,
+   ICACHE_SUPPORTED :     ICACHE_SUPPORTED,
+diff --git a/src/cvw.sv b/src/cvw.sv
+index 8f6d1a815..d028bbcd2 100644
+--- a/src/cvw.sv
++++ b/src/cvw.sv
+@@ -74,6 +74,7 @@ typedef struct packed {
+   logic         ZCMOP_SUPPORTED;
+   logic         ZAAMO_SUPPORTED;
+   logic         ZALRSC_SUPPORTED;
++  logic         ZABHA_SUPPORTED;
+ 
+   // Microarchitectural Features
+   logic         BUS_SUPPORTED;
+diff --git a/src/ieu/controller.sv b/src/ieu/controller.sv
+index a16bef817..6c7bd681c 100644
+--- a/src/ieu/controller.sv
++++ b/src/ieu/controller.sv
+@@ -146,6 +146,7 @@ module controller import cvw::*;  #(parameter cvw_t P) (
+   logic        FenceFunctD;                    // Detect fence instruction
+   logic        CMOFunctD;                      // Detect CMO instruction
+   logic        AFunctD, AMOFunctD;             // Detect atomic instructions
++  logic        A3264FunctD;                    // Detect valid 32/64-bit atomics (lr/sc/amo)
+   logic        RWFunctD, MWFunctD;             // detect RW/MW instructions
+   logic        PFunctD, CSRFunctD;             // detect privileged / CSR instruction
+   logic        FenceM;                         // Fence.I or sfence.VMA instruction in memory stage
+@@ -198,7 +199,9 @@ module controller import cvw::*;  #(parameter cvw_t P) (
+                               ((P.ZICBOZ_SUPPORTED & (InstrD[31:20] == 12'd4) & ENVCFG_CBE[3]) |
+                                (P.ZICBOM_SUPPORTED & (((InstrD[31:20] == 12'd0) & (ENVCFG_CBE[1:0] == 2'b01 | ENVCFG_CBE[1:0] == 2'b11)) |
+                                                       ((InstrD[31:20] == 12'd1 | InstrD[31:20] == 12'd2) & ENVCFG_CBE[2]))));
+-    assign AFunctD          = (Funct3D == 3'b010) | (P.XLEN == 64 & Funct3D == 3'b011);
++    assign A3264FunctD      = (Funct3D == 3'b010) | (P.XLEN == 64 & Funct3D == 3'b011);
++    // Zabha adds byte and halfword AMOs, but not byte and halfword lr/sc
++    assign AFunctD          = A3264FunctD | (P.ZABHA_SUPPORTED & (Funct3D == 3'b000 | Funct3D == 3'b001));
+     assign AMOFunctD        = (InstrD[31:27] == 5'b00001) |
+                               (InstrD[31:27] == 5'b00000) |
+                               (InstrD[31:27] == 5'b00100) |
+@@ -230,6 +233,7 @@ module controller import cvw::*;  #(parameter cvw_t P) (
+     assign FenceFunctD = 1'b1; // don't bother to check fields for fences
+     assign CMOFunctD = 1'b1; // don't bother to check fields for CMO instructions
+     assign AFunctD = 1'b1; // don't bother to check fields for atomics
++    assign A3264FunctD = 1'b1; // don't bother to check fields for lr/sc and amos
+     assign AMOFunctD = 1'b1; // don't bother to check Funct7 for AMO operations
+     assign RWFunctD = 1'b1; // don't bother to check fields for RW instructions
+     assign MWFunctD = 1'b1; // don't bother to check fields for MW instructions
+@@ -270,9 +274,9 @@ module controller import cvw::*;  #(parameter cvw_t P) (
+       7'b0100111: if (FLSFunctD)
+                       ControlsD = `CTRLW'b0_001_01_01_000_0_0_0_0_0_0_0_0_0_00_0_1; // fsw - only legal if FP supported
+       7'b0101111: if (AFunctD) begin
+-                    if (P.ZALRSC_SUPPORTED & InstrD[31:27] == 5'b00010 & Rs2D == 5'b0)
++                    if (P.ZALRSC_SUPPORTED & A3264FunctD & InstrD[31:27] == 5'b00010 & Rs2D == 5'b0)
+                       ControlsD = `CTRLW'b1_000_00_10_001_0_0_0_0_0_0_0_0_0_01_0_0; // lr
+-                    else if (P.ZALRSC_SUPPORTED & InstrD[31:27] == 5'b00011)
++                    else if (P.ZALRSC_SUPPORTED & A3264FunctD & InstrD[31:27] == 5'b00011)
+                       ControlsD = `CTRLW'b1_101_01_01_100_0_0_0_0_0_0_0_0_0_01_0_0; // sc
+                     else if (P.ZAAMO_SUPPORTED & AMOFunctD)
+                       ControlsD = `CTRLW'b1_101_01_11_001_0_0_0_0_0_0_0_0_0_10_0_0; // amo
+diff --git a/src/lsu/amoalu.sv b/src/lsu/amoalu.sv
+index fe6877bad..fc9f6ff36 100644
+--- a/src/lsu/amoalu.sv
++++ b/src/lsu/amoalu.sv
+@@ -38,6 +38,7 @@ module amoalu import cvw::*;  #(parameter cvw_t P) (
+ 
+   logic [P.XLEN-1:0] a, b, y;
+   logic               lt, cmp, sngd, sngd32, eq32, lt32, w64;
++  logic [31:0]        acmp, bcmp; // comparands narrowed to the access width
+ 
+   // Rename inputs
+   assign a = ReadDataM;
+@@ -45,10 +46,24 @@ module amoalu import cvw::*;  #(parameter cvw_t P) (
+ 
+   // Share hardware among the four amomin/amomax comparators
+   assign sngd = ~LSUFunct7M[5]; // Funct7[5] = 0 for signed amomin/max
+-  assign w64 = (LSUFunct3M[1:0] == 2'b10); // operate on bottom 32 bits
++  assign w64 = (LSUFunct3M[1:0] != 2'b11); // compare in the bottom 32 bits for byte, halfword, and word operations
+   assign sngd32 = sngd & (P.XLEN == 32 | w64); // flip sign in lower 32 bits on 32-bit comparisons only
+ 
+-  comparator #(32) cmp32(a[31:0], b[31:0], sngd32, {eq32, lt32});
++  // Zabha compares byte and halfword operands, so extend them to 32 bits to share the word comparator.
++  // ReadDataM arrives sign-extended, so re-extend both operands from the raw low bits to get the unsigned cases right.
++  always_comb
++    if (P.ZABHA_SUPPORTED & (LSUFunct3M[1:0] == 2'b00)) begin
++      acmp = {{24{sngd & a[7]}}, a[7:0]};
++      bcmp = {{24{sngd & b[7]}}, b[7:0]};
++    end else if (P.ZABHA_SUPPORTED & (LSUFunct3M[1:0] == 2'b01)) begin
++      acmp = {{16{sngd & a[15]}}, a[15:0]};
++      bcmp = {{16{sngd & b[15]}}, b[15:0]};
++    end else begin
++      acmp = a[31:0];
++      bcmp = b[31:0];
++    end
++
++  comparator #(32) cmp32(acmp, bcmp, sngd32, {eq32, lt32});
+   if (P.XLEN == 32) begin
+     assign lt = lt32;
+   end else begin
+
+Finished: 2026-09-19T19:38:31.535716+00:00
+Return code: 0
+Status: PASS

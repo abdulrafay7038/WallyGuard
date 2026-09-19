@@ -1,0 +1,40 @@
+Started: 2026-09-18T10:17:21.568849+00:00
+Command: bash -o pipefail -c 'TEST_DIR=/home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be
+rsync -a --exclude=.git $WALLY/ $TEST_DIR/build/wally_clean/
+python3 $TEST_DIR/build/clean_src/clean_conflict.py $TEST_DIR/build/wally_clean/src/fpu/fcvt.sv $TEST_DIR/build/wally_clean/src/fpu/postproc/round.sv $TEST_DIR/build/wally_clean/src/fpu/postproc/specialcase.sv $TEST_DIR/build/wally_clean/src/fpu/unpack.sv $TEST_DIR/build/wally_clean/config/rv64gc/config.vh $TEST_DIR/build/wally_clean/config/shared/parameter-defs.vh
+
+# But wait, my clean_conflict.py wrote to fixed paths in $TEST_DIR/build/clean_src/
+# Let me rewrite clean_conflict.py to write to the same path or take an output path.
+cat << '"'"'EOF'"'"' > $TEST_DIR/build/clean_src/clean_conflict2.py
+import sys
+
+def clean_file(in_path):
+    with open(in_path, '"'"'r'"'"') as f:
+        lines = f.readlines()
+    
+    with open(in_path, '"'"'w'"'"') as f:
+        state = 0 # 0: normal, 1: in HEAD, 2: in incoming
+        for line in lines:
+            if line.startswith('"'"'<<<<<<<'"'"'):
+                state = 1
+                continue
+            elif line.startswith('"'"'======='"'"'):
+                state = 2
+                continue
+            elif line.startswith('"'"'>>>>>>>'"'"'):
+                state = 0
+                continue
+            
+            if state == 0 or state == 1:
+                f.write(line)
+
+for file in sys.argv[1:]:
+    clean_file(file)
+EOF
+python3 $TEST_DIR/build/clean_src/clean_conflict2.py $TEST_DIR/build/wally_clean/src/fpu/fcvt.sv $TEST_DIR/build/wally_clean/src/fpu/postproc/round.sv $TEST_DIR/build/wally_clean/src/fpu/postproc/specialcase.sv $TEST_DIR/build/wally_clean/src/fpu/unpack.sv $TEST_DIR/build/wally_clean/config/rv64gc/config.vh $TEST_DIR/build/wally_clean/config/shared/parameter-defs.vh
+'
+
+
+Finished: 2026-09-18T10:18:46.874221+00:00
+Return code: 0
+Status: PASS

@@ -1,0 +1,11 @@
+Started: 2026-09-19T19:41:25.886320+00:00
+Command: bash -o pipefail -c 'git grep -n "Bf16RoundAdd" src/fpu/postproc/round.sv'
+
+src/fpu/postproc/round.sv:73:  logic [P.FLEN:0]                 Bf16RoundAdd;       // RoundAdd for a BF16 result
+src/fpu/postproc/round.sv:195:    assign Bf16RoundAdd = {(P.NE+1+P.BF16_NF)'(0), FpPlus1, (P.NF-P.BF16_NF)'(0)};
+src/fpu/postproc/round.sv:198:    assign Bf16RoundAdd = '0;
+src/fpu/postproc/round.sv:329:  assign {FullRe, Rf} = {Me, RoundFrac} + (Bf16Dst ? Bf16RoundAdd : RoundAdd);
+
+Finished: 2026-09-19T19:41:25.940612+00:00
+Return code: 0
+Status: PASS

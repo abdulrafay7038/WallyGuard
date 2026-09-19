@@ -1,0 +1,25 @@
+Started: 2026-09-18T09:49:28.614401+00:00
+Command: bash -o pipefail -c 'sed -n '"'"'38,55p'"'"' src/generic/mux.sv'
+
+module mux3 #(parameter WIDTH = 8) (
+  input  logic [WIDTH-1:0] d0, d1, d2,
+  input  logic [1:0]       s,
+  output logic [WIDTH-1:0] y);
+
+  assign y = s[1] ? d2 : (s[0] ? d1 : d0); // exclusion-tag: mux3
+endmodule
+
+module mux4 #(parameter WIDTH = 8) (
+  input  logic [WIDTH-1:0] d0, d1, d2, d3,
+  input  logic [1:0]       s,
+  output logic [WIDTH-1:0] y);
+
+  assign y = s[1] ? (s[0] ? d3 : d2) : (s[0] ? d1 : d0);
+endmodule
+
+module mux5 #(parameter WIDTH = 8) (
+  input  logic [WIDTH-1:0] d0, d1, d2, d3, d4,
+
+Finished: 2026-09-18T09:49:28.702025+00:00
+Return code: 0
+Status: PASS

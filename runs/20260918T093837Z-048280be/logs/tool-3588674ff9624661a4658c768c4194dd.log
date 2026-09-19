@@ -1,0 +1,63 @@
+Started: 2026-09-18T10:31:39.825157+00:00
+Command: bash -o pipefail -c 'cat $WALLY/src/fpu/postproc/round.sv | grep -n -C 2 Bf16'
+
+31-  input  logic [P.FMTBITS-1:0]     OutFmt,             // output format
+32-<<<<<<< HEAD
+33:  input  logic                     Bf16Dst,            // Zfbfmin: round the fraction to BF16 instead of single
+34-=======
+35:  input  logic                     Bf16Dst,            // Zfbfmin: round the fraction to BF16
+36->>>>>>> wallyguard-pr-1879
+37-  input  logic [2:0]               Frm,                // rounding mode
+--
+80-  logic [P.FLEN:0]                 RoundAddFmt;        // RoundAdd for the formats in OutFmt
+81-=======
+82:  logic [P.FLEN:0]                 Bf16RoundAdd;       // RoundAdd for a BF16 result
+83:  logic                            Bf16Sticky;         // sticky bit for a BF16 result
+84->>>>>>> wallyguard-pr-1879
+85-  logic                            CvtToInt;           // Convert to integer operation
+--
+131-  // BF16 is narrower than every supported format, so its guard, round and sticky sit above
+132-  // the ones the format-generic logic below computes
+133:  assign NormSticky = Bf16Dst ? |Mf[P.NORMSHIFTSZ-P.BF16_NF-2:0] : NormStickyFmt;
+134-
+135-  // sticky bit calculation
+--
+206-  localparam BF16STICKYLSB = P.NORMSHIFTSZ - (P.S_NF+1) - P.BF16_NF - 1;
+207-  if (P.ZFBFMIN_SUPPORTED) begin : bf16round
+208:    assign Bf16Sticky  = |Mf[P.NORMSHIFTSZ-P.BF16_NF-2:BF16STICKYLSB];
+209:    assign Bf16RoundAdd = {(P.NE+1+P.BF16_NF)'(0), FpPlus1, (P.NF-P.BF16_NF)'(0)};
+210-  end else begin
+211:    assign Bf16Sticky   = 1'b0;
+212:    assign Bf16RoundAdd = '0;
+213-  end
+214:  assign Sticky = FmaASticky&FmaOp | (Bf16Dst ? Bf16Sticky : NormSticky) | CvtResUf&CvtOp | FmaMe[P.NE+1]&FmaOp | DivSticky&DivOp;
+215-
+216:  assign FpGuard  = Bf16Dst ? Mf[P.NORMSHIFTSZ-P.BF16_NF-1] : FpGuardFmt;
+217:  assign FpLsbRes = Bf16Dst ? Mf[P.NORMSHIFTSZ-P.BF16_NF]   : FpLsbResFmt;
+218:  assign FpRound  = Bf16Dst ? Mf[P.NORMSHIFTSZ-P.BF16_NF-2] : FpRoundFmt;
+219-
+220-  // determine round and LSB of the rounded value
+--
+280-  end
+281-
+282:  assign Guard  = CvtToInt ? Mf[P.NORMSHIFTSZ-P.XLEN-1] : Bf16Dst ? Mf[P.NORMSHIFTSZ-P.BF16_NF-1] : FpGuard;
+283:  assign LsbRes = CvtToInt ? Mf[P.NORMSHIFTSZ-P.XLEN]   : Bf16Dst ? Mf[P.NORMSHIFTSZ-P.BF16_NF]   : FpLsbRes;
+284:  assign Round  = CvtToInt ? Mf[P.NORMSHIFTSZ-P.XLEN-2] : Bf16Dst ? Mf[P.NORMSHIFTSZ-P.BF16_NF-2] : FpRound;
+285-
+286-  always_comb begin
+--
+312-
+313-  // place Plus1 into the proper position for the format
+314:  assign RoundAdd = Bf16Dst ? {(P.NE+1+P.BF16_NF)'(0), FpPlus1, (P.NF-P.BF16_NF)'(0)} : RoundAddFmt;
+315-
+316-  if (P.FPSIZES == 1) begin
+--
+347-  // round the result
+348-  //      - if the fraction overflows one should be added to the exponent
+349:  assign {FullRe, Rf} = {Me, RoundFrac} + (Bf16Dst ? Bf16RoundAdd : RoundAdd);
+350-  assign Re           = FullRe[P.NE-1:0];
+351-
+
+Finished: 2026-09-18T10:31:39.898746+00:00
+Return code: 0
+Status: PASS

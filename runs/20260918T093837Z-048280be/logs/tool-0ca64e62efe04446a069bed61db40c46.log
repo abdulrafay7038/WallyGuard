@@ -1,0 +1,39 @@
+Started: 2026-09-18T10:42:50.678385+00:00
+Command: bash -o pipefail -c 'TEST_DIR=/home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be
+sed -n '"'"'890,920p'"'"' $TEST_DIR/build/wally_clean/testbench/testbench.sv'
+
+              .CMP_INS     (1),
+              .CMP_GPR     (1),
+              .CMP_FPR     (P.F_SUPPORTED),
+              .CMP_VR      (0),
+              .CMP_CSR     (P.ZICSR_SUPPORTED)
+              ) idv_trace2api(rvvi);
+  trace2log idv_trace2log(rvvi); // enable Imperas tracer
+
+  string filename;
+  initial begin
+    // imperasDV requires the elffile be defined at the beginning of the simulation.
+    int iter;
+    longint x64;
+    int     x32[2];
+    longint index;
+    string  memfilenameImperasDV, bootmemfilenameImperasDV;
+    #1;
+    IDV_MAX_ERRORS = 3;
+    elffilename = ElfFile;
+    debugger_filename = {"../../", debugfile};
+    $display("%s", debugger_filename);
+
+    // Initialize REF (do this before initializing the DUT)
+    if (!rvviVersionCheck(RVVI_API_VERSION)) begin
+      $display($sformatf("%m @ t=%0t: Expecting RVVI API version %0d.", $time, RVVI_API_VERSION));
+      $fatal;
+    end
+
+    void'(rvviRefConfigSetString(IDV_CONFIG_MODEL_VENDOR,            "riscv.ovpworld.org"));
+    void'(rvviRefConfigSetString(IDV_CONFIG_MODEL_NAME,              "riscv"));
+    void'(rvviRefConfigSetString(IDV_CONFIG_MODEL_VARIANT,           "RV64GCK"));
+
+Finished: 2026-09-18T10:42:50.756405+00:00
+Return code: 0
+Status: PASS

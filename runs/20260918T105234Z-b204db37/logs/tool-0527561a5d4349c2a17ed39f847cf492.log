@@ -1,0 +1,10 @@
+Started: 2026-09-18T11:22:48.098785+00:00
+Command: bash -o pipefail -c 'cat /home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/tests/test_pmp_mmode_store_cross.S | grep -i mtvec'
+
+    la t5, mtvec_handler
+    csrw mtvec, t5
+mtvec_handler:
+
+Finished: 2026-09-18T11:22:48.314982+00:00
+Return code: 0
+Status: PASS

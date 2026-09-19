@@ -1,0 +1,3 @@
+Vtestbench_cacheway__pi6__DepSet_hfd209fcc__0.o: \
+ Vtestbench_cacheway__pi6__DepSet_hfd209fcc__0.cpp Vtestbench__pch.h \
+ Vtestbench__Syms.h Vtestbench_cacheway__pi6.h

@@ -1,0 +1,19 @@
+Started: 2026-09-19T19:42:34.997789+00:00
+Command: bash -o pipefail -c 'git grep -n "XNaNRes" src/fpu/postproc/specialcase.sv'
+
+src/fpu/postproc/specialcase.sv:68:  logic [P.FLEN-1:0]   XNaNRes;    // X is NaN result
+src/fpu/postproc/specialcase.sv:98:          assign XNaNRes    = {1'b0, {P.NE{1'b1}}, 1'b1, Xm[P.NF-2:0]};
+src/fpu/postproc/specialcase.sv:112:          assign XNaNRes    = OutFmt ? {1'b0, {P.NE{1'b1}}, 1'b1, Xm[P.NF-2:0]} : {{P.FLEN-P.LEN1{1'b1}}, 1'b0, {P.NE1{1'b1}}, 1'b1, Xm[P.NF-2:P.NF-P.NF1]};
+src/fpu/postproc/specialcase.sv:135:                      XNaNRes    = {1'b0, {P.NE{1'b1}}, 1'b1, Xm[P.NF-2:0]};
+src/fpu/postproc/specialcase.sv:149:                      XNaNRes    = {{P.FLEN-P.LEN1{1'b1}}, 1'b0, {P.NE1{1'b1}}, 1'b1, Xm[P.NF-2:P.NF-P.NF1]};
+src/fpu/postproc/specialcase.sv:162:                      XNaNRes    = {{P.FLEN-P.LEN2{1'b1}}, 1'b0, {P.NE2{1'b1}}, 1'b1, Xm[P.NF-2:P.NF-P.NF2]};
+src/fpu/postproc/specialcase.sv:176:                      XNaNRes    = (P.FLEN)'(0);
+src/fpu/postproc/specialcase.sv:194:                      XNaNRes    = {1'b0, {P.NE{1'b1}}, 1'b1, Xm[P.NF-2:0]};
+src/fpu/postproc/specialcase.sv:208:                      XNaNRes    = {{P.FLEN-P.D_LEN{1'b1}}, 1'b0, {P.D_NE{1'b1}}, 1'b1, Xm[P.NF-2:P.NF-P.D_NF]};
+src/fpu/postproc/specialcase.sv:221:                      XNaNRes    = {{P.FLEN-P.S_LEN{1'b1}}, 1'b0, {P.S_NE{1'b1}}, 1'b1, Xm[P.NF-2:P.NF-P.S_NF]};
+src/fpu/postproc/specialcase.sv:235:                      XNaNRes    = {{P.FLEN-P.H_LEN{1'b1}}, 1'b0, {P.H_NE{1'b1}}, 1'b1, Xm[P.NF-2:P.NF-P.H_NF]};
+src/fpu/postproc/specialcase.sv:263:      if(XNaN&~(IntToFp&CvtOp))   PostProcResPreBox = XNaNRes;
+
+Finished: 2026-09-19T19:42:35.058126+00:00
+Return code: 0
+Status: PASS

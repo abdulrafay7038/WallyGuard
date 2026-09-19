@@ -1,0 +1,9 @@
+Started: 2026-09-18T10:45:21.360587+00:00
+Command: bash -o pipefail -c 'cat $TEST_DIR/build/wally_clean/testbench/extractFunctionRadix.sh'
+
+cat: /build/wally_clean/testbench/extractFunctionRadix.sh: No such file or directory
+
+Finished: 2026-09-18T10:45:21.439947+00:00
+Return code: 1
+Status: COMMAND_FAILED
+ERROR: Command exited with code 1

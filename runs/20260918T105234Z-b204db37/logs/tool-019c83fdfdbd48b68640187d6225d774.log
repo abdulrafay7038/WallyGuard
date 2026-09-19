@@ -1,0 +1,38 @@
+Started: 2026-09-18T11:02:55.967736+00:00
+Command: bash -o pipefail -c 'grep -A 30 "def classify" /home/rafay/miniconda3/WallyGuard2/orchestration/result_classifier.py'
+
+def classify(command: dict, wally_log: str = '', oracle_log: str = '', *,
+             build_ok: bool = True, oracle_ok: bool = True,
+             complete: bool = False, equal: bool | None = None) -> ReproducerResult:
+    code, timeout = command.get('returncode'), command.get('timed_out', False)
+    if timeout:
+        status, reason = Outcome.INFRA_TIMEOUT, 'Python host command deadline expired'
+    elif not build_ok:
+        status, reason = Outcome.BUILD_FAILURE, 'Test/DUT build failed'
+    elif not oracle_ok or TOOL_ERROR.search(oracle_log):
+        status, reason = Outcome.ORACLE_FAILURE, 'Independent oracle did not complete correctly'
+    elif TOOL_ERROR.search(wally_log):
+        status, reason = Outcome.TOOL_FAILURE, 'Simulator/tool error in Wally log'
+    elif WATCHDOG.search(wally_log):
+        status, reason = Outcome.DUT_WATCHDOG_FAILURE, 'DUT watchdog marker (not a host timeout)'
+    elif code != 0:
+        status, reason = Outcome.TOOL_FAILURE, 'Command did not complete normally'
+    elif not complete or equal is None or FAILURE.search(wally_log):
+        status, reason = Outcome.TEST_INVALID, 'Missing/invalid completion or independent oracle artifacts'
+    else:
+        status = Outcome.MATCH if equal else Outcome.MISMATCH_CONFIRMED
+        reason = 'Controller compared complete Wally and Spike signatures'
+    return ReproducerResult(status, reason, code, timeout, status == Outcome.MATCH)
+
+
+def artifact_argv(value: Any, scratch: Path, test_dir: Path | None = None) -> list[str]:
+    """No shell interpretation at the agent-to-controller boundary."""
+    args = shlex.split(value) if isinstance(value, str) else value
+    if not isinstance(args, list) or not args or any(not isinstance(a, str) or not a for a in args):
+        raise ValueError('Command must be a nonempty argument vector')
+    for arg in args:
+        if any(x in arg for x in ('||', '&&', ';', '\n', '\r', '`', '$(', '|', '>','<')):
+
+Finished: 2026-09-18T11:02:56.042623+00:00
+Return code: 0
+Status: PASS

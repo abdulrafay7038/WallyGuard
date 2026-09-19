@@ -1,0 +1,8 @@
+Started: 2026-09-18T09:43:51.065043+00:00
+Command: bash -o pipefail -c 'grep -rn "ZFH_SUPPORTED" config/rv64gc/config.vh'
+
+90:localparam logic ZFH_SUPPORTED = 1;
+
+Finished: 2026-09-18T09:43:51.147032+00:00
+Return code: 0
+Status: PASS

@@ -1,0 +1,12 @@
+{
+  "status": "TEST_INVALID",
+  "reason": "Shell control flow/redirection is forbidden at the verifier boundary",
+  "returncode": null,
+  "timed_out": false,
+  "passed": false,
+  "ran": true,
+  "steps": {},
+  "log_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/logs/baseline-reproducer-0.log",
+  "evidence_dir": "/home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/logs/baseline-reproducer-0-evidence",
+  "captured": {}
+}

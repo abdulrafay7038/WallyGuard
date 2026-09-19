@@ -1,0 +1,13 @@
+Started: 2026-09-18T09:48:11.443874+00:00
+Command: bash -o pipefail -c 'sed -n '"'"'395,430p'"'"' src/privileged/csr.sv'
+
+                                     (CSRAdrM[9:8] == 2'b01 & PrivilegeModeW == P.U_MODE));
+
+  assign IllegalCSRAccessM = ((IllegalCSRCAccessM & IllegalCSRMAccessM &
+    IllegalCSRSAccessM & IllegalCSRUAccessM & IllegalCSRDAccessM & IllegalCSRTrigAccessM |
+    InsufficientCSRPrivilegeM) & CSRReadM) | IllegalCSRMWriteReadonlyM;
+endmodule
+
+Finished: 2026-09-18T09:48:11.518515+00:00
+Return code: 0
+Status: PASS

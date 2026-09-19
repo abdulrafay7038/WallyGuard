@@ -1,0 +1,61 @@
+Started: 2026-09-19T19:39:22.998306+00:00
+Command: bash -o pipefail -c 'find addins/ -iname "*zabha*" 2>/dev/null'
+
+addins/riscv-arch-test/coverage/zabha
+addins/riscv-arch-test/coverage/zabha/rv32zabha.cgf
+addins/riscv-arch-test-cvw/coverpoints/norm/Zabha.yaml
+addins/riscv-arch-test-cvw/coverpoints/norm/ZacasZabha.yaml
+addins/riscv-arch-test-cvw/coverpoints/unpriv/Zabha_coverage_init.svh
+addins/riscv-arch-test-cvw/coverpoints/unpriv/ZacasZabha_coverage_init.svh
+addins/riscv-arch-test-cvw/coverpoints/unpriv/Zabha_coverage.svh
+addins/riscv-arch-test-cvw/coverpoints/unpriv/ZacasZabha_coverage.svh
+addins/riscv-arch-test-cvw/tests/rv32i/ZacasZabha
+addins/riscv-arch-test-cvw/tests/rv32i/ZacasZabha/ZacasZabha-amocas.b-00.S
+addins/riscv-arch-test-cvw/tests/rv32i/ZacasZabha/ZacasZabha-amocas.h-00.S
+addins/riscv-arch-test-cvw/tests/rv32i/Zabha
+addins/riscv-arch-test-cvw/tests/rv32i/Zabha/Zabha-amomax.h-00.S
+addins/riscv-arch-test-cvw/tests/rv32i/Zabha/Zabha-amoadd.h-00.S
+addins/riscv-arch-test-cvw/tests/rv32i/Zabha/Zabha-amoand.b-00.S
+addins/riscv-arch-test-cvw/tests/rv32i/Zabha/Zabha-amoadd.b-00.S
+addins/riscv-arch-test-cvw/tests/rv32i/Zabha/Zabha-amomax.b-00.S
+addins/riscv-arch-test-cvw/tests/rv32i/Zabha/Zabha-amominu.b-00.S
+addins/riscv-arch-test-cvw/tests/rv32i/Zabha/Zabha-amoor.h-00.S
+addins/riscv-arch-test-cvw/tests/rv32i/Zabha/Zabha-amoswap.b-00.S
+addins/riscv-arch-test-cvw/tests/rv32i/Zabha/Zabha-amoor.b-00.S
+addins/riscv-arch-test-cvw/tests/rv32i/Zabha/Zabha-amomin.b-00.S
+addins/riscv-arch-test-cvw/tests/rv32i/Zabha/Zabha-amoand.h-00.S
+addins/riscv-arch-test-cvw/tests/rv32i/Zabha/Zabha-amoxor.h-00.S
+addins/riscv-arch-test-cvw/tests/rv32i/Zabha/Zabha-amomaxu.b-00.S
+addins/riscv-arch-test-cvw/tests/rv32i/Zabha/Zabha-amominu.h-00.S
+addins/riscv-arch-test-cvw/tests/rv32i/Zabha/Zabha-amomaxu.h-00.S
+addins/riscv-arch-test-cvw/tests/rv32i/Zabha/Zabha-amomin.h-00.S
+addins/riscv-arch-test-cvw/tests/rv32i/Zabha/Zabha-amoxor.b-00.S
+addins/riscv-arch-test-cvw/tests/rv32i/Zabha/Zabha-amoswap.h-00.S
+addins/riscv-arch-test-cvw/tests/rv64i/ZacasZabha
+addins/riscv-arch-test-cvw/tests/rv64i/ZacasZabha/ZacasZabha-amocas.b-00.S
+addins/riscv-arch-test-cvw/tests/rv64i/ZacasZabha/ZacasZabha-amocas.h-00.S
+addins/riscv-arch-test-cvw/tests/rv64i/Zabha
+addins/riscv-arch-test-cvw/tests/rv64i/Zabha/Zabha-amomax.h-00.S
+addins/riscv-arch-test-cvw/tests/rv64i/Zabha/Zabha-amoadd.h-00.S
+addins/riscv-arch-test-cvw/tests/rv64i/Zabha/Zabha-amoand.b-00.S
+addins/riscv-arch-test-cvw/tests/rv64i/Zabha/Zabha-amoadd.b-00.S
+addins/riscv-arch-test-cvw/tests/rv64i/Zabha/Zabha-amomax.b-00.S
+addins/riscv-arch-test-cvw/tests/rv64i/Zabha/Zabha-amominu.b-00.S
+addins/riscv-arch-test-cvw/tests/rv64i/Zabha/Zabha-amoor.h-00.S
+addins/riscv-arch-test-cvw/tests/rv64i/Zabha/Zabha-amoswap.b-00.S
+addins/riscv-arch-test-cvw/tests/rv64i/Zabha/Zabha-amoor.b-00.S
+addins/riscv-arch-test-cvw/tests/rv64i/Zabha/Zabha-amomin.b-00.S
+addins/riscv-arch-test-cvw/tests/rv64i/Zabha/Zabha-amoand.h-00.S
+addins/riscv-arch-test-cvw/tests/rv64i/Zabha/Zabha-amoxor.h-00.S
+addins/riscv-arch-test-cvw/tests/rv64i/Zabha/Zabha-amomaxu.b-00.S
+addins/riscv-arch-test-cvw/tests/rv64i/Zabha/Zabha-amominu.h-00.S
+addins/riscv-arch-test-cvw/tests/rv64i/Zabha/Zabha-amomaxu.h-00.S
+addins/riscv-arch-test-cvw/tests/rv64i/Zabha/Zabha-amomin.h-00.S
+addins/riscv-arch-test-cvw/tests/rv64i/Zabha/Zabha-amoxor.b-00.S
+addins/riscv-arch-test-cvw/tests/rv64i/Zabha/Zabha-amoswap.h-00.S
+addins/riscv-arch-test-cvw/testplans/ZacasZabha.csv
+addins/riscv-arch-test-cvw/testplans/Zabha.csv
+
+Finished: 2026-09-19T19:39:23.167603+00:00
+Return code: 0
+Status: PASS

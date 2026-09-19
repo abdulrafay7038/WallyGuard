@@ -1,0 +1,8 @@
+Started: 2026-09-18T10:59:47.029152+00:00
+Command: bash -o pipefail -c 'grep -rn "check_changes" /home/rafay/miniconda3/WallyGuard2/orchestration/'
+
+
+Finished: 2026-09-18T10:59:47.106275+00:00
+Return code: 1
+Status: COMMAND_FAILED
+ERROR: Command exited with code 1

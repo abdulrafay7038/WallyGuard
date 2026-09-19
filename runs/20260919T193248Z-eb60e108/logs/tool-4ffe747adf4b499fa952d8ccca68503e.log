@@ -1,0 +1,113 @@
+Started: 2026-09-19T20:33:37.189616+00:00
+Command: bash -o pipefail -c 'cat << '"'"'EOF'"'"' > /home/rafay/miniconda3/WallyGuard2/runs/20260919T193248Z-eb60e108/tests/test.S
+#include "selfcheck.h"
+.section .text.init
+.option norvc
+.globl rvtest_entry_point
+rvtest_entry_point:
+    la t0, trap_handler
+    csrw mtvec, t0
+
+    // Setup PMP
+    la t0, test_buf
+    srli t0, t0, 2
+    addi t1, t0, 1  // test_buf + 4
+    csrw pmpaddr0, t1
+
+    addi t2, t0, 4  // test_buf + 16
+    csrw pmpaddr1, t2
+
+    li t3, -1
+    csrw pmpaddr2, t3
+
+    li t4, 0x0F8D0F
+    csrw pmpcfg0, t4
+    
+    fence.i
+
+    // Perform cross-boundary 8-byte store
+    la t0, test_buf
+    li t1, 0x1122334455667788
+    sd t1, 0(t0)
+
+    // Should trap, so if we reach here, it failed
+    li a0, 1
+    li a1, 0
+    li a2, 7 // expected mcause
+    li a3, 0 // actual (did not trap)
+    j wg_fail
+
+.balign 4
+trap_handler:
+    csrr a3, mcause
+    li a2, 7 // Store/AMO access fault
+    li a0, 2
+    bne a3, a2, wg_fail
+    j wg_pass
+
+WG_FINISH
+
+.section .data
+.balign 16
+.globl test_buf
+test_buf:
+    .dword 0
+    .dword 0
+EOF
+
+cat << '"'"'EOF'"'"' > /home/rafay/miniconda3/WallyGuard2/runs/20260919T193248Z-eb60e108/tests/control.S
+#include "selfcheck.h"
+.section .text.init
+.option norvc
+.globl rvtest_entry_point
+rvtest_entry_point:
+    la t0, trap_handler
+    csrw mtvec, t0
+
+    // Setup PMP
+    la t0, test_buf
+    srli t0, t0, 2
+    addi t1, t0, 1  // test_buf + 4
+    csrw pmpaddr0, t1
+
+    addi t2, t0, 4  // test_buf + 16
+    csrw pmpaddr1, t2
+
+    li t3, -1
+    csrw pmpaddr2, t3
+
+    li t4, 0x0F8D0F
+    csrw pmpcfg0, t4
+    
+    fence.i
+
+    // Perform non-crossing 4-byte store
+    la t0, test_buf
+    li t1, 0x11223344
+    sw t1, 0(t0)
+
+    // Should not trap
+    j wg_pass
+
+.balign 4
+trap_handler:
+    csrr a3, mcause
+    li a2, 0 // Expected (no trap)
+    li a0, 1
+    j wg_fail
+
+WG_FINISH
+
+.section .data
+.balign 16
+.globl test_buf
+test_buf:
+    .dword 0
+    .dword 0
+EOF
+'
+
+
+Finished: 2026-09-19T20:33:37.245975+00:00
+Return code: 0
+Status: PASS

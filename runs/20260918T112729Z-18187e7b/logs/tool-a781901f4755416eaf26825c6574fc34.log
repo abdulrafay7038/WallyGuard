@@ -1,0 +1,53 @@
+Started: 2026-09-18T11:33:52.069740+00:00
+Command: bash -o pipefail -c 'sed -n '"'"'180,225p'"'"' /home/rafay/miniconda3/WallyGuard2/orchestration/test_preflight.py'
+
+                result = ReproducerResult(Outcome.MISMATCH_CONFIRMED,
+                    'CVW completed self-check value mismatch; same ELF passed Spike', wally['returncode']).dict()
+                result['first_mismatch'] = dict(address=record[1], wally=record[2], expected=record[3])
+                result['fingerprint'] = result['first_mismatch']
+                return result
+            complete = str(elf) + ' succeeded.  Brilliant!!!' in wally_log
+            return classify(wally, wally_log, oracle_log, complete=complete, equal=True if complete else None).dict()
+        outputs = {key: under(spec[key], tests) for key in ('wally_signature', 'oracle_signature')}
+        if outputs['wally_signature'] == outputs['oracle_signature']:
+            raise ValueError('Wally and Spike must write independent signatures')
+        for path in outputs.values():
+            if not path.is_relative_to(tests / 'build') and not path.is_relative_to(tests / 'logs'):
+                raise ValueError('Signatures must be runtime output under build/ or logs/')
+            path.unlink(missing_ok=True)
+        oracle = execute(name + '-oracle', spec['oracle'])
+        oracle_log = log_markers(Path(oracle['log_path']))
+        oracle_ok = oracle['status'] == 'PASS' and not FAILURE.search(oracle_log)
+        if not oracle_ok:
+            return classify(oracle, oracle_log=oracle_log, oracle_ok=False).dict()
+        wally = execute(name + '-wally', spec['wally'])
+        wally_log = log_markers(Path(wally['log_path']))
+        complete = all(isinstance(spec.get(key), str) and spec[key] for key in ('wally_complete', 'oracle_complete'))
+        complete = complete and _contains(Path(wally['log_path']), spec['wally_complete']) and _contains(Path(oracle['log_path']), spec['oracle_complete'])
+        signatures_exist = all(path.is_file() for path in outputs.values())
+        signatures = {key: _signature(path) for key, path in outputs.items()} if signatures_exist else {}
+        equal = signatures['wally_signature'] == signatures['oracle_signature'] if signatures else None
+        result = classify(wally, wally_log, oracle_log, oracle_ok=oracle_ok, complete=complete, equal=equal).dict()
+        for key, path in outputs.items():
+            if path.is_file():
+                capture(name + '-' + key + '.sig', path)
+        result['artifacts'] = {key: str(directory / (name + '-' + key + '.sig')) for key in outputs}
+        result['fingerprint'] = signatures
+        return result
+    try:
+        if not isinstance(contract, dict) or contract.get('version') != 1 or contract.get('oracle') != 'spike':
+            raise ValueError('Require version=1 controller-run Spike differential contract; shell exit codes cannot confirm a bug')
+        if not isinstance(contract.get('control'), dict):
+            raise ValueError('A positive/control differential test is required')
+        built = execute('build', contract['build'])
+        if built['status'] != 'PASS' or TOOL_ERROR.search(log_markers(Path(built['log_path']))):
+            result = classify(built, build_ok=False).dict()
+        else:
+            errors = vector_preflight(contract, tests, root, directory, timeout, env)
+            if errors:
+                raise ValueError('; '.join(errors))
+            control = pair(contract['control'], 'control')
+
+Finished: 2026-09-18T11:33:52.292622+00:00
+Return code: 0
+Status: PASS

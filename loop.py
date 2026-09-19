@@ -33,6 +33,8 @@ from orchestration.result_classifier import Outcome, artifact_argv, FAILURE, TOO
 from orchestration.test_preflight import run_reproducer
 from orchestration.verification_state import confirmation_allowed
 from orchestration.processes import run_command
+from orchestration.context import agent_context
+from orchestration.scaffold import seed_harness
 
 WALLY_PATH = os.environ.get("WALLY_PATH", "/home/rafay/miniconda3/WallyGuard2/cvw")
 MAX_ITERATIONS = 200
@@ -126,11 +128,15 @@ You are part of a CORE-V Wally RTL bug-hunting campaign. Use the supplied bash
  tool for ALL repository access and execution: your LLM container is not the
 simulation worker. The tool sets WALLY and PATH to the current worktree.
 Long commands return RUNNING with a job_id; poll command_status until complete.
+command_status waits up to 10 seconds; do not issue repeated immediate polls or
+shell sleep commands. Batch related short reads into one run_command call.
 BUSY means the earlier command is still running: poll it before submitting more.
 Full stdout/stderr are saved at log_path; tool responses contain bounded tails.
 Read README.md, docs/testplans/testplan.md, relevant src/ modules, config/,
 testbench/, bin/ and tests/. Installed Spike, Verilator, GTKWave and RISC-V
 compiler/toolchain are available on the worker; verify versions and flags.
+Prefer rg restricted to relevant src/config/tests paths; never recursively scan
+the entire checkout, dependencies, or build trees for a narrow source question.
 Use local ISA documents where available. Cite exact revision/section and RTL
 file references; do not invent normative rules. Unsupported extensions, legal
 implementation choices, unspecified behavior, malformed tests, build errors,
@@ -183,15 +189,28 @@ with file paths and spec references for reuse by later rounds.
 """
 
 TESTER_PROMPT = """
+Start from test_dir/reproducer.json and build_reproducer.sh. A native RV64
+self-check header and template.S.example are under test_dir/tests. Copy/adapt
+the example to control.S and test.S and replace its deliberate .error with real,
+independently derived assertions. Adapt ISA/config/ABI/widths for the target.
+The template is scaffolding, not a test result or an oracle.
+The DUT command MUST directly invoke $WALLY/bin/wsim CONFIG --sim verilator
+--elf ABSOLUTE_ELF_PATH. No wrapper scripts or direct Vtestbench at this boundary.
+Spike must be the installed absolute executable and run that same ELF.
+After building/editing, save the complete contract in reproducer.json and call
+validate_reproducer. Correct every reported error before returning the JSON
+contract as reproducer. PREFLIGHT_READY only means the contract is well-formed;
+the controller independently verifies the actual result. Include all trap handlers.
+
 A found_bug claim must include a reproducer object, version=1, oracle="spike",
 build=[executable,args...], control={...}, test={...}, trap_vectors=[...].
-Alternatively each control/test can use mode="selfcheck" with native CVW
+Prefer the supplied mode="selfcheck" contract for each control/test, using native CVW
 CheckSelfCheck: ELF defines selfcheck_record/tohost and begin_signature aliases
 selfcheck_record, end_signature covers its five XLEN words. Supply oracle_signature
 and Spike +signature=<absolute path> +signature-granularity=<XLEN/8>. The controller
 checks Spike selfcheck_record status=1; omit wally_signature and completion markers. Spike must exit successfully on the same ELF; the controller
 reads CVW expected/actual self-check records. Watchdogs alone remain unconfirmed.
-Each control/test object contains wally=[executable,args...], oracle=[executable,args...],
+Alternatively, signature mode control/test objects contain wally=[executable,args...], oracle=[executable,args...],
 wally_signature and oracle_signature (distinct paths relative to test_dir under
 build/ or logs/), wally_complete and oracle_complete (nonempty actual completion
 markers printed by those tools). Use Spike signature output and matching Wally
@@ -307,6 +326,7 @@ def prompt_with_rate_limit_retry(llm, prompt: str, tools: list, role: str, emit=
 
 
 def ask_agent(role: str, scratch: str, instructions: str, context: dict) -> dict:
+    prompt_context = agent_context(role, context)
     model = context.get("models", MODELS)[role]
     providers = [VERTEX_PROVIDER]
     if model.startswith("google/"):
@@ -323,7 +343,7 @@ def ask_agent(role: str, scratch: str, instructions: str, context: dict) -> dict
             bash.emit(status, model=model, **fields)
         try:
             response = prompt_with_rate_limit_retry(llm,
-                COMMON_PROMPT + instructions + "\nContext:\n" + json.dumps(context, indent=2),
+                COMMON_PROMPT + instructions + "\nContext:\n" + json.dumps(prompt_context, separators=(',', ':')),
                 [bash], role, emit)
         except Exception:
             bash.ready()  # A dead MCP endpoint is infrastructure, not reasoning failure.
@@ -405,11 +425,21 @@ def stage_finish(path: str) -> None:
 
 def agent_stage(function, scratch: str, context: dict) -> dict:
     role = function.__name__
-    guard = remote(stage_snapshot, scratch, context['test_dir'], role)
+    started = time.monotonic()
+    timing = {'stage': role, 'status': 'failed',
+              'context_bytes': len(json.dumps(agent_context(role, context), separators=(',', ':')).encode())}
     try:
-        return remote(function, scratch, context)
+        guard = remote(stage_snapshot, scratch, context['test_dir'], role)
+        try:
+            result = remote(function, scratch, context)
+        finally:
+            remote(stage_finish, guard)
+        timing['status'] = 'completed'
+        return result
     finally:
-        remote(stage_finish, guard)
+        timing['duration_seconds'] = round(time.monotonic() - started, 3)
+        context.setdefault('timings', []).append(timing)
+        log(role, f"Stage {timing['status']} in {timing['duration_seconds']:.1f}s; context {timing['context_bytes']} bytes")
 
 
 @ChiaFunction(resources={"wally_sim": 1}, max_retries=0)
@@ -422,6 +452,8 @@ def make_worktree(wally_path: str, tag: str) -> dict:
     with (scratch.parent / "wally-shared.lock").open("a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
         source_head = git(str(base), "rev-parse", "HEAD").strip()
+        if git(str(base), 'ls-files', '--unmerged').strip():
+            raise WorkspaceUnavailableError('Original checkout has unresolved merge conflicts; resolve them before starting agents')
         if state_path.exists():
             state = json.loads(state_path.read_text(encoding="utf-8"))
             if state["source"] != str(base) or not (scratch / ".git").is_file():
@@ -478,6 +510,7 @@ def make_worktree(wally_path: str, tag: str) -> dict:
         # Store tests directly in runs/ so their binaries are not copied twice.
         test_dir = base.parent / "runs" / tag
         test_dir.mkdir(parents=True, exist_ok=False)
+        seed_harness(str(scratch), str(test_dir))
         initial_record = {"tag": tag, "status": "in_progress", "scratch": str(scratch),
                           "base_commit": state["base_commit"], "test_dir": str(test_dir)}
         # Persist ownership before returning: the Architect can run for hours
@@ -725,6 +758,7 @@ def remote(function, *args, **kwargs):
 
 
 def run_attempt(record: dict, history: list[dict], max_fix_attempts: int) -> None:
+    record['timings'] = []
     record["models"] = dict(MODELS)
     record["run_regression"] = RUN_REGRESSION
     record["verification_scope"] = "targeted_and_regression" if RUN_REGRESSION else "targeted_only"
@@ -895,8 +929,10 @@ def main(max_iterations: int | None = MAX_ITERATIONS, max_fix_attempts: int = MA
     i = 0
     while max_iterations is None or i < max_iterations:
         i += 1
+        iteration_started = time.monotonic()
         tag = f"{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}-{uuid.uuid4().hex[:8]}"
-        record = {"tag": tag, "iteration": i, "status": "in_progress", "active": True}
+        record = {"tag": tag, "iteration": i, "status": "in_progress", "active": True,
+                  "started_at": datetime.now(timezone.utc).isoformat()}
         log("LOOP", f"Iteration {i}: {tag}")
         try:
             run_attempt(record, history, max_fix_attempts)
@@ -927,6 +963,7 @@ def main(max_iterations: int | None = MAX_ITERATIONS, max_fix_attempts: int = MA
             log("LOOP", f"Controller failure: {exc!r}; preserving current candidate")
         finally:
             record['active'] = False
+            record['duration_seconds'] = round(time.monotonic() - iteration_started, 3)
             try:
                 remote(save_attempt, WALLY_PATH, record)
             except Exception as exc:
@@ -943,4 +980,14 @@ def main(max_iterations: int | None = MAX_ITERATIONS, max_fix_attempts: int = MA
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    import ray
+    from chia.trace.profiler import start_collector, stop_collector
+    ray.init(address='auto', ignore_reinit_error=True)
+    profile = os.environ.get('WALLY_PROFILE', '1').lower() in {'1', 'true', 'yes'}
+    try:
+        if profile:
+            start_collector(log_dir=os.environ.get('WALLY_PROFILE_DIR') or None)
+        raise SystemExit(main())
+    finally:
+        if profile:
+            stop_collector()

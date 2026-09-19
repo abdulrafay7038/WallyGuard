@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import re
 import shutil
+import time
 from .processes import run_command
 from .result_classifier import Outcome, ReproducerResult, artifact_argv, classify, FAILURE, TOOL_ERROR, WATCHDOG
 
@@ -57,8 +58,8 @@ def _signature(path: Path) -> tuple[str, int]:
     return digest.hexdigest(), count
 
 
-def vector_preflight(contract: dict, test_dir: Path, scratch: Path, directory: Path,
-                     timeout: int, env: dict) -> list[str]:
+def vector_metadata_errors(contract: dict, test_dir: Path) -> list[str]:
+    """Check source/contract metadata before spending time on a build."""
     errors = []
     vectors = contract.get('trap_vectors', [])
     writes_vectors = False
@@ -76,6 +77,79 @@ def vector_preflight(contract: dict, test_dir: Path, scratch: Path, directory: P
     missing = inferred_symbols - {v.get('symbol') for v in vectors}
     if missing:
         errors.append(f'Trap handler symbols missing from metadata: {sorted(missing)}')
+    return errors
+
+
+def contract_errors(contract: dict, scratch: Path, test_dir: Path, env: dict) -> list[str]:
+    """Cheap shared preflight for the agent tool and authoritative verifier."""
+    errors = []
+    if not isinstance(contract, dict) or contract.get('version') != 1 or contract.get('oracle') != 'spike':
+        return ['Require version=1 controller-run Spike differential contract']
+    try:
+        artifact_argv(contract.get('build'), scratch, test_dir)
+    except (ValueError, TypeError, OSError) as exc:
+        errors.append(f'build: {exc}')
+    vectors = contract.get('trap_vectors', [])
+    if not isinstance(vectors, list) or any(not isinstance(v, dict) for v in vectors):
+        errors.append('trap_vectors must be a list of ELF/symbol objects')
+    else:
+        for vector in vectors:
+            try:
+                elf = under(vector['elf'], test_dir)
+                if not elf.is_relative_to(test_dir.resolve() / 'build'):
+                    raise ValueError('Trap-vector ELF must be under test_dir/build')
+                if not isinstance(vector['symbol'], str) or not re.fullmatch(r'[A-Za-z_.$][\w.$]*', vector['symbol']):
+                    raise ValueError('Invalid trap-vector symbol')
+            except (KeyError, ValueError, TypeError) as exc:
+                errors.append(f'trap_vectors: {exc}')
+        if not errors:
+            errors.extend(vector_metadata_errors(contract, test_dir))
+    signatures = set()
+    for name in ('control', 'test'):
+        try:
+            spec = contract.get(name)
+            if not isinstance(spec, dict):
+                raise ValueError('Requires a control/test execution object')
+            wally = artifact_argv(spec.get('wally'), scratch, test_dir)
+            oracle = artifact_argv(spec.get('oracle'), scratch, test_dir)
+            if (scratch / wally[0]).resolve() != (scratch / 'bin/wsim').resolve():
+                raise ValueError('DUT command must directly execute this checkout bin/wsim')
+            spike = shutil.which('spike', path=env.get('PATH', ''))
+            if not spike or (scratch / oracle[0]).resolve() != Path(spike).resolve():
+                raise ValueError('Oracle command must directly execute the configured Spike')
+            if '--elf' not in wally or wally.index('--elf') + 1 == len(wally):
+                raise ValueError('Wally command must specify the tested ELF with --elf')
+            elf = (scratch / wally[wally.index('--elf') + 1]).resolve()
+            if not elf.is_relative_to(test_dir.resolve() / 'build') or str(elf) not in oracle:
+                raise ValueError('Wally and Spike must run the same ELF under test_dir/build')
+            mode = spec.get('mode', 'signature')
+            if mode not in ('signature', 'selfcheck'):
+                raise ValueError('Unsupported comparison mode')
+            keys = ('oracle_signature',) if mode == 'selfcheck' else ('oracle_signature', 'wally_signature')
+            for key in keys:
+                path = under(spec[key], test_dir)
+                if not any(path.is_relative_to(test_dir.resolve() / folder) for folder in ('build', 'logs')):
+                    raise ValueError('Signatures must be under test_dir/build or logs')
+                if path in signatures:
+                    raise ValueError('Each execution must use a distinct signature path')
+                signatures.add(path)
+            if mode == 'selfcheck':
+                if '+signature=' + str(under(spec['oracle_signature'], test_dir)) not in oracle:
+                    raise ValueError('Spike must emit the declared +signature path')
+                if not any(arg in ('+signature-granularity=4', '+signature-granularity=8') for arg in oracle):
+                    raise ValueError('Spike requires +signature-granularity=4 or 8 matching XLEN')
+            elif not all(isinstance(spec.get(key), str) and spec[key].strip()
+                         for key in ('wally_complete', 'oracle_complete')):
+                raise ValueError('Signature mode requires actual Wally and Spike completion markers')
+        except (ValueError, KeyError, TypeError, OSError) as exc:
+            errors.append(f'{name}: {exc}')
+    return errors
+
+
+def vector_preflight(contract: dict, test_dir: Path, scratch: Path, directory: Path,
+                     timeout: int, env: dict) -> list[str]:
+    errors = vector_metadata_errors(contract, test_dir)
+    vectors = contract.get('trap_vectors', [])
     for index, vector in enumerate(vectors):
         elf = under(vector['elf'], test_dir)
         symbol = vector['symbol']
@@ -95,6 +169,7 @@ def vector_preflight(contract: dict, test_dir: Path, scratch: Path, directory: P
 
 def run_reproducer(scratch: str, test_dir: str, contract: dict, log_path: str,
                    timeout: int) -> dict:
+    started = time.monotonic()
     root, tests = Path(scratch).resolve(), Path(test_dir).resolve()
     directory = Path(log_path).parent / (Path(log_path).stem + '-evidence')
     directory.mkdir(parents=True, exist_ok=False)
@@ -211,10 +286,9 @@ def run_reproducer(scratch: str, test_dir: str, contract: dict, log_path: str,
         result['fingerprint'] = signatures
         return result
     try:
-        if not isinstance(contract, dict) or contract.get('version') != 1 or contract.get('oracle') != 'spike':
-            raise ValueError('Require version=1 controller-run Spike differential contract; shell exit codes cannot confirm a bug')
-        if not isinstance(contract.get('control'), dict):
-            raise ValueError('A positive/control differential test is required')
+        errors = contract_errors(contract, root, tests, env)
+        if errors:
+            raise ValueError('; '.join(errors))
         built = execute('build', contract['build'])
         if built['status'] != 'PASS' or TOOL_ERROR.search(log_markers(Path(built['log_path']))):
             result = classify(built, build_ok=False).dict()
@@ -231,6 +305,7 @@ def run_reproducer(scratch: str, test_dir: str, contract: dict, log_path: str,
                 result['control'] = control
     except (ValueError, KeyError, IndexError, TypeError, OSError) as exc:
         result = ReproducerResult(Outcome.TEST_INVALID, str(exc)).dict()
-    result.update(steps=steps, log_path=str(log_path), evidence_dir=str(directory), captured=captured)
+    result.update(steps=steps, log_path=str(log_path), evidence_dir=str(directory), captured=captured,
+                  duration_seconds=time.monotonic() - started)
     Path(log_path).write_text(json.dumps(result, indent=2) + '\n')
     return result

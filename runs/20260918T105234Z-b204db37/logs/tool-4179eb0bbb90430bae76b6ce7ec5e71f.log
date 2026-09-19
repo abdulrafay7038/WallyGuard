@@ -1,0 +1,22 @@
+Started: 2026-09-18T11:03:59.868281+00:00
+Command: bash -o pipefail -c 'grep -rn "<<<<<<< HEAD" .'
+
+./config/rv32imc/config.vh:93:<<<<<<< HEAD
+./config/shared/parameter-defs.vh:21:<<<<<<< HEAD
+./config/rv32i/config.vh:93:<<<<<<< HEAD
+./config/rv32e/config.vh:93:<<<<<<< HEAD
+./config/rv64gc/config.vh:93:<<<<<<< HEAD
+./config/rv64i/config.vh:93:<<<<<<< HEAD
+./config/rv32gc/config.vh:93:<<<<<<< HEAD
+./src/fpu/postproc/round.sv:32:<<<<<<< HEAD
+./src/fpu/postproc/round.sv:79:<<<<<<< HEAD
+./src/fpu/postproc/specialcase.sv:73:<<<<<<< HEAD
+./src/fpu/postproc/specialcase.sv:92:<<<<<<< HEAD
+./src/fpu/postproc/specialcase.sv:275:<<<<<<< HEAD
+./src/fpu/postproc/specialcase.sv:405:<<<<<<< HEAD
+./src/fpu/unpack.sv:58:<<<<<<< HEAD
+./src/fpu/fcvt.sv:210:<<<<<<< HEAD
+
+Finished: 2026-09-18T11:05:18.539624+00:00
+Return code: 0
+Status: PASS

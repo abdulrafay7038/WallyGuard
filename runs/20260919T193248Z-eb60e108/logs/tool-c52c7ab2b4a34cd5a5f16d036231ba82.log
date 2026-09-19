@@ -1,0 +1,33 @@
+Started: 2026-09-19T19:42:55.693985+00:00
+Command: bash -o pipefail -c 'sed -n '"'"'110,135p'"'"' src/fpu/postproc/specialcase.sv'
+
+  end else if (P.FPSIZES == 2) begin
+      if(P.IEEE754) begin
+          assign XNaNRes    = OutFmt ? {1'b0, {P.NE{1'b1}}, 1'b1, Xm[P.NF-2:0]} : {{P.FLEN-P.LEN1{1'b1}}, 1'b0, {P.NE1{1'b1}}, 1'b1, Xm[P.NF-2:P.NF-P.NF1]};
+          assign YNaNRes    = OutFmt ? {1'b0, {P.NE{1'b1}}, 1'b1, Ym[P.NF-2:0]} : {{P.FLEN-P.LEN1{1'b1}}, 1'b0, {P.NE1{1'b1}}, 1'b1, Ym[P.NF-2:P.NF-P.NF1]};
+          assign ZNaNRes    = OutFmt ? {1'b0, {P.NE{1'b1}}, 1'b1, Zm[P.NF-2:0]} : {{P.FLEN-P.LEN1{1'b1}}, 1'b0, {P.NE1{1'b1}}, 1'b1, Zm[P.NF-2:P.NF-P.NF1]};
+          assign InvalidRes = OutFmt ? {1'b0, {P.NE{1'b1}}, 1'b1, {P.NF-1{1'b0}}} : {{P.FLEN-P.LEN1{1'b1}}, 1'b0, {P.NE1{1'b1}}, 1'b1, (P.NF1-1)'(0)};
+      end else begin
+          assign InvalidRes = OutFmt ? {1'b0, {P.NE{1'b1}}, 1'b1, {P.NF-1{1'b0}}} : {{P.FLEN-P.LEN1{1'b1}}, 1'b0, {P.NE1{1'b1}}, 1'b1, (P.NF1-1)'(0)};
+      end
+
+      always_comb
+          if(OutFmt)
+              if(OfResMax)    OfRes = {Rs, {P.NE-1{1'b1}}, 1'b0, {P.NF{1'b1}}};
+              else            OfRes = {Rs, {P.NE{1'b1}}, {P.NF{1'b0}}};
+          else
+              if(OfResMax)    OfRes = {{P.FLEN-P.LEN1{1'b1}}, Rs, {P.NE1-1{1'b1}}, 1'b0, {P.NF1{1'b1}}};
+              else            OfRes = {{P.FLEN-P.LEN1{1'b1}}, Rs, {P.NE1{1'b1}}, (P.NF1)'(0)};
+      assign UfRes = OutFmt ? {Rs, (P.FLEN-2)'(0), Plus1&Frm[1]&~(DivOp&YInf)} : {{P.FLEN-P.LEN1{1'b1}}, Rs, (P.LEN1-2)'(0), Plus1&Frm[1]&~(DivOp&YInf)};
+      assign NormRes = OutFmt ? {Rs, Re, Rf} : {{P.FLEN-P.LEN1{1'b1}}, Rs, Re[P.NE1-1:0], Rf[P.NF-1:P.NF-P.NF1]};
+
+  end else if (P.FPSIZES == 3) begin
+      always_comb
+          case (OutFmt)
+              P.FMT: begin
+                  if(P.IEEE754) begin
+                      XNaNRes    = {1'b0, {P.NE{1'b1}}, 1'b1, Xm[P.NF-2:0]};
+
+Finished: 2026-09-19T19:42:55.761200+00:00
+Return code: 0
+Status: PASS

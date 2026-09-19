@@ -1,0 +1,50 @@
+Started: 2026-09-19T19:40:03.093694+00:00
+Command: bash -o pipefail -c 'git grep -n "MSTATEEN" src/privileged/csrm.sv'
+
+src/privileged/csrm.sv:55:  output logic [63:0]              MSTATEEN0_REGW
+src/privileged/csrm.sv:83:  localparam MSTATEEN0     = 12'h30C;
+src/privileged/csrm.sv:84:  localparam MSTATEEN1     = 12'h30D;
+src/privileged/csrm.sv:85:  localparam MSTATEEN2     = 12'h30E;
+src/privileged/csrm.sv:86:  localparam MSTATEEN3     = 12'h30F;
+src/privileged/csrm.sv:87:  localparam MSTATEEN0H    = 12'h31C;
+src/privileged/csrm.sv:88:  localparam MSTATEEN1H    = 12'h31D;
+src/privileged/csrm.sv:89:  localparam MSTATEEN2H    = 12'h31E;
+src/privileged/csrm.sv:90:  localparam MSTATEEN3H    = 12'h31F;
+src/privileged/csrm.sv:237:  // MSTATEEN0 register
+src/privileged/csrm.sv:242:  if (P.SMSTATEEN_SUPPORTED) begin : mstateen // stateen registers only exist if there is a lower privilege to control
+src/privileged/csrm.sv:243:    logic WriteMSTATEEN0M;
+src/privileged/csrm.sv:244:    logic [63:0] MSTATEEN0_PreWriteValM, MSTATEEN0_WriteValM;
+src/privileged/csrm.sv:245:    assign WriteMSTATEEN0M = CSRMWriteM & (CSRAdrM == MSTATEEN0);
+src/privileged/csrm.sv:246:    // MSTATEEN0 is always 64 bits even for RV32
+src/privileged/csrm.sv:247:    assign MSTATEEN0_WriteValM = {
+src/privileged/csrm.sv:248:      MSTATEEN0_PreWriteValM[63],                        // SE0: access to sstateen0
+src/privileged/csrm.sv:249:      MSTATEEN0_PreWriteValM[62],                        // ENVCFG: access to senvcfg; senvcfg always exists because Wally is Sm1p12 compatible
+src/privileged/csrm.sv:251:      MSTATEEN0_PreWriteValM[60] & P.SSCSRIND_SUPPORTED, // CSRIND: access to siselect and sireg*
+src/privileged/csrm.sv:252:      MSTATEEN0_PreWriteValM[59] & P.SSAIA_SUPPORTED,    // AIA: access to other Ssaia state
+src/privileged/csrm.sv:253:      MSTATEEN0_PreWriteValM[58] & P.SSAIA_SUPPORTED,    // IMSIC: access to stopei and other IMSIC state
+src/privileged/csrm.sv:254:      MSTATEEN0_PreWriteValM[57] & P.SDTRIG_SUPPORTED,   // CONTEXT: access to scontext
+src/privileged/csrm.sv:255:      MSTATEEN0_PreWriteValM[56] & P.SMP1P13_SUPPORTED,  // P1P13: access to hedelegh
+src/privileged/csrm.sv:256:      MSTATEEN0_PreWriteValM[55] & P.SSQOSID_SUPPORTED,  // SRMCFG: access to srmcfg
+src/privileged/csrm.sv:257:      MSTATEEN0_PreWriteValM[54] & P.SMCTR_SUPPORTED,    // CTR: access to control transfer records
+src/privileged/csrm.sv:259:      MSTATEEN0_PreWriteValM[2] & P.ZCMT_SUPPORTED,      // JVT: access to jvt
+src/privileged/csrm.sv:260:      MSTATEEN0_PreWriteValM[1] & P.ZFINX_SUPPORTED,     // FCSR: access to fcsr when floating point uses x registers
+src/privileged/csrm.sv:264:      assign MSTATEEN0_PreWriteValM = CSRWriteValM;
+src/privileged/csrm.sv:265:      flopenr #(P.XLEN) MSTATEEN0reg(clk, reset, WriteMSTATEEN0M, MSTATEEN0_WriteValM, MSTATEEN0_REGW);
+src/privileged/csrm.sv:267:      logic WriteMSTATEEN0HM;
+src/privileged/csrm.sv:268:      assign MSTATEEN0_PreWriteValM = {CSRWriteValM, CSRWriteValM};
+src/privileged/csrm.sv:269:      assign WriteMSTATEEN0HM = CSRMWriteM & (CSRAdrM == MSTATEEN0H) & (P.XLEN==32);
+src/privileged/csrm.sv:270:      flopenr #(P.XLEN) MSTATEEN0reg(clk, reset, WriteMSTATEEN0M, MSTATEEN0_WriteValM[31:0], MSTATEEN0_REGW[31:0]);
+src/privileged/csrm.sv:271:      flopenr #(P.XLEN) MSTATEEN0Hreg(clk, reset, WriteMSTATEEN0HM, MSTATEEN0_WriteValM[63:32], MSTATEEN0_REGW[63:32]);
+src/privileged/csrm.sv:273:  end else assign MSTATEEN0_REGW = '0;
+src/privileged/csrm.sv:330:      MSTATEEN0:     if (P.SMSTATEEN_SUPPORTED) CSRMReadValM = MSTATEEN0_REGW[P.XLEN-1:0];
+src/privileged/csrm.sv:332:      MSTATEEN1,
+src/privileged/csrm.sv:333:      MSTATEEN2,
+src/privileged/csrm.sv:334:      MSTATEEN3:     if (P.SMSTATEEN_SUPPORTED) CSRMReadValM = '0; // read-only zero
+src/privileged/csrm.sv:336:      MSTATEEN0H:    if (P.SMSTATEEN_SUPPORTED & P.XLEN==32) CSRMReadValM = MSTATEEN0_REGW[63:32];
+src/privileged/csrm.sv:338:      MSTATEEN1H,
+src/privileged/csrm.sv:339:      MSTATEEN2H,
+src/privileged/csrm.sv:340:      MSTATEEN3H:    if (P.SMSTATEEN_SUPPORTED & P.XLEN==32) CSRMReadValM = '0; // read-only zero
+
+Finished: 2026-09-19T19:40:03.154340+00:00
+Return code: 0
+Status: PASS

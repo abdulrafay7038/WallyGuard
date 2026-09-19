@@ -1,0 +1,59 @@
+Started: 2026-09-18T11:10:02.832340+00:00
+Command: bash -o pipefail -c 'bash /home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/build_reproducer.sh > /tmp/build_log.txt 2>&1
+head -n 50 /tmp/build_log.txt
+'
+
+Cleaning up conflicting headers...
+Cleaning up conflicting SV files...
+Compiling Vtestbench...
+make: Entering directory '/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/sim/verilator'
+mkdir -p /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/sim/verilator/wkdir/rv64gc_testbench
+verilator \
+--Mdir /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/sim/verilator/wkdir/rv64gc_testbench -o Vtestbench \
+--binary --trace \
+--assert --no-trace-top --stats \
+--top-module testbench  --relative-includes \
+-I/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/build/clean_inc/shared -I/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/build/clean_inc/rv64gc -I/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/config/shared -I/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/config/rv64gc -I/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/config/deriv/rv64gc \
+/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/sim/verilator/wrapper.c \
+ \
+ \
+/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/src/cvw.sv /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/testbench.sv /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/*.sv /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/src/fpu/fsgninj.sv
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/watchdog.sv:59:22: Dotted reference to instance that refers to missing module/interface: 'wallypipelinedsoc'
+   59 |   assign TrapEvent = dut.core.TrapM & ~TrapMD;  
+      |                      ^~~
+        ... See the manual at https://verilator.org/verilator_doc.html?v=5.036 for more assistance.
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/watchdog.sv:59:26: Can't find definition of 'core' in dotted scope/variable: 'dut.core'
+   59 |   assign TrapEvent = dut.core.TrapM & ~TrapMD;  
+      |                          ^~~~
+        ... Known scopes under 'dut': <no instances found>
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/watchdog.sv:67:17: Dotted reference to instance that refers to missing module/interface: 'wallypipelinedsoc'
+   67 |       TrapMD <= dut.core.TrapM;
+      |                 ^~~
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/watchdog.sv:67:21: Can't find definition of 'core' in dotted scope/variable: 'dut.core'
+   67 |       TrapMD <= dut.core.TrapM;
+      |                     ^~~~
+        ... Known scopes under 'dut': <no instances found>
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/rvvitbwrapper.sv:77:27: Dotted reference to instance that refers to missing module/interface: 'wallypipelinedsoc'
+   77 |   assign StallE         = dut.core.StallE;
+      |                           ^~~
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/rvvitbwrapper.sv:77:31: Can't find definition of 'core' in dotted scope/variable: 'dut.core'
+   77 |   assign StallE         = dut.core.StallE;
+      |                               ^~~~
+        ... Known scopes under 'dut': <no instances found>
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/rvvitbwrapper.sv:78:27: Dotted reference to instance that refers to missing module/interface: 'wallypipelinedsoc'
+   78 |   assign StallM         = dut.core.StallM;
+      |                           ^~~
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/rvvitbwrapper.sv:78:31: Can't find definition of 'core' in dotted scope/variable: 'dut.core'
+   78 |   assign StallM         = dut.core.StallM;
+      |                               ^~~~
+        ... Known scopes under 'dut': <no instances found>
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/rvvitbwrapper.sv:79:27: Dotted reference to instance that refers to missing module/interface: 'wallypipelinedsoc'
+   79 |   assign StallW         = dut.core.StallW;
+      |                           ^~~
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/rvvitbwrapper.sv:79:31: Can't find definition of 'core' in dotted scope/variable: 'dut.core'
+   79 |   assign StallW         = dut.core.StallW;
+      |                               ^~~~
+
+Finished: 2026-09-18T11:10:03.474229+00:00
+Return code: 0
+Status: PASS

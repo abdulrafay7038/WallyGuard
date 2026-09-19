@@ -1,0 +1,30 @@
+Started: 2026-09-18T10:19:50.772495+00:00
+Command: bash -o pipefail -c 'cat $WALLY/src/fpu/postproc/round.sv | grep -C 5 "======="'
+
+
+module round import cvw::*;  #(parameter cvw_t P) (
+  input  logic [P.FMTBITS-1:0]     OutFmt,             // output format
+<<<<<<< HEAD
+  input  logic                     Bf16Dst,            // Zfbfmin: round the fraction to BF16 instead of single
+=======
+  input  logic                     Bf16Dst,            // Zfbfmin: round the fraction to BF16
+>>>>>>> wallyguard-pr-1879
+  input  logic [2:0]               Frm,                // rounding mode
+  input  logic [1:0]               PostProcSel,        // select the postprocessor output
+  input  logic                     Ms,                 // normalized sign
+--
+  logic                            CalcPlus1;          // calculated plus1
+  logic                            FpPlus1;            // do you add one to the fp result
+  logic [P.FLEN:0]                 RoundAdd;           // how much to add to the result
+<<<<<<< HEAD
+  logic [P.FLEN:0]                 RoundAddFmt;        // RoundAdd for the formats in OutFmt
+=======
+  logic [P.FLEN:0]                 Bf16RoundAdd;       // RoundAdd for a BF16 result
+  logic                            Bf16Sticky;         // sticky bit for a BF16 result
+>>>>>>> wallyguard-pr-1879
+  logic                            CvtToInt;           // Convert to integer operation
+
+
+Finished: 2026-09-18T10:19:50.867634+00:00
+Return code: 0
+Status: PASS

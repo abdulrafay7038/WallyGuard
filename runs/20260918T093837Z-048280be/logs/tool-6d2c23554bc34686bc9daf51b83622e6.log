@@ -1,0 +1,18 @@
+Started: 2026-09-18T10:21:23.422516+00:00
+Command: bash -o pipefail -c 'cat $WALLY/config/rv64gc/config.vh | grep -C 5 "======="'
+
+localparam VPU_INT_MUL_LANES = 32'd2;
+localparam VPU_FP_EU = 32'd2;
+localparam VPU_FP_LANES = 32'd2;
+localparam VPU_LSU_EU = 32'd2;
+localparam VPU_LSU_LANES = 32'd2;
+=======
+>>>>>>> wallyguard-pr-1879
+
+// privilege modes
+localparam logic S_SUPPORTED = 1; // Supervisor mode
+localparam logic U_SUPPORTED = 1; // User mode
+
+Finished: 2026-09-18T10:21:23.522811+00:00
+Return code: 0
+Status: PASS

@@ -16,6 +16,7 @@ from chia.base.llm_call import QueryResult
 from .event_log import configure_logger, event, redact
 from .processes import run_command
 from .retry_policy import MCPFailure
+from .test_preflight import contract_errors, under
 
 
 @ray.remote(num_cpus=0)
@@ -74,6 +75,8 @@ class ToolServer:
             self.server.should_exit = True
         if self.thread:
             self.thread.join(6)
+        if hasattr(self.tool, '_metrics'):
+            self.write('tool-metrics.json', self.tool._metrics)
         return not self.thread or not self.thread.is_alive()
 
 
@@ -85,6 +88,8 @@ class ManagedBashTool(ChiaTool):
         self.artifact_dir = str(Path(test_dir) / 'controller' / ('agent-' + name))
         self.mcp.add_tool(self.run_command, name=f'{name}_run_command')
         self.mcp.add_tool(self.command_status, name=f'{name}_command_status')
+        self.mcp.add_tool(self.validate_reproducer, name=f'{name}_validate_reproducer')
+        self._metrics = dict(commands=0, polls=0, preflights=0, command_seconds=0.0)
         self._server_actor = ToolServer.options(resources={'wally_sim': 1}).remote()
         try:
             self.hostname, self.port, self.node_id = ray.get(self._server_actor.start.remote(self), timeout=45)
@@ -125,7 +130,16 @@ class ManagedBashTool(ChiaTool):
             ray.kill(actor, no_restart=True)
 
     async def command_status(self, job_id: str) -> str:
-        """Poll a long-running command; full output always remains in its log file."""
+        """Wait up to 10 seconds for completion; full output remains in its log."""
+        if hasattr(self, '_metrics'):
+            self._metrics['polls'] += 1
+        task = getattr(self, '_jobs', {}).get(job_id)
+        if task is not None and not task.done():
+            # asyncio.wait leaves the job alive on timeout or caller cancellation.
+            await asyncio.wait({task}, timeout=getattr(self, '_poll_wait', 10))
+        return self._command_result(job_id)
+
+    def _command_result(self, job_id: str) -> str:
         task = getattr(self, '_jobs', {}).get(job_id)
         if task is None:
             return json.dumps(dict(status='UNKNOWN_JOB', job_id=job_id))
@@ -140,6 +154,24 @@ class ManagedBashTool(ChiaTool):
             return json.dumps(dict(status='INFRA_FAILURE', job_id=job_id,
                                    error=str(redact(f'{type(exc).__name__}: {exc}'))))
 
+    async def validate_reproducer(self, contract_path: str = 'reproducer.json') -> str:
+        """Check the saved contract before submitting a finding; does not prove a bug."""
+        if hasattr(self, '_metrics'):
+            self._metrics['preflights'] += 1
+        for job_id, task in getattr(self, '_jobs', {}).items():
+            if not task.done():
+                return json.dumps(dict(status='BUSY', job_id=job_id))
+        try:
+            path = under(contract_path, Path(self.test_dir))
+            contract = json.loads(path.read_text())
+            env = {**os.environ, 'PATH': str(Path(self.work_dir) / 'bin') + os.pathsep + os.environ.get('PATH', '')}
+            errors = await anyio.to_thread.run_sync(
+                lambda: contract_errors(contract, Path(self.work_dir), Path(self.test_dir), env))
+            return json.dumps(dict(status='PREFLIGHT_INVALID' if errors else 'PREFLIGHT_READY',
+                                   errors=errors, note='Static checks only; controller still builds and verifies independently.'))
+        except (OSError, ValueError, TypeError) as exc:
+            return json.dumps(dict(status='PREFLIGHT_INVALID', errors=[str(redact(str(exc)))]))
+
     async def run_command(self, command: str) -> str:
         """Execute, or return RUNNING/job_id within 2s; use command_status to poll."""
         if not hasattr(self, '_jobs'):
@@ -152,12 +184,16 @@ class ManagedBashTool(ChiaTool):
         for key in list(self._jobs)[:-128]:
             del self._jobs[key]
         job_id = uuid.uuid4().hex
+        if hasattr(self, '_metrics'):
+            self._metrics['commands'] += 1
         log_path = Path(self.test_dir) / 'logs' / f'tool-{job_id}.log'
         env = {**os.environ, 'WALLY': self.work_dir,
                'PATH': str(Path(self.work_dir) / 'bin') + os.pathsep + os.environ.get('PATH', '')}
         def run():
             result = run_command(['bash', '-o', 'pipefail', '-c', command], log_path,
                                  self.timeout_seconds, env, self.work_dir, self._cancel_event)
+            if hasattr(self, '_metrics'):
+                self._metrics['command_seconds'] += result['duration_seconds']
             with log_path.open('rb') as handle:
                 handle.seek(max(0, log_path.stat().st_size - 6000))
                 result['tail'] = handle.read().decode(errors='replace')
@@ -167,7 +203,7 @@ class ManagedBashTool(ChiaTool):
         task = asyncio.create_task(job())
         self._jobs[job_id] = task
         await asyncio.wait({task}, timeout=getattr(self, '_response_wait', 2))
-        return await self.command_status(job_id)
+        return self._command_result(job_id)
 
 
 @ray.remote(num_cpus=0)

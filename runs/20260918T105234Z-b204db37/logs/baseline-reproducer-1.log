@@ -1,0 +1,28 @@
+{
+  "status": "TEST_INVALID",
+  "reason": "Trap-vector test requires trap_vectors entries with built ELF and handler symbol",
+  "returncode": null,
+  "timed_out": false,
+  "passed": false,
+  "ran": true,
+  "steps": {
+    "build": {
+      "command": [
+        "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/build_reproducer.sh"
+      ],
+      "status": "PASS",
+      "returncode": 0,
+      "timed_out": false,
+      "error": null,
+      "log_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/logs/baseline-reproducer-1-evidence/build.log",
+      "stdout_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/logs/baseline-reproducer-1-evidence/build.log",
+      "stderr_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/logs/baseline-reproducer-1-evidence/build.log",
+      "started_at": "2026-09-18T11:23:27.107013+00:00",
+      "duration_seconds": 17.175761849000992,
+      "finished_at": "2026-09-18T11:23:44.282769+00:00"
+    }
+  },
+  "log_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/logs/baseline-reproducer-1.log",
+  "evidence_dir": "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/logs/baseline-reproducer-1-evidence",
+  "captured": {}
+}

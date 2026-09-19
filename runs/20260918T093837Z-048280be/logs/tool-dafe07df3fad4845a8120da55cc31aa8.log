@@ -1,0 +1,238 @@
+Started: 2026-09-18T10:40:00.366707+00:00
+Command: bash -o pipefail -c 'TEST_DIR=/home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be
+
+cat << '"'"'EOF'"'"' > $TEST_DIR/tests/test_pmp_mmode_store_cross.S
+.section .text.init
+.globl rvtest_entry_point
+rvtest_entry_point:
+    la t0, test_buf
+    addi t1, t0, 4
+    srli t1, t1, 2
+    csrw pmpaddr0, t1
+
+    addi t1, t0, 16
+    srli t1, t1, 2
+    csrw pmpaddr1, t1
+
+    li t1, -1
+    csrw pmpaddr2, t1
+
+    li t1, 0x000F8D0F
+    csrw pmpcfg0, t1
+
+    la t1, trap_handler
+    csrw mtvec, t1
+    sfence.vma
+
+    li t1, 0x12345678
+    la s0, test_buf
+    sd t1, 0(s0)
+
+fail:
+    li t1, 0x9999
+    la t0, sig_val
+    sd t1, 0(t0)
+    j end_test
+
+.align 2
+trap_handler:
+    csrr t2, mcause
+    li t3, 7
+    beq t2, t3, pass
+    j fail
+
+pass:
+    li t1, 0x1111
+    la t0, sig_val
+    sd t1, 0(t0)
+
+end_test:
+    li t1, 1
+    la t0, tohost
+    sw t1, 0(t0)
+    .option norvc
+1:  j 1b
+
+.section .data
+.align 6
+.globl tohost
+tohost: .dword 0
+.globl fromhost
+fromhost: .dword 0
+
+.align 6
+.globl begin_signature
+begin_signature:
+sig_val: .dword 0
+.globl end_signature
+end_signature:
+
+.align 3
+test_buf:
+.dword 0
+.dword 0
+EOF
+
+cat << '"'"'EOF'"'"' > $TEST_DIR/tests/test_pmp_mmode_load_cross.S
+.section .text.init
+.globl rvtest_entry_point
+rvtest_entry_point:
+    la t0, test_buf
+    addi t1, t0, 4
+    srli t1, t1, 2
+    csrw pmpaddr0, t1
+
+    addi t1, t0, 16
+    srli t1, t1, 2
+    csrw pmpaddr1, t1
+
+    li t1, -1
+    csrw pmpaddr2, t1
+
+    li t1, 0x000F890F
+    csrw pmpcfg0, t1
+
+    la t1, trap_handler
+    csrw mtvec, t1
+    sfence.vma
+
+    la s0, test_buf
+    ld t1, 0(s0)
+
+fail:
+    li t1, 0x9999
+    la t0, sig_val
+    sd t1, 0(t0)
+    j end_test
+
+.align 2
+trap_handler:
+    csrr t2, mcause
+    li t3, 5
+    beq t2, t3, pass
+    j fail
+
+pass:
+    li t1, 0x1111
+    la t0, sig_val
+    sd t1, 0(t0)
+
+end_test:
+    li t1, 1
+    la t0, tohost
+    sw t1, 0(t0)
+    .option norvc
+1:  j 1b
+
+.section .data
+.align 6
+.globl tohost
+tohost: .dword 0
+.globl fromhost
+fromhost: .dword 0
+
+.align 6
+.globl begin_signature
+begin_signature:
+sig_val: .dword 0
+.globl end_signature
+end_signature:
+
+.align 3
+test_buf:
+.dword 0
+.dword 0
+EOF
+
+cat << '"'"'EOF'"'"' > $TEST_DIR/tests/test_pmp_mmode_control.S
+.section .text.init
+.globl rvtest_entry_point
+rvtest_entry_point:
+    la t0, test_buf
+    addi t1, t0, 4
+    srli t1, t1, 2
+    csrw pmpaddr0, t1
+
+    addi t1, t0, 16
+    srli t1, t1, 2
+    csrw pmpaddr1, t1
+
+    li t1, -1
+    csrw pmpaddr2, t1
+
+    li t1, 0x000F8D0F
+    csrw pmpcfg0, t1
+
+    la t1, trap_handler
+    csrw mtvec, t1
+    sfence.vma
+
+    li t1, 0x1234
+    la s0, test_buf
+    sw t1, 0(s0)
+
+    j pass
+
+fail:
+    li t1, 0x9999
+    la t0, sig_val
+    sd t1, 0(t0)
+    j end_test
+
+.align 2
+trap_handler:
+    j fail
+
+pass:
+    li t1, 0x1111
+    la t0, sig_val
+    sd t1, 0(t0)
+
+end_test:
+    li t1, 1
+    la t0, tohost
+    sw t1, 0(t0)
+    .option norvc
+1:  j 1b
+
+.section .data
+.align 6
+.globl tohost
+tohost: .dword 0
+.globl fromhost
+fromhost: .dword 0
+
+.align 6
+.globl begin_signature
+begin_signature:
+sig_val: .dword 0
+.globl end_signature
+end_signature:
+
+.align 3
+test_buf:
+.dword 0
+.dword 0
+EOF
+
+WALLY_CLEAN=$TEST_DIR/build/wally_clean
+export PATH=$WALLY_CLEAN/bin:/home/rafay/riscv/bin:$PATH
+for TEST in test_pmp_mmode_store_cross test_pmp_mmode_load_cross test_pmp_mmode_control; do
+    riscv64-unknown-elf-gcc -march=rv64gc -mabi=lp64d -nostdlib -nostartfiles -T $WALLY_CLEAN/tests/riscof/spike/env/link.ld $TEST_DIR/tests/$TEST.S -o $TEST_DIR/build/$TEST.elf
+    # Run Spike to generate signature
+    spike --isa=rv64gc +signature=$TEST_DIR/build/${TEST}_spike.sig +signature-granularity=8 $TEST_DIR/build/$TEST.elf
+    # Generate objdump to verify signature placement
+    riscv64-unknown-elf-objdump -t $TEST_DIR/build/$TEST.elf | grep signature
+done
+'
+
+0000000080001048 g       .data	0000000000000000 end_signature
+0000000080001040 g       .data	0000000000000000 begin_signature
+0000000080001048 g       .data	0000000000000000 end_signature
+0000000080001040 g       .data	0000000000000000 begin_signature
+0000000080001048 g       .data	0000000000000000 end_signature
+0000000080001040 g       .data	0000000000000000 begin_signature
+
+Finished: 2026-09-18T10:40:00.669603+00:00
+Return code: 0
+Status: PASS

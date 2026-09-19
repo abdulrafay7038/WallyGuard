@@ -1,0 +1,273 @@
+Started: 2026-09-18T11:09:16.740419+00:00
+Command: bash -o pipefail -c 'cat << '"'"'EOF'"'"' > /home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/build_reproducer.sh
+#!/bin/bash
+set -e
+export TEST_DIR=/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37
+export WALLY=/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared
+export PATH=/home/rafay/riscv/bin:$PATH
+
+echo "Cleaning up conflicting headers..."
+cp $WALLY/config/rv64gc/config.vh $TEST_DIR/build/clean_inc/rv64gc/config.vh
+cp $WALLY/config/shared/parameter-defs.vh $TEST_DIR/build/clean_inc/shared/parameter-defs.vh
+
+sed -i '"'"'/<<<<<<</d'"'"' $TEST_DIR/build/clean_inc/rv64gc/config.vh
+sed -i '"'"'/=======/d'"'"' $TEST_DIR/build/clean_inc/rv64gc/config.vh
+sed -i '"'"'/>>>>>>>/d'"'"' $TEST_DIR/build/clean_inc/rv64gc/config.vh
+
+sed -i '"'"'/<<<<<<</d'"'"' $TEST_DIR/build/clean_inc/shared/parameter-defs.vh
+sed -i '"'"'/=======/d'"'"' $TEST_DIR/build/clean_inc/shared/parameter-defs.vh
+sed -i '"'"'/>>>>>>>/d'"'"' $TEST_DIR/build/clean_inc/shared/parameter-defs.vh
+
+echo "Cleaning up conflicting SV files..."
+cp $WALLY/src/fpu/fcvt.sv $TEST_DIR/build/clean_src/fcvt.sv
+cp $WALLY/src/fpu/postproc/round.sv $TEST_DIR/build/clean_src/round.sv
+cp $WALLY/src/fpu/postproc/specialcase.sv $TEST_DIR/build/clean_src/specialcase.sv
+cp $WALLY/src/fpu/unpack.sv $TEST_DIR/build/clean_src/unpack.sv
+
+sed -i '"'"'/<<<<<<</d'"'"' $TEST_DIR/build/clean_src/fcvt.sv
+sed -i '"'"'/=======/d'"'"' $TEST_DIR/build/clean_src/fcvt.sv
+sed -i '"'"'/>>>>>>>/d'"'"' $TEST_DIR/build/clean_src/fcvt.sv
+
+sed -i '"'"'/<<<<<<</d'"'"' $TEST_DIR/build/clean_src/round.sv
+sed -i '"'"'/=======/d'"'"' $TEST_DIR/build/clean_src/round.sv
+sed -i '"'"'/>>>>>>>/d'"'"' $TEST_DIR/build/clean_src/round.sv
+
+sed -i '"'"'/<<<<<<</d'"'"' $TEST_DIR/build/clean_src/specialcase.sv
+sed -i '"'"'/=======/d'"'"' $TEST_DIR/build/clean_src/specialcase.sv
+sed -i '"'"'/>>>>>>>/d'"'"' $TEST_DIR/build/clean_src/specialcase.sv
+
+sed -i '"'"'/<<<<<<</d'"'"' $TEST_DIR/build/clean_src/unpack.sv
+sed -i '"'"'/=======/d'"'"' $TEST_DIR/build/clean_src/unpack.sv
+sed -i '"'"'/>>>>>>>/d'"'"' $TEST_DIR/build/clean_src/unpack.sv
+
+echo "Compiling Vtestbench..."
+mkdir -p $WALLY/sim/verilator/wkdir/rv64gc_testbench
+
+# Find all other files to compile except the conflicting ones
+ALL_SRC=$(find $WALLY/src -name "*.sv" | grep -v "fcvt.sv" | grep -v "round.sv" | grep -v "specialcase.sv" | grep -v "unpack.sv")
+
+make -C $WALLY/sim/verilator compile \
+  WALLYCONF=rv64gc \
+  TESTBENCH=testbench \
+  INCLUDE_PATH="-I$TEST_DIR/build/clean_inc/shared -I$TEST_DIR/build/clean_inc/rv64gc -I$WALLY/config/shared -I$WALLY/config/rv64gc -I$WALLY/config/deriv/rv64gc" \
+  SOURCES="$WALLY/src/cvw.sv $WALLY/testbench/testbench.sv $WALLY/testbench/common/*.sv $ALL_SRC $TEST_DIR/build/clean_src/*.sv" || true
+
+echo "Touching executable..."
+touch -d "+1 day" $WALLY/sim/verilator/wkdir/rv64gc_testbench/Vtestbench
+
+echo "Compiling ELFs..."
+riscv64-unknown-elf-gcc -march=rv64gc -mabi=lp64d -nostdlib -nostartfiles -T $WALLY/tests/riscof/spike/env/link.ld $TEST_DIR/tests/test_pmp_mmode_control.S -o $TEST_DIR/build/test_pmp_mmode_control.elf
+riscv64-unknown-elf-gcc -march=rv64gc -mabi=lp64d -nostdlib -nostartfiles -T $WALLY/tests/riscof/spike/env/link.ld $TEST_DIR/tests/test_pmp_mmode_store_cross.S -o $TEST_DIR/build/test_pmp_mmode_store_cross.elf
+EOF
+chmod +x /home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/build_reproducer.sh
+bash /home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/build_reproducer.sh
+'
+
+Cleaning up conflicting headers...
+Cleaning up conflicting SV files...
+Compiling Vtestbench...
+make: Entering directory '/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/sim/verilator'
+mkdir -p /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/sim/verilator/wkdir/rv64gc_testbench
+verilator \
+--Mdir /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/sim/verilator/wkdir/rv64gc_testbench -o Vtestbench \
+--binary --trace \
+--assert --no-trace-top --stats \
+--top-module testbench  --relative-includes \
+-I/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/build/clean_inc/shared -I/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/build/clean_inc/rv64gc -I/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/config/shared -I/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/config/rv64gc -I/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/config/deriv/rv64gc \
+/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/sim/verilator/wrapper.c \
+ \
+ \
+/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/src/cvw.sv /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/testbench.sv /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/*.sv /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/src/fpu/fsgninj.sv
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/watchdog.sv:59:22: Dotted reference to instance that refers to missing module/interface: 'wallypipelinedsoc'
+   59 |   assign TrapEvent = dut.core.TrapM & ~TrapMD;  
+      |                      ^~~
+        ... See the manual at https://verilator.org/verilator_doc.html?v=5.036 for more assistance.
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/watchdog.sv:59:26: Can't find definition of 'core' in dotted scope/variable: 'dut.core'
+   59 |   assign TrapEvent = dut.core.TrapM & ~TrapMD;  
+      |                          ^~~~
+        ... Known scopes under 'dut': <no instances found>
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/watchdog.sv:67:17: Dotted reference to instance that refers to missing module/interface: 'wallypipelinedsoc'
+   67 |       TrapMD <= dut.core.TrapM;
+      |                 ^~~
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/watchdog.sv:67:21: Can't find definition of 'core' in dotted scope/variable: 'dut.core'
+   67 |       TrapMD <= dut.core.TrapM;
+      |                     ^~~~
+        ... Known scopes under 'dut': <no instances found>
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/rvvitbwrapper.sv:77:27: Dotted reference to instance that refers to missing module/interface: 'wallypipelinedsoc'
+   77 |   assign StallE         = dut.core.StallE;
+      |                           ^~~
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/rvvitbwrapper.sv:77:31: Can't find definition of 'core' in dotted scope/variable: 'dut.core'
+   77 |   assign StallE         = dut.core.StallE;
+      |                               ^~~~
+        ... Known scopes under 'dut': <no instances found>
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/rvvitbwrapper.sv:78:27: Dotted reference to instance that refers to missing module/interface: 'wallypipelinedsoc'
+   78 |   assign StallM         = dut.core.StallM;
+      |                           ^~~
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/rvvitbwrapper.sv:78:31: Can't find definition of 'core' in dotted scope/variable: 'dut.core'
+   78 |   assign StallM         = dut.core.StallM;
+      |                               ^~~~
+        ... Known scopes under 'dut': <no instances found>
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/rvvitbwrapper.sv:79:27: Dotted reference to instance that refers to missing module/interface: 'wallypipelinedsoc'
+   79 |   assign StallW         = dut.core.StallW;
+      |                           ^~~
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/rvvitbwrapper.sv:79:31: Can't find definition of 'core' in dotted scope/variable: 'dut.core'
+   79 |   assign StallW         = dut.core.StallW;
+      |                               ^~~~
+        ... Known scopes under 'dut': <no instances found>
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/rvvitbwrapper.sv:80:27: Dotted reference to instance that refers to missing module/interface: 'wallypipelinedsoc'
+   80 |   assign FlushE         = dut.core.FlushE;
+      |                           ^~~
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/rvvitbwrapper.sv:80:31: Can't find definition of 'core' in dotted scope/variable: 'dut.core'
+   80 |   assign FlushE         = dut.core.FlushE;
+      |                               ^~~~
+        ... Known scopes under 'dut': <no instances found>
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/rvvitbwrapper.sv:81:27: Dotted reference to instance that refers to missing module/interface: 'wallypipelinedsoc'
+   81 |   assign FlushM         = dut.core.FlushM;
+      |                           ^~~
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/rvvitbwrapper.sv:81:31: Can't find definition of 'core' in dotted scope/variable: 'dut.core'
+   81 |   assign FlushM         = dut.core.FlushM;
+      |                               ^~~~
+        ... Known scopes under 'dut': <no instances found>
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/rvvitbwrapper.sv:82:27: Dotted reference to instance that refers to missing module/interface: 'wallypipelinedsoc'
+   82 |   assign FlushW         = dut.core.FlushW;
+      |                           ^~~
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/rvvitbwrapper.sv:82:31: Can't find definition of 'core' in dotted scope/variable: 'dut.core'
+   82 |   assign FlushW         = dut.core.FlushW;
+      |                               ^~~~
+        ... Known scopes under 'dut': <no instances found>
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/rvvitbwrapper.sv:83:27: Dotted reference to instance that refers to missing module/interface: 'wallypipelinedsoc'
+   83 |   assign InstrValidM    = dut.core.ieu.InstrValidM;
+      |                           ^~~
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/rvvitbwrapper.sv:83:31: Can't find definition of 'core' in dotted scope/variable: 'dut.core'
+   83 |   assign InstrValidM    = dut.core.ieu.InstrValidM;
+      |                               ^~~~
+        ... Known scopes under 'dut': <no instances found>
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/rvvitbwrapper.sv:83:36: Can't find definition of 'ieu' in dotted scope/variable: 'dut.ieu'
+   83 |   assign InstrValidM    = dut.core.ieu.InstrValidM;
+      |                                    ^~~
+        ... Known scopes under 'dut': <no instances found>
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/rvvitbwrapper.sv:84:27: Dotted reference to instance that refers to missing module/interface: 'wallypipelinedsoc'
+   84 |   assign InstrRawD      = dut.core.ifu.InstrRawD;
+      |                           ^~~
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/rvvitbwrapper.sv:84:31: Can't find definition of 'core' in dotted scope/variable: 'dut.core'
+   84 |   assign InstrRawD      = dut.core.ifu.InstrRawD;
+      |                               ^~~~
+        ... Known scopes under 'dut': <no instances found>
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/rvvitbwrapper.sv:84:36: Can't find definition of 'ifu' in dotted scope/variable: 'dut.ifu'
+   84 |   assign InstrRawD      = dut.core.ifu.InstrRawD;
+      |                                    ^~~
+        ... Known scopes under 'dut': <no instances found>
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/rvvitbwrapper.sv:85:27: Dotted reference to instance that refers to missing module/interface: 'wallypipelinedsoc'
+   85 |   assign PCM            = dut.core.ifu.PCM;
+      |                           ^~~
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/rvvitbwrapper.sv:85:31: Can't find definition of 'core' in dotted scope/variable: 'dut.core'
+   85 |   assign PCM            = dut.core.ifu.PCM;
+      |                               ^~~~
+        ... Known scopes under 'dut': <no instances found>
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/rvvitbwrapper.sv:85:36: Can't find definition of 'ifu' in dotted scope/variable: 'dut.ifu'
+   85 |   assign PCM            = dut.core.ifu.PCM;
+      |                                    ^~~
+        ... Known scopes under 'dut': <no instances found>
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/rvvitbwrapper.sv:86:27: Dotted reference to instance that refers to missing module/interface: 'wallypipelinedsoc'
+   86 |   assign Mcycle         = dut.core.priv.priv.csr.counters.HPMCOUNTER_REGW[0];
+      |                           ^~~
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/rvvitbwrapper.sv:86:31: Can't find definition of 'core' in dotted scope/variable: 'dut.core'
+   86 |   assign Mcycle         = dut.core.priv.priv.csr.counters.HPMCOUNTER_REGW[0];
+      |                               ^~~~
+        ... Known scopes under 'dut': <no instances found>
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/rvvitbwrapper.sv:86:36: Can't find definition of 'priv' in dotted scope/variable: 'dut.priv'
+   86 |   assign Mcycle         = dut.core.priv.priv.csr.counters.HPMCOUNTER_REGW[0];
+      |                                    ^~~~
+        ... Known scopes under 'dut': <no instances found>
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/rvvitbwrapper.sv:86:41: Can't find definition of 'priv' in dotted scope/variable: 'dut.priv'
+   86 |   assign Mcycle         = dut.core.priv.priv.csr.counters.HPMCOUNTER_REGW[0];
+      |                                         ^~~~
+        ... Known scopes under 'dut': <no instances found>
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/rvvitbwrapper.sv:86:46: Can't find definition of 'csr' in dotted scope/variable: 'dut.csr'
+   86 |   assign Mcycle         = dut.core.priv.priv.csr.counters.HPMCOUNTER_REGW[0];
+      |                                              ^~~
+        ... Known scopes under 'dut': <no instances found>
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/rvvitbwrapper.sv:86:50: Can't find definition of 'counters' in dotted scope/variable: 'dut.counters'
+   86 |   assign Mcycle         = dut.core.priv.priv.csr.counters.HPMCOUNTER_REGW[0];
+      |                                                  ^~~~~~~~
+        ... Known scopes under 'dut': <no instances found>
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/rvvitbwrapper.sv:87:27: Dotted reference to instance that refers to missing module/interface: 'wallypipelinedsoc'
+   87 |   assign Minstret       = dut.core.priv.priv.csr.counters.HPMCOUNTER_REGW[2];
+      |                           ^~~
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/rvvitbwrapper.sv:87:31: Can't find definition of 'core' in dotted scope/variable: 'dut.core'
+   87 |   assign Minstret       = dut.core.priv.priv.csr.counters.HPMCOUNTER_REGW[2];
+      |                               ^~~~
+        ... Known scopes under 'dut': <no instances found>
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/rvvitbwrapper.sv:87:36: Can't find definition of 'priv' in dotted scope/variable: 'dut.priv'
+   87 |   assign Minstret       = dut.core.priv.priv.csr.counters.HPMCOUNTER_REGW[2];
+      |                                    ^~~~
+        ... Known scopes under 'dut': <no instances found>
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/rvvitbwrapper.sv:87:41: Can't find definition of 'priv' in dotted scope/variable: 'dut.priv'
+   87 |   assign Minstret       = dut.core.priv.priv.csr.counters.HPMCOUNTER_REGW[2];
+      |                                         ^~~~
+        ... Known scopes under 'dut': <no instances found>
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/rvvitbwrapper.sv:87:46: Can't find definition of 'csr' in dotted scope/variable: 'dut.csr'
+   87 |   assign Minstret       = dut.core.priv.priv.csr.counters.HPMCOUNTER_REGW[2];
+      |                                              ^~~
+        ... Known scopes under 'dut': <no instances found>
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/rvvitbwrapper.sv:87:50: Can't find definition of 'counters' in dotted scope/variable: 'dut.counters'
+   87 |   assign Minstret       = dut.core.priv.priv.csr.counters.HPMCOUNTER_REGW[2];
+      |                                                  ^~~~~~~~
+        ... Known scopes under 'dut': <no instances found>
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/rvvitbwrapper.sv:88:27: Dotted reference to instance that refers to missing module/interface: 'wallypipelinedsoc'
+   88 |   assign TrapM          = dut.core.TrapM;
+      |                           ^~~
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/rvvitbwrapper.sv:88:31: Can't find definition of 'core' in dotted scope/variable: 'dut.core'
+   88 |   assign TrapM          = dut.core.TrapM;
+      |                               ^~~~
+        ... Known scopes under 'dut': <no instances found>
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/rvvitbwrapper.sv:89:27: Dotted reference to instance that refers to missing module/interface: 'wallypipelinedsoc'
+   89 |   assign PrivilegeModeW = dut.core.priv.priv.privmode.PrivilegeModeW;
+      |                           ^~~
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/rvvitbwrapper.sv:89:31: Can't find definition of 'core' in dotted scope/variable: 'dut.core'
+   89 |   assign PrivilegeModeW = dut.core.priv.priv.privmode.PrivilegeModeW;
+      |                               ^~~~
+        ... Known scopes under 'dut': <no instances found>
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/rvvitbwrapper.sv:89:36: Can't find definition of 'priv' in dotted scope/variable: 'dut.priv'
+   89 |   assign PrivilegeModeW = dut.core.priv.priv.privmode.PrivilegeModeW;
+      |                                    ^~~~
+        ... Known scopes under 'dut': <no instances found>
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/rvvitbwrapper.sv:89:41: Can't find definition of 'priv' in dotted scope/variable: 'dut.priv'
+   89 |   assign PrivilegeModeW = dut.core.priv.priv.privmode.PrivilegeModeW;
+      |                                         ^~~~
+        ... Known scopes under 'dut': <no instances found>
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/rvvitbwrapper.sv:89:46: Can't find definition of 'privmode' in dotted scope/variable: 'dut.privmode'
+   89 |   assign PrivilegeModeW = dut.core.priv.priv.privmode.PrivilegeModeW;
+      |                                              ^~~~~~~~
+        ... Known scopes under 'dut': <no instances found>
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/rvvitbwrapper.sv:90:27: Dotted reference to instance that refers to missing module/interface: 'wallypipelinedsoc'
+   90 |   assign GPRAddr        = dut.core.ieu.dp.regf.a3;
+      |                           ^~~
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/rvvitbwrapper.sv:90:31: Can't find definition of 'core' in dotted scope/variable: 'dut.core'
+   90 |   assign GPRAddr        = dut.core.ieu.dp.regf.a3;
+      |                               ^~~~
+        ... Known scopes under 'dut': <no instances found>
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/rvvitbwrapper.sv:90:36: Can't find definition of 'ieu' in dotted scope/variable: 'dut.ieu'
+   90 |   assign GPRAddr        = dut.core.ieu.dp.regf.a3;
+      |                                    ^~~
+        ... Known scopes under 'dut': <no instances found>
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/rvvitbwrapper.sv:90:40: Can't find definition of 'dp' in dotted scope/variable: 'dut.dp'
+   90 |   assign GPRAddr        = dut.core.ieu.dp.regf.a3;
+      |                                        ^~
+        ... Known scopes under 'dut': <no instances found>
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/rvvitbwrapper.sv:90:43: Can't find definition of 'regf' in dotted scope/variable: 'dut.regf'
+   90 |   assign GPRAddr        = dut.core.ieu.dp.regf.a3;
+      |                                           ^~~~
+        ... Known scopes under 'dut': <no instances found>
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/rvvitbwrapper.sv:91:27: Dotted reference to instance that refers to missing module/interface: 'wallypipelinedsoc'
+   91 |   assign GPRWen         = dut.core.ieu.dp.regf.we3;
+      |                           ^~~
+%Error: Exiting due to too many errors encountered; --error-limit=50
+make: *** [Makefile:53: compile] Error 1
+make: Leaving directory '/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/sim/verilator'
+Touching executable...
+Compiling ELFs...
+
+Finished: 2026-09-18T11:09:17.286851+00:00
+Return code: 0
+Status: PASS

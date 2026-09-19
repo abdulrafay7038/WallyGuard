@@ -1,0 +1,57 @@
+Started: 2026-09-18T11:33:46.447618+00:00
+Command: bash -o pipefail -c 'sed -n '"'"'1,50p'"'"' /home/rafay/miniconda3/WallyGuard2/orchestration/test_preflight.py'
+
+"""Controller-owned build, control, oracle and DUT execution contract."""
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import shutil
+from .processes import run_command
+from .result_classifier import Outcome, ReproducerResult, artifact_argv, classify, FAILURE, TOOL_ERROR, WATCHDOG
+
+TRAP_VECTOR_TEMPLATE = '''# Direct-mode trap entry: low two address bits must be zero.
+.balign 4
+wallyguard_trap_entry:
+    # Save/handle the trap here; avoid recursive traps.
+'''
+
+
+def under(path: str, root: Path) -> Path:
+    target = (root / path).resolve()
+    if not target.is_relative_to(root.resolve()):
+        raise ValueError(f'Artifact escapes test directory: {path}')
+    return target
+
+
+def _contains(path: Path, marker: str) -> bool:
+    with path.open(errors='replace') as stream:
+        return any(marker in line for line in stream)
+
+
+def log_markers(path: Path) -> str:
+    """Scan complete logs, retaining only bounded first evidence for each pattern."""
+    found = {}
+    patterns = {'watchdog': WATCHDOG, 'tool': TOOL_ERROR, 'failure': FAILURE,
+                'incomplete': re.compile('halted without completing|wrote .* signature entries'),
+                'selfcheck': re.compile(r'result \d+: adr = [0-9a-fA-F]+ sim \(D\$\) [0-9a-fA-F]+ signature = [0-9a-fA-F]+'),
+                'success': re.compile(r'succeeded\.  Brilliant!!!')}
+    with path.open(errors='replace') as stream:
+        for line in stream:
+            for key, pattern in patterns.items():
+                if key not in found and pattern.search(line):
+                    found[key] = line[:8192]
+    return ''.join(found.values())
+
+
+def _signature(path: Path) -> tuple[str, int]:
+    """Strict normalized hexadecimal signatures, streamed to bound memory."""
+    digest, count = hashlib.sha256(), 0
+    with path.open() as stream:
+        for line in stream:
+            word = line.strip().lower()
+
+Finished: 2026-09-18T11:33:46.541139+00:00
+Return code: 0
+Status: PASS

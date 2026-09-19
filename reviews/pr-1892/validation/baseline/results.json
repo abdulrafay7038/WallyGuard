@@ -1,0 +1,114 @@
+[
+  {
+    "test": "l1-load-aligned-ad00",
+    "spike": "pass",
+    "wally": "pass",
+    "wally_returncode": 0,
+    "ok": true
+  },
+  {
+    "test": "l1-load-misaligned-ad00",
+    "spike": "pass",
+    "wally": "expected A/D mismatch",
+    "wally_returncode": -6,
+    "ok": true
+  },
+  {
+    "test": "l1-store-aligned-ad00",
+    "spike": "pass",
+    "wally": "pass",
+    "wally_returncode": 0,
+    "ok": true
+  },
+  {
+    "test": "l1-store-aligned-ad40",
+    "spike": "pass",
+    "wally": "pass",
+    "wally_returncode": 0,
+    "ok": true
+  },
+  {
+    "test": "l1-store-misaligned-ad00",
+    "spike": "pass",
+    "wally": "expected A/D mismatch",
+    "wally_returncode": -6,
+    "ok": true
+  },
+  {
+    "test": "l1-store-misaligned-ad40",
+    "spike": "pass",
+    "wally": "expected A/D mismatch",
+    "wally_returncode": -6,
+    "ok": true
+  },
+  {
+    "test": "l1-fetch-aligned-ad00",
+    "spike": "pass",
+    "wally": "pass",
+    "wally_returncode": 0,
+    "ok": true
+  },
+  {
+    "test": "l1-fetch-misaligned-ad00",
+    "spike": "pass",
+    "wally": "expected A/D mismatch",
+    "wally_returncode": -6,
+    "ok": true
+  },
+  {
+    "test": "l2-load-aligned-ad00",
+    "spike": "pass",
+    "wally": "pass",
+    "wally_returncode": 0,
+    "ok": true
+  },
+  {
+    "test": "l2-load-misaligned-ad00",
+    "spike": "pass",
+    "wally": "expected A/D mismatch",
+    "wally_returncode": -6,
+    "ok": true
+  },
+  {
+    "test": "l2-store-aligned-ad00",
+    "spike": "pass",
+    "wally": "pass",
+    "wally_returncode": 0,
+    "ok": true
+  },
+  {
+    "test": "l2-store-aligned-ad40",
+    "spike": "pass",
+    "wally": "pass",
+    "wally_returncode": 0,
+    "ok": true
+  },
+  {
+    "test": "l2-store-misaligned-ad00",
+    "spike": "pass",
+    "wally": "expected A/D mismatch",
+    "wally_returncode": -6,
+    "ok": true
+  },
+  {
+    "test": "l2-store-misaligned-ad40",
+    "spike": "pass",
+    "wally": "expected A/D mismatch",
+    "wally_returncode": -6,
+    "ok": true
+  },
+  {
+    "test": "l2-fetch-aligned-ad00",
+    "spike": "pass",
+    "wally": "pass",
+    "wally_returncode": 0,
+    "ok": true
+  },
+  {
+    "test": "l2-fetch-misaligned-ad00",
+    "spike": "pass",
+    "wally": "expected A/D mismatch",
+    "wally_returncode": -6,
+    "ok": true
+  }
+]

@@ -1,0 +1,9 @@
+Started: 2026-09-18T09:49:52.638922+00:00
+Command: bash -o pipefail -c 'ls -la sim/verilator/wkdir/rv64gc_testbench/Vtestbench'
+
+ls: cannot access 'sim/verilator/wkdir/rv64gc_testbench/Vtestbench': No such file or directory
+
+Finished: 2026-09-18T09:49:53.105970+00:00
+Return code: 2
+Status: COMMAND_FAILED
+ERROR: Command exited with code 2

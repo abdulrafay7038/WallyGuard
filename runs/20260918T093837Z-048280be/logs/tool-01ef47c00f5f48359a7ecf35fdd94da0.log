@@ -1,0 +1,9 @@
+Started: 2026-09-18T10:15:48.954760+00:00
+Command: bash -o pipefail -c 'grep -n SOURCES $WALLY/sim/verilator/Makefile || echo "Not found"'
+
+23:SOURCES       = ${WALLY}/src/cvw.sv ${WALLY}/testbench/${TESTBENCH}.sv ${WALLY}/testbench/common/*.sv \
+62:	$(SOURCES)
+
+Finished: 2026-09-18T10:15:49.036588+00:00
+Return code: 0
+Status: PASS

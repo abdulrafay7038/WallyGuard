@@ -1,0 +1,17 @@
+Started: 2026-09-18T09:57:32.312824+00:00
+Command: bash -o pipefail -c 'git grep -rn "LSUFlushW" src/lsu/'
+
+src/lsu/atomic.sv:43:  input logic                 LSUFlushW,  // On FlushM or TLB miss ignore memory operation
+src/lsu/atomic.sv:61:    assign MemReadM = PreLSURWM[1] & ~LSUFlushW;
+src/lsu/lsu.sv:160:  logic                  LSUFlushW;                              // HPTW or hazard unit flushes operation
+src/lsu/lsu.sv:310:  assign LSUFlushW = HPTWFlushW | FlushW;
+src/lsu/lsu.sv:321:              .DTIMAdr, .FlushW(LSUFlushW), .WriteDataM(LSUWriteDataM),
+src/lsu/lsu.sv:364:        .clk, .reset, .Stall(GatedStallW & ~SelSpillE), .SelBusBeat, .FlushStage(LSUFlushW),
+src/lsu/lsu.sv:373:        .CacheBusAck(DCacheBusAck), .InvalidateCache(1'b0), .InvalidateFlushStage(LSUFlushW), .CMOpM(CacheCMOpM));
+src/lsu/lsu.sv:376:        .HCLK(clk), .HRESETn(~reset), .Flush(LSUFlushW),
+src/lsu/lsu.sv:396:      ahbinterface #(P.XLEN, 1'b1) ahbinterface(.HCLK(clk), .HRESETn(~reset), .Flush(LSUFlushW), .HREADY(LSUHREADY),
+src/lsu/lsu.sv:422:      .LSUFunct7M, .LSUFunct3M, .LSUAtomicM, .PreLSURWM, .LSUFlushW,
+
+Finished: 2026-09-18T09:57:32.429967+00:00
+Return code: 0
+Status: PASS

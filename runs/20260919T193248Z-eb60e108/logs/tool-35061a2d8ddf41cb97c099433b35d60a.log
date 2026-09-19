@@ -1,0 +1,75 @@
+Started: 2026-09-19T19:38:28.894107+00:00
+Command: bash -o pipefail -c 'git log -n 5 e065a89e6'
+
+commit e065a89e6fe4a4b4c283e8caff95f6f36a9aabf7
+Author: David Harris <David_Harris@hmc.edu>
+Date:   Wed Sep 16 05:42:22 2026 -0700
+
+    Comment why amoalu selects the word compare when Zabha is disabled
+    
+    Answers a review question on #1877: without Zabha the byte and halfword AMO
+    encodings are illegal and never reach the LSU, so those two case arms are
+    don't-cares.  Selecting lt32 rather than lt8/lt16 there is a synthesis
+    optimization, leaving the narrow signed-compare muxes with no consumer so the
+    tool can trim them.  No functional change.
+    
+    Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
+
+commit ad7dd06b03ceb9958722582b09f4de4043056028
+Author: David Harris <David_Harris@hmc.edu>
+Date:   Tue Sep 15 21:33:16 2026 -0700
+
+    Simplified amoalu comparators
+
+commit adc84435e71f8b3675d09149d57e840ac499f688
+Author: David Harris <David_Harris@hmc.edu>
+Date:   Tue Sep 15 21:20:17 2026 -0700
+
+    Enable Zabha in the ImperasDV lockstep configs
+    
+    Add cpu/Zabha=T to the rv64gc and rv32gc imperas.ic files so lockstep
+    accepts the byte and halfword AMOs.
+    
+    Without the override ImperasDV decodes those encodings as vector
+    instructions and reports an illegal instruction, so lockstep diverges on
+    the first byte AMO. Verified on rv64gc and rv32gc: amoadd.b, amomin.b,
+    amominu.b, amoswap.h, amomax.h and amomaxu.h all run with zero mismatches.
+    
+    Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
+
+commit 14f23f89903b24c4c13023ec41b3b5e5fe27ec14
+Author: David Harris <David_Harris@hmc.edu>
+Date:   Tue Sep 15 21:14:27 2026 -0700
+
+    Zabha requires Zaamo
+
+commit 934e36e044d39bf9eaf01b28c7bf815089860706
+Author: David Harris <David_Harris@hmc.edu>
+Date:   Tue Sep 15 20:56:57 2026 -0700
+
+    Add Zabha support
+    
+    Zabha adds byte and halfword AMOs. Most of the plumbing was already
+    width-generic: the byte mask is computed from the size field, the
+    misaligned check is a case on size, and the subword read and write paths
+    are shared with ordinary loads and stores.
+    
+    Two changes were needed. The decode splits the atomic width check in two
+    so the AMO forms accept funct3 of 000 and 001 while lr and sc stay at word
+    and doubleword, since Zabha does not add narrow reservations. The AMO ALU
+    narrows both comparands to the access width before the shared word
+    comparator; the memory operand arrives sign-extended from the subword
+    read, which is wrong for the unsigned min and max forms, so both operands
+    are re-extended from their raw low bits per the signedness bit.
+    
+    Enabled on rv64gc and rv32gc.
+    
+    Verified on rv64gc: all 18 Zabha arch tests pass, along with the 22
+    existing Zaamo and Zalrsc tests and the 48 Zimop and Zcmop tests. Lint is
+    clean on every config.
+    
+    Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
+
+Finished: 2026-09-19T19:38:28.956101+00:00
+Return code: 0
+Status: PASS

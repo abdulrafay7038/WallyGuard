@@ -1,0 +1,24 @@
+Started: 2026-09-18T09:49:34.029002+00:00
+Command: bash -o pipefail -c 'ls src/fpu/'
+
+fclassify.sv
+fcmp.sv
+fctrl.sv
+fcvt.sv
+fdivsqrt
+fhazard.sv
+fli.sv
+fma
+fmtparams.sv
+fpu.sv
+fregfile.sv
+fround.sv
+fsgninj.sv
+packoutput.sv
+postproc
+unpack.sv
+unpackinput.sv
+
+Finished: 2026-09-18T09:49:34.123592+00:00
+Return code: 0
+Status: PASS

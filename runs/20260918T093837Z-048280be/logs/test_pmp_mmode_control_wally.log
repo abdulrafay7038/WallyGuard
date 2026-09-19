@@ -1,0 +1,5 @@
+/home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/test_pmp_mmode_control.elf succeeded.  Brilliant!!!
+- /home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/wally_clean/testbench/testbench.sv:532: Verilog $finish
+- S i m u l a t i o n   R e p o r t: Verilator 5.036 2025-04-27
+- Verilator: $finish at 1ns; walltime 0.209 s; speed 63.664 ns/s
+- Verilator: cpu 0.020 s on 1 threads; alloced 346 MB

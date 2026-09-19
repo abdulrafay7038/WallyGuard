@@ -1,0 +1,7 @@
+Started: 2026-09-18T09:58:25.020629+00:00
+Command: bash -o pipefail -c 'mkdir -p /home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/tests /home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build /home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/logs'
+
+
+Finished: 2026-09-18T09:58:25.105956+00:00
+Return code: 0
+Status: PASS

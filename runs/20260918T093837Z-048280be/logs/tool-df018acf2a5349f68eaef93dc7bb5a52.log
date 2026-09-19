@@ -1,0 +1,92 @@
+Started: 2026-09-18T09:48:56.633543+00:00
+Command: bash -o pipefail -c 'head -n 85 src/ieu/bmu/bmuctrl.sv'
+
+///////////////////////////////////////////
+// bmuctrl.sv
+//
+// Written: Kevin Kim <kekim@hmc.edu>, kelvin.tran@okstate.edu
+// Created: 16 February 2023
+// Modified: 6 March 2023, 9 March 2024
+//
+// Purpose: Top level bit manipulation instruction decoder
+//
+// Documentation: RISC-V System on Chip Design
+//
+// A component of the CORE-V-WALLY configurable RISC-V project.
+// https://github.com/openhwfoundation/cvw
+//
+// Copyright (C) 2021-24 Harvey Mudd College & Oklahoma State University
+//
+// SPDX-License-Identifier: Apache-2.0 WITH SHL-2.1
+//
+// Licensed under the Solderpad Hardware License v 2.1 (the “License”); you may not use this file
+// except in compliance with the License, or, at your option, the Apache License version 2.0. You
+// may obtain a copy of the License at
+//
+// https://solderpad.org/licenses/SHL-2.1/
+//
+// Unless required by applicable law or agreed to in writing, any work distributed under the
+// License is distributed on an “AS IS” BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+// either express or implied. See the License for the specific language governing permissions
+// and limitations under the License.
+////////////////////////////////////////////////////////////////////////////////////////////////
+
+module bmuctrl import cvw::*;  #(parameter cvw_t P) (
+  input  logic        clk, reset,
+  // Decode stage control signals
+  input  logic [31:0] InstrD,                  // Instruction in Decode stage
+  input  logic        ALUOpD,                  // Regular ALU Operation
+  output logic        BRegWriteD,              // Indicates if it is a R type B instruction in Decode Stage
+  output logic        BALUSrcBD,               // Indicates if it is an I/IW (non auipc) type B instruction in Decode Stage
+  output logic        BW64D,                   // Indicates if it is a W type B instruction in Decode Stage
+  output logic        BUW64D,                  // Indicates if it is a .uw type B instruction in Decode Stage
+  output logic        BSubArithD,              // TRUE if ext, clr, andn, orn, xnor instruction in Decode Stage
+  output logic        IllegalBitmanipInstrD,   // Indicates if it is unrecognized B instruction in Decode Stage
+  // Execute stage control signals
+  input  logic        StallE, FlushE,          // Stall, flush Execute stage
+  output logic [2:0]  ALUSelectD,              // ALU select
+  output logic [3:0]  BSelectE,                // Indicates if ZBA_ZBB_ZBC_ZBS instruction in one-hot encoding
+  output logic [3:0]  ZBBSelectE,              // ZBB mux select signal
+  output logic [2:0]  BALUControlE,            // ALU Control signals for B instructions in Execute Stage
+  output logic        BMUActiveE               // Bit manipulation instruction being executed
+);
+
+  logic [6:0] OpD;                             // Opcode in Decode stage
+  logic [2:0] Funct3D;                         // Funct3 field in Decode stage
+  logic [6:0] Funct7D;                         // Funct7 field in Decode stage
+  logic [4:0] Rs2D;                            // Rs2 source register in Decode stage
+  logic       RotateD;                         // Indicates if rotate instruction in Decode Stage
+  logic       MaskD;                           // Indicates if zbs instruction in Decode Stage
+  logic       PreShiftD;                       // Indicates if sh1add, sh2add, sh3add instruction in Decode Stage
+  logic [2:0] BALUControlD;                    // ALU Control signals for B instructions
+  logic [2:0] BALUSelectD;                     // ALU Mux select signal in Decode Stage for BMU operations
+  logic       BALUOpD;                         // Indicates if it is an ALU B instruction in Decode Stage
+  logic [3:0] BSelectD;                        // Indicates if ZBA_ZBB_ZBC_ZBS instruction in one-hot encoding in Decode stage
+  logic [3:0] ZBBSelectD;                      // ZBB mux select signal in Decode stage
+
+  `define BMUCTRLW 21
+
+  logic [`BMUCTRLW-1:0] BMUControlsD;          // Main B Instructions Decoder control signals
+
+  // Extract fields
+  assign OpD = InstrD[6:0];
+  assign Funct3D = InstrD[14:12];
+  assign Funct7D = InstrD[31:25];
+  assign Rs2D = InstrD[24:20];
+
+  // Main Instruction Decoder
+  always_comb begin
+    // BALUSelect_BSelect_ZBBSelect_BRegWrite_BALUSrcB_BW64_BUW64_BALUOp_BSubArithD_RotateD_MaskD_PreShiftD_IllegalBitmanipInstrD
+    BMUControlsD = `BMUCTRLW'b000_00_000_0_0_0_0_0_0_0_0_1;  // default: Illegal bmu instruction;
+    if (P.ZBA_SUPPORTED) begin
+      casez({OpD, Funct7D, Funct3D})
+        17'b0110011_0010000_010: BMUControlsD = `BMUCTRLW'b000_0001_0000_1_0_0_0_1_0_0_0_1_0;  // sh1add
+        17'b0110011_0010000_100: BMUControlsD = `BMUCTRLW'b000_0001_0000_1_0_0_0_1_0_0_0_1_0;  // sh2add
+        17'b0110011_0010000_110: BMUControlsD = `BMUCTRLW'b000_0001_0000_1_0_0_0_1_0_0_0_1_0;  // sh3add
+      endcase
+      if (P.XLEN==64)
+        casez({OpD, Funct7D, Funct3D})
+
+Finished: 2026-09-18T09:48:56.704623+00:00
+Return code: 0
+Status: PASS

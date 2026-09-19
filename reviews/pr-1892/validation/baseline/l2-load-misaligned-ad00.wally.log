@@ -1,0 +1,4 @@
+  Error on test /home/rafay/miniconda3/WallyGuard2/reviews/pr-1892/validation/baseline/l2-load-misaligned-ad00.elf result 4: adr = 0000000080001008 sim (D$) 000000002000044f signature = 000000002000040f
+/home/rafay/miniconda3/WallyGuard2/reviews/pr-1892/validation/baseline/l2-load-misaligned-ad00.elf failed with           1 errors. :(
+%Error: /home/rafay/miniconda3/WallyGuard2/reviews/pr-1892/baseline/testbench/testbench.sv:1111: Verilog $stop
+Aborting...

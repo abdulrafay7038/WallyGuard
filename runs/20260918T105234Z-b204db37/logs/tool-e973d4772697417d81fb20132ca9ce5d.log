@@ -1,0 +1,26 @@
+Started: 2026-09-18T11:00:31.234654+00:00
+Command: bash -o pipefail -c 'git log -n 1 6c7bb2898^2'
+
+commit 9f4c9916ec1685c664cfa8a254c98779f49ade87
+Author: David Harris <David_Harris@hmc.edu>
+Date:   Thu Sep 17 15:01:11 2026 -0700
+
+    hptw: tag the DTLB entry with the access's own VA on a chained walk
+    
+    The DTLB entry is tagged with the MMU's VAdr input, which is the LSU address
+    muxed by SelHPTWAdr, so SelHPTWAdr has to drop during DTLBWriteM.  #1875
+    qualified that term with (DTLBWalkPending & ~ITLBWalkPending), which is false
+    when a DTLB walk and an ITLB walk are both pending: on such a chained walk the
+    mux stays on the walker and the entry is tagged with the walker's PTE address.
+    
+    The bogus entry carries the leaf PTE of the data page (U=1 in the Sv tests) and
+    covers the trap handler's data region, so the next S-mode access that hits it
+    with SUM=0 fails ImproperPrivilege and takes a spurious page fault (#1885).
+    
+    Restores the #1871 expression and leaves the rest of #1875 in place.
+    
+    Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
+
+Finished: 2026-09-18T11:00:31.313822+00:00
+Return code: 0
+Status: PASS

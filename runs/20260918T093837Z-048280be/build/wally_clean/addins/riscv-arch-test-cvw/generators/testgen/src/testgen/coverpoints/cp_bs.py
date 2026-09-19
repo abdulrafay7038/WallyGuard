@@ -1,0 +1,34 @@
+##################################
+# cp_bs.py
+#
+# jcarlin@hmc.edu Oct 2025
+# SPDX-License-Identifier: Apache-2.0
+##################################
+
+
+"""cp_bs coverpoint generator."""
+
+from testgen.coverpoints.registry import add_coverpoint_generator
+from testgen.data.state import TestData, return_testcase_registers
+from testgen.data.test_chunk import TestChunk
+from testgen.formatters import format_single_testcase
+from testgen.instructions.params import generate_random_params
+
+
+@add_coverpoint_generator("cp_bs")
+def make_cp_bs(instr_name: str, instr_type: str, coverpoint: str, test_data: TestData) -> list[TestChunk]:
+    """Generate tests for bs field of crypto instructions."""
+    if coverpoint == "cp_bs":
+        bs_vals = range(4)
+    else:
+        raise ValueError(f"Unknown cp_bs coverpoint variant: {coverpoint} for {instr_name}")
+
+    test_chunks: list[TestChunk] = []
+    for bs in bs_vals:
+        params = generate_random_params(test_data, instr_type, immval=bs)
+        desc = f"{coverpoint}: bs={bs}"
+        tc = format_single_testcase(instr_name, instr_type, test_data, params, desc, f"b{bs}", coverpoint)
+        test_chunks.append(tc)
+        return_testcase_registers(test_data, params)
+
+    return test_chunks

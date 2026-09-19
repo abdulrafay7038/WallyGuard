@@ -1,0 +1,16 @@
+Started: 2026-09-19T19:38:11.150082+00:00
+Command: bash -o pipefail -c 'git show ff84ec108'
+
+commit ff84ec10824bcbb904838efac415975eed717e66
+Merge: f695fd477 e065a89e6
+Author: Rose Thompson <rose@rosethompson.net>
+Date:   Wed Sep 16 15:31:31 2026 -0700
+
+    Merge pull request #1877 from davidharrishmc/dh/zabha
+    
+    Zabha support
+
+
+Finished: 2026-09-19T19:38:11.217614+00:00
+Return code: 0
+Status: PASS

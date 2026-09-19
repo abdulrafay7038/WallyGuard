@@ -1,0 +1,135 @@
+Started: 2026-09-19T19:43:09.005241+00:00
+Command: bash -o pipefail -c 'cat -n src/mmu/pmpchecker.sv'
+
+     1	///////////////////////////////////////////
+     2	// pmpchecker.sv
+     3	//
+     4	// Written: tfleming@hmc.edu & jtorrey@hmc.edu 28 April 2021
+     5	// Modified:
+     6	//
+     7	// Purpose: Examines all physical memory accesses and checks them against the
+     8	//          current values of the physical memory protection (PMP) registers.
+     9	//          Can raise an access fault on illegal reads, writes, and instruction
+    10	//          fetches.
+    11	//
+    12	// Documentation: RISC-V System on Chip Design
+    13	//
+    14	// A component of the CORE-V-WALLY configurable RISC-V project.
+    15	// https://github.com/openhwfoundation/cvw
+    16	//
+    17	// Copyright (C) 2021-23 Harvey Mudd College & Oklahoma State University
+    18	//
+    19	// SPDX-License-Identifier: Apache-2.0 WITH SHL-2.1
+    20	//
+    21	// Licensed under the Solderpad Hardware License v 2.1 (the “License”); you may not use this file
+    22	// except in compliance with the License, or, at your option, the Apache License version 2.0. You
+    23	// may obtain a copy of the License at
+    24	//
+    25	// https://solderpad.org/licenses/SHL-2.1/
+    26	//
+    27	// Unless required by applicable law or agreed to in writing, any work distributed under the
+    28	// License is distributed on an “AS IS” BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+    29	// either express or implied. See the License for the specific language governing permissions
+    30	// and limitations under the License.
+    31	////////////////////////////////////////////////////////////////////////////////////////////////
+    32	
+    33	module pmpchecker import cvw::*;  #(parameter cvw_t P) (
+    34	  input  logic [P.PA_BITS-1:0]     PhysicalAddress,
+    35	  input  logic [1:0]               EffectivePrivilegeModeW,
+    36	  // ModelSim has a switch -svinputport which controls whether input ports
+    37	  // are nets (wires) or vars by default. The default setting of this switch is
+    38	  // `relaxed`, which means that signals are nets if and only if they are
+    39	  // scalars or one-dimensional vectors. Since this is a two-dimensional vector,
+    40	  // this will be understood as a var. However, if we don't supply the `var`
+    41	  // keyword, the compiler warns us that it's interpreting the signal as a var,
+    42	  // which we might not intend.
+    43	  input  var logic [7:0]           PMPCFG_ARRAY_REGW[P.PMP_ENTRIES-1:0],
+    44	  input  var logic [P.PA_BITS-3:0] PMPADDR_ARRAY_REGW[P.PMP_ENTRIES-1:0],
+    45	  input  logic                     ExecuteAccessF, WriteAccessM, ReadAccessM,
+    46	  input  logic [1:0]               Size,
+    47	  input  logic [3:0]               CMOpM,
+    48	  output logic                     PMPInstrAccessFaultF,
+    49	  output logic                     PMPLoadAccessFaultM,
+    50	  output logic                     PMPStoreAmoAccessFaultM
+    51	);
+    52	
+    53	  // Bit i is high when the address falls in PMP region i
+    54	  logic                            EnforcePMP; // should PMP be checked in this privilege level
+    55	  logic [P.PMP_ENTRIES-1:0]        Match;      // physical address matches one of the pmp ranges
+    56	  logic [P.PMP_ENTRIES-1:0]        FirstMatch; // onehot encoding for the first pmpaddr to match the current address.
+    57	  logic [P.PMP_ENTRIES-1:0]        L, X, W, R; // PMP matches and has flag set
+    58	  logic [P.PMP_ENTRIES-1:0]        PAgePMPAdr; // for TOR PMP matching, PhysicalAddress > PMPAdr[i]
+    59	  logic                            PMPCMOAccessFault, PMPCBOMAccessFault, PMPCBOZAccessFault;
+    60	  logic [2:0]                      SizeBytesMinus1;
+    61	  logic                            MatchingR, MatchingW, MatchingX, MatchingL;
+    62	
+    63	  // Signals for end-of-access PMP boundary crossing detection
+    64	  logic [P.PA_BITS-1:0]            EndAddress;       // last byte address of the access
+    65	  logic [P.PMP_ENTRIES-1:0]        EndMatch;         // end address matches PMP region i
+    66	  logic [P.PMP_ENTRIES-1:0]        EndFirstMatch;    // first matching region for end address
+    67	  logic [P.PMP_ENTRIES-1:0]        EndL, EndX, EndW, EndR; // end address permission bits
+    68	  logic [P.PMP_ENTRIES-1:0]        EndPAgePMPAdr;    // TOR chain for end address
+    69	  logic                            EndMatchingR, EndMatchingW; // end address permitted for R/W
+    70	  logic                            PMPBoundaryLoadFault, PMPBoundaryStoreFault;
+    71	
+    72	
+    73	  if (P.PMP_ENTRIES > 0) begin: pmp // prevent complaints about array of no elements when PMP_ENTRIES = 0
+    74	    pmpadrdec #(P) pmpadrdecs[P.PMP_ENTRIES-1:0](
+    75	      .PhysicalAddress,
+    76	      .Size,
+    77	      .PMPCfg(PMPCFG_ARRAY_REGW),
+    78	      .PMPAdr(PMPADDR_ARRAY_REGW),
+    79	      .FirstMatch,
+    80	      .PAgePMPAdrIn({PAgePMPAdr[P.PMP_ENTRIES-2:0], 1'b1}),
+    81	      .PAgePMPAdrOut(PAgePMPAdr),
+    82	      .Match, .L, .X, .W, .R);
+    83	
+    84	    // Check PMP permissions at the last byte of multi-byte accesses to detect boundary crossings
+    85	    assign SizeBytesMinus1 = (2**Size) - 1;
+    86	    assign EndAddress = PhysicalAddress + {{(P.PA_BITS-3){1'b0}}, SizeBytesMinus1};
+    87	
+    88	    pmpadrdec #(P) pmpadrdecs_end[P.PMP_ENTRIES-1:0](
+    89	      .PhysicalAddress(EndAddress),
+    90	      .Size(2'b00),
+    91	      .PMPCfg(PMPCFG_ARRAY_REGW),
+    92	      .PMPAdr(PMPADDR_ARRAY_REGW),
+    93	      .FirstMatch(1'b0),
+    94	      .PAgePMPAdrIn({EndPAgePMPAdr[P.PMP_ENTRIES-2:0], 1'b1}),
+    95	      .PAgePMPAdrOut(EndPAgePMPAdr),
+    96	      .Match(EndMatch), .L(EndL), .X(EndX), .W(EndW), .R(EndR));
+    97	  end
+    98	
+    99	  priorityonehot #(P.PMP_ENTRIES) pmppriority(.a(Match), .y(FirstMatch)); // combine the match signal from all the address decoders to find the first one that matches.
+   100	
+   101	  // Distributed AND-OR mux to select the first matching results
+   102	  assign MatchingR = |(R & FirstMatch);
+   103	  assign MatchingW = |(W & FirstMatch);
+   104	  assign MatchingX = |(X & FirstMatch);
+   105	  assign MatchingL = |(L & FirstMatch);
+   106	
+   107	  // Only enforce PMP checking for effective S and U modes (accounting for mstatus.MPRV) or in Machine mode when L bit is set in selected region
+   108	  assign EnforcePMP = (EffectivePrivilegeModeW != P.M_MODE) | MatchingL;
+   109	
+   110	  // Check end-of-access PMP permissions for boundary crossing detection
+   111	  // When multi-byte access spans multiple PMP regions, all bytes must be permitted
+   112	  priorityonehot #(P.PMP_ENTRIES) pmppriority_end(.a(EndMatch), .y(EndFirstMatch));
+   113	  assign EndMatchingR = |(EndR & EndFirstMatch);
+   114	  assign EndMatchingW = |(EndW & EndFirstMatch);
+   115	
+   116	  // Boundary crossing fault: access start and end match different PMP regions, and
+   117	  // the end address falls in a region (or unprotected area) that doesn't permit the access
+   118	  assign PMPBoundaryLoadFault  = EnforcePMP & ReadAccessM  & ~WriteAccessM & ~EndMatchingR & (FirstMatch != EndFirstMatch);
+   119	  assign PMPBoundaryStoreFault = EnforcePMP & WriteAccessM & ~EndMatchingW & (FirstMatch != EndFirstMatch);
+   120	
+   121	  assign PMPCBOMAccessFault     = EnforcePMP & (|CMOpM[2:0]) & ~MatchingR ; // checking R is sufficient because W implies R in PMP  // exclusion-tag: immu-pmpcbom
+   122	  assign PMPCBOZAccessFault     = EnforcePMP & CMOpM[3] & ~MatchingW ;          // exclusion-tag: immu-pmpcboz
+   123	  assign PMPCMOAccessFault      = PMPCBOZAccessFault | PMPCBOMAccessFault;              // exclusion-tag: immu-pmpcboaccess
+   124	
+   125	  assign PMPInstrAccessFaultF     = EnforcePMP & ExecuteAccessF & ~MatchingX ;
+   126	  assign PMPStoreAmoAccessFaultM  = (EnforcePMP & WriteAccessM & ~MatchingW)  | PMPCMOAccessFault | PMPBoundaryStoreFault; // exclusion-tag: immu-pmpstoreamoaccessfault
+   127	  assign PMPLoadAccessFaultM      = (EnforcePMP & ReadAccessM & ~WriteAccessM & ~MatchingR) | PMPBoundaryLoadFault;
+   128	 endmodule
+
+Finished: 2026-09-19T19:43:09.129102+00:00
+Return code: 0
+Status: PASS

@@ -1,0 +1,43 @@
+Started: 2026-09-18T09:55:44.625137+00:00
+Command: bash -o pipefail -c 'sed -n '"'"'75,110p'"'"' src/uncore/clint_apb.sv'
+
+        CLINT_MTIME:    PRDATA <= MTIME;
+        default:        PRDATA <= '0;
+      endcase
+    end
+    always_ff @(posedge PCLK)
+      if (~PRESETn) begin
+        MSIP <= 1'b0;
+        MTIMECMP <= 64'hFFFFFFFFFFFFFFFF; // Spec says MTIMECMP is not reset, but we reset to maximum value to prevent spurious timer interrupts
+      end else if (memwrite) begin
+        if (entry == CLINT_MSIP) MSIP <= PWDATA[0];
+        if (entry == CLINT_MTIMECMP) begin
+          for(i=0;i<P.XLEN/8;i++)
+            if(PSTRB[i])
+              MTIMECMP[i*8 +: 8] <= PWDATA[i*8 +: 8];
+        end
+      end
+
+// eventually replace MTIME logic below with timereg
+//    timereg tr(PCLK, PRESETn, TIMECLK, memwrite & (entry==16'hBFF8), 1'b0, PWDATA, MTIME, done);
+
+    always_ff @(posedge PCLK)
+      if (~PRESETn) begin
+        MTIME <= '0;
+      end else if (memwrite & entry == 16'hBFF8) begin
+        // MTIME Counter.  Eventually change this to run off separate clock.  Synchronization then needed
+        for(j=0;j<P.XLEN/8;j++)
+          if(PSTRB[j])
+            MTIME[j*8 +: 8] <= PWDATA[j*8 +: 8];
+      end else MTIME <= MTIME + 1;
+  end else begin:clint // 32-bit
+    always_ff @(posedge PCLK) begin
+      case(entry)
+        16'h0000: PRDATA <= {31'b0, MSIP};
+        16'h4000: PRDATA <= MTIMECMP[31:0];
+        16'h4004: PRDATA <= MTIMECMP[63:32];
+        16'hBFF8: PRDATA <= MTIME[31:0];
+
+Finished: 2026-09-18T09:55:44.702105+00:00
+Return code: 0
+Status: PASS

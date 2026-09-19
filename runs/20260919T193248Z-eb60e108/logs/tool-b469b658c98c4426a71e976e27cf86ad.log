@@ -1,0 +1,14 @@
+Started: 2026-09-19T19:35:44.420159+00:00
+Command: bash -o pipefail -c 'git grep -n "input.*Size" src/mmu/'
+
+src/mmu/adrdec.sv:35:  input  logic [1:0]          Size,             // Size of access
+src/mmu/adrdec.sv:36:  input  logic [3:0]          SizeMask,         // List of supported sizes: 0 = 8, 1 = 16, 2 = 32, 3 = 64-bit
+src/mmu/adrdecs.sv:35:  input  logic [1:0]           Size,
+src/mmu/mmu.sv:43:  input  logic [1:0]           Size,               // access size: 00 = 8 bits, 01 = 16 bits, 10 = 32 bits , 11 = 64 bits
+src/mmu/pmachecker.sv:34:  input  logic [1:0]           Size,
+src/mmu/pmpadrdec.sv:36:  input  logic [1:0]            Size,
+src/mmu/pmpchecker.sv:46:  input  logic [1:0]               Size,
+
+Finished: 2026-09-19T19:35:44.500039+00:00
+Return code: 0
+Status: PASS

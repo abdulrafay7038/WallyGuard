@@ -1,0 +1,1297 @@
+Started: 2026-09-18T09:42:22.880742+00:00
+Command: bash -o pipefail -c 'git log -n 10 -p 030e70eca~4..1cd134f49'
+
+commit 1cd134f49c6dde7694685490245ea9723ac865f3
+Author: WallyGuard <wallyguard@localhost>
+Date:   Fri Sep 18 09:41:39 2026 +0000
+
+    Initial local cvw snapshot for shared workspace
+
+diff --git a/config/rv32e/config.vh b/config/rv32e/config.vh
+index 04c6eac06..40b83a4ff 100644
+--- a/config/rv32e/config.vh
++++ b/config/rv32e/config.vh
+@@ -90,6 +90,7 @@ localparam logic Q_SUPPORTED   = 0;
+ localparam logic ZFH_SUPPORTED = 0;
+ localparam logic ZFA_SUPPORTED = 0;
+ localparam logic ZFBFMIN_SUPPORTED = 0; // BF16 converts, requires F
++<<<<<<< HEAD
+ 
+ // Vector extensions
+ localparam logic V_SUPPORTED = 0;
+@@ -103,6 +104,8 @@ localparam VPU_FP_EU = 32'd2;
+ localparam VPU_FP_LANES = 32'd2;
+ localparam VPU_LSU_EU = 32'd2;
+ localparam VPU_LSU_LANES = 32'd2;
++=======
++>>>>>>> wallyguard-pr-1879
+ 
+ // privilege modes
+ localparam logic S_SUPPORTED = 0; // Supervisor mode
+diff --git a/config/rv32gc/config.vh b/config/rv32gc/config.vh
+index 3cca43eee..9f0de086a 100644
+--- a/config/rv32gc/config.vh
++++ b/config/rv32gc/config.vh
+@@ -90,6 +90,7 @@ localparam logic Q_SUPPORTED   = 0;
+ localparam logic ZFH_SUPPORTED = 1;
+ localparam logic ZFA_SUPPORTED = 1;
+ localparam logic ZFBFMIN_SUPPORTED = 1; // BF16 converts, requires F
++<<<<<<< HEAD
+ 
+ // Vector extensions
+ localparam logic V_SUPPORTED = 1;
+@@ -103,6 +104,8 @@ localparam VPU_FP_EU = 32'd2;
+ localparam VPU_FP_LANES = 32'd2;
+ localparam VPU_LSU_EU = 32'd2;
+ localparam VPU_LSU_LANES = 32'd2;
++=======
++>>>>>>> wallyguard-pr-1879
+ 
+ // privilege modes
+ localparam logic S_SUPPORTED = 1; // Supervisor mode
+diff --git a/config/rv32i/config.vh b/config/rv32i/config.vh
+index 5821b387a..d890511f1 100644
+--- a/config/rv32i/config.vh
++++ b/config/rv32i/config.vh
+@@ -90,6 +90,7 @@ localparam logic Q_SUPPORTED   = 0;
+ localparam logic ZFH_SUPPORTED = 0;
+ localparam logic ZFA_SUPPORTED = 0;
+ localparam logic ZFBFMIN_SUPPORTED = 0; // BF16 converts, requires F
++<<<<<<< HEAD
+ 
+ // Vector extensions
+ localparam logic V_SUPPORTED = 0;
+@@ -103,6 +104,8 @@ localparam VPU_FP_EU = 32'd2;
+ localparam VPU_FP_LANES = 32'd2;
+ localparam VPU_LSU_EU = 32'd2;
+ localparam VPU_LSU_LANES = 32'd2;
++=======
++>>>>>>> wallyguard-pr-1879
+ 
+ // privilege modes
+ localparam logic S_SUPPORTED = 0; // Supervisor mode
+diff --git a/config/rv32imc/config.vh b/config/rv32imc/config.vh
+index df65f2ac7..0d182e438 100644
+--- a/config/rv32imc/config.vh
++++ b/config/rv32imc/config.vh
+@@ -90,6 +90,7 @@ localparam logic Q_SUPPORTED   = 0;
+ localparam logic ZFH_SUPPORTED = 0;
+ localparam logic ZFA_SUPPORTED = 0;
+ localparam logic ZFBFMIN_SUPPORTED = 0; // BF16 converts, requires F
++<<<<<<< HEAD
+ 
+ // Vector extensions
+ localparam logic V_SUPPORTED = 0;
+@@ -103,6 +104,8 @@ localparam VPU_FP_EU = 32'd2;
+ localparam VPU_FP_LANES = 32'd2;
+ localparam VPU_LSU_EU = 32'd2;
+ localparam VPU_LSU_LANES = 32'd2;
++=======
++>>>>>>> wallyguard-pr-1879
+ 
+ // privilege modes
+ localparam logic S_SUPPORTED = 0; // Supervisor mode
+diff --git a/config/rv64gc/config.vh b/config/rv64gc/config.vh
+index 3d33be22e..5af68c38d 100644
+--- a/config/rv64gc/config.vh
++++ b/config/rv64gc/config.vh
+@@ -90,6 +90,7 @@ localparam logic Q_SUPPORTED   = 0;
+ localparam logic ZFH_SUPPORTED = 1;
+ localparam logic ZFA_SUPPORTED = 1;
+ localparam logic ZFBFMIN_SUPPORTED = 1; // BF16 converts, requires F
++<<<<<<< HEAD
+ 
+ // Vector extensions
+ localparam logic V_SUPPORTED = 0;
+@@ -103,6 +104,8 @@ localparam VPU_FP_EU = 32'd2;
+ localparam VPU_FP_LANES = 32'd2;
+ localparam VPU_LSU_EU = 32'd2;
+ localparam VPU_LSU_LANES = 32'd2;
++=======
++>>>>>>> wallyguard-pr-1879
+ 
+ // privilege modes
+ localparam logic S_SUPPORTED = 1; // Supervisor mode
+diff --git a/config/rv64i/config.vh b/config/rv64i/config.vh
+index 9b03b6c28..02ab89fd1 100644
+--- a/config/rv64i/config.vh
++++ b/config/rv64i/config.vh
+@@ -90,6 +90,7 @@ localparam logic Q_SUPPORTED   = 0;
+ localparam logic ZFH_SUPPORTED = 0;
+ localparam logic ZFA_SUPPORTED = 0;
+ localparam logic ZFBFMIN_SUPPORTED = 0; // BF16 converts, requires F
++<<<<<<< HEAD
+ 
+ // Vector extensions
+ localparam logic V_SUPPORTED = 0;
+@@ -103,6 +104,8 @@ localparam VPU_FP_EU = 32'd2;
+ localparam VPU_FP_LANES = 32'd2;
+ localparam VPU_LSU_EU = 32'd2;
+ localparam VPU_LSU_LANES = 32'd2;
++=======
++>>>>>>> wallyguard-pr-1879
+ 
+ // privilege modes
+ localparam logic S_SUPPORTED = 0; // Supervisor mode
+diff --git a/config/shared/parameter-defs.vh b/config/shared/parameter-defs.vh
+index 3da776f50..e9d9a6c18 100644
+--- a/config/shared/parameter-defs.vh
++++ b/config/shared/parameter-defs.vh
+@@ -18,6 +18,7 @@ localparam cvw_t P = '{
+   ZFH_SUPPORTED :        ZFH_SUPPORTED,
+   ZFA_SUPPORTED :        ZFA_SUPPORTED,
+   ZFBFMIN_SUPPORTED :    ZFBFMIN_SUPPORTED,
++<<<<<<< HEAD
+   V_SUPPORTED :          V_SUPPORTED,
+   VLEN :                 VLEN,
+   VPU_MAX_EU :           VPU_MAX_EU,
+@@ -33,6 +34,8 @@ localparam cvw_t P = '{
+   VPU_INT_BLEN : VPU_INT_BLEN,
+   VPU_INT_MUL_BLEN : VPU_INT_MUL_BLEN,
+   VPU_FP_BLEN : VPU_FP_BLEN,
++=======
++>>>>>>> wallyguard-pr-1879
+   SSTC_SUPPORTED :       SSTC_SUPPORTED,
+   SMSTATEEN_SUPPORTED :  SMSTATEEN_SUPPORTED,
+   SSSTATEEN_SUPPORTED :  SSSTATEEN_SUPPORTED,
+diff --git a/src/fpu/fcvt.sv b/src/fpu/fcvt.sv
+index c3a0b830f..1a0706615 100644
+--- a/src/fpu/fcvt.sv
++++ b/src/fpu/fcvt.sv
+@@ -57,6 +57,7 @@ module fcvt import cvw::*;  #(parameter cvw_t P) (
+   logic [P.XLEN-1:0]              PosInt;       // the positive integer input
+   logic [P.XLEN-1:0]              TrimInt;      // integer trimmed to the correct size
+   logic [P.NE-2:0]                NewBias;      // the bias of the final result
++  logic [P.NE:0]                  CeNoLz;       // Ce before the normalization shift is subtracted
+   logic [P.NE-1:0]                OldExp;       // the old exponent
+   logic                           Signed;       // is the operation with a signed integer?
+   logic                           Int64;        // is the integer 64 bits?
+@@ -178,8 +179,10 @@ module fcvt import cvw::*;  #(parameter cvw_t P) (
+   //                      000001.stuff
+   //                  - newBias to make the biased exponent
+   //
+-  //          oldexp         - biasold         - LeadingZeros                               + newbias
+-  assign Ce = {1'b0, OldExp} - (P.NE+1)'(P.BIAS) - {{P.NE-P.LOGCVTLEN+1{1'b0}}, (LeadingZeros)} + {2'b0, NewBias};
++  //          oldexp         - biasold         + newbias, before the normalization shift is taken out
++  assign CeNoLz = {1'b0, OldExp} - (P.NE+1)'(P.BIAS) + {2'b0, NewBias};
++  //          ... - LeadingZeros
++  assign Ce = CeNoLz - {{P.NE-P.LOGCVTLEN+1{1'b0}}, (LeadingZeros)};
+ 
+   // find if the result is dnormal or underflows
+   //      - if Calculated expoenent is 0 or negative (and the input/result is not exactaly 0)
+@@ -204,10 +207,18 @@ module fcvt import cvw::*;  #(parameter cvw_t P) (
+   //                  - rather have a few and-gates than an extra bit in the priority encoder???
+   always_comb
+       if(ToInt)                       ShiftAmt = Ce[P.LOGCVTLEN-1:0]&{P.LOGCVTLEN{~Ce[P.NE]}};
++<<<<<<< HEAD
+       // Undo the leading zero shift: a subnormal source needs no normalizing when the result is also
+       // subnormal, and LeadingZeros is already zero for a normal one.  Only same-precision converts
+       // reach that combination: narrowing flushes such a source to zero and widening normalizes it.
+       else if (ResSubnormUf)          ShiftAmt = (P.LOGCVTLEN)'(P.NF-1)+Ce[P.LOGCVTLEN-1:0]+LeadingZeros;
++=======
++      // Use the exponent from before the normalization shift: a subnormal source needs no normalizing
++      // when the result is also subnormal, and the two are identical for a normal source.  Only
++      // same-precision converts reach that combination: narrowing flushes such a source to zero
++      // and widening normalizes it.
++      else if (ResSubnormUf)          ShiftAmt = (P.LOGCVTLEN)'(P.NF-1)+CeNoLz[P.LOGCVTLEN-1:0];
++>>>>>>> wallyguard-pr-1879
+       else                            ShiftAmt = LeadingZeros;
+ 
+   ///////////////////////////////////////////////////////////////////////////
+diff --git a/src/fpu/postproc/cvtshiftcalc.sv b/src/fpu/postproc/cvtshiftcalc.sv
+index 8e61a80ec..cefc105f7 100644
+--- a/src/fpu/postproc/cvtshiftcalc.sv
++++ b/src/fpu/postproc/cvtshiftcalc.sv
+@@ -103,6 +103,8 @@ module cvtshiftcalc import cvw::*;  #(parameter cvw_t P) (
+   // determine if the result underflows ??? -> fp
+   //      - if the first 1 is shifted out of the result then the result underflows
+   //      - can't underflow an integer to fp conversions
+-  assign CvtResUf = ($signed(CvtCe) < $signed({{P.NE-$clog2(P.NF){1'b1}}, ResNegNF}))&~XZero&~IntToFp;
++  // a BF16 result underflows at its own narrower fraction width
++  assign CvtResUf = ($signed(CvtCe) < $signed({{P.NE-$clog2(P.NF){1'b1}},
++                    (Bf16Dst ? -($clog2(P.NF)+1)'(P.BF16_NF) : ResNegNF)}))&~XZero&~IntToFp;
+ 
+ endmodule
+diff --git a/src/fpu/postproc/round.sv b/src/fpu/postproc/round.sv
+index 4c41a3b86..7d1e5ee6a 100644
+--- a/src/fpu/postproc/round.sv
++++ b/src/fpu/postproc/round.sv
+@@ -29,7 +29,11 @@
+ 
+ module round import cvw::*;  #(parameter cvw_t P) (
+   input  logic [P.FMTBITS-1:0]     OutFmt,             // output format
++<<<<<<< HEAD
+   input  logic                     Bf16Dst,            // Zfbfmin: round the fraction to BF16 instead of single
++=======
++  input  logic                     Bf16Dst,            // Zfbfmin: round the fraction to BF16
++>>>>>>> wallyguard-pr-1879
+   input  logic [2:0]               Frm,                // rounding mode
+   input  logic [1:0]               PostProcSel,        // select the postprocessor output
+   input  logic                     Ms,                 // normalized sign
+@@ -72,7 +76,12 @@ module round import cvw::*;  #(parameter cvw_t P) (
+   logic                            CalcPlus1;          // calculated plus1
+   logic                            FpPlus1;            // do you add one to the fp result
+   logic [P.FLEN:0]                 RoundAdd;           // how much to add to the result
++<<<<<<< HEAD
+   logic [P.FLEN:0]                 RoundAddFmt;        // RoundAdd for the formats in OutFmt
++=======
++  logic [P.FLEN:0]                 Bf16RoundAdd;       // RoundAdd for a BF16 result
++  logic                            Bf16Sticky;         // sticky bit for a BF16 result
++>>>>>>> wallyguard-pr-1879
+   logic                            CvtToInt;           // Convert to integer operation
+ 
+ // what position is XLEN in?
+@@ -191,7 +200,18 @@ module round import cvw::*;  #(parameter cvw_t P) (
+ 
+   // only add the Addend sticky if doing an FMA operation
+   //      - the shifter shifts too far left when there's an underflow (shifting out all possible sticky bits)
+-  assign Sticky = FmaASticky&FmaOp | NormSticky | CvtResUf&CvtOp | FmaMe[P.NE+1]&FmaOp | DivSticky&DivOp;
++  // BF16 overrides replace the format-generic values at their only use, here and for
++  // Guard/LsbRes/Round and RoundAdd below.  A single source reaches Mf with at most S_NF+1
++  // significand bits, plus BF16_NF of denormalization, so the sticky window is that narrow.
++  localparam BF16STICKYLSB = P.NORMSHIFTSZ - (P.S_NF+1) - P.BF16_NF - 1;
++  if (P.ZFBFMIN_SUPPORTED) begin : bf16round
++    assign Bf16Sticky  = |Mf[P.NORMSHIFTSZ-P.BF16_NF-2:BF16STICKYLSB];
++    assign Bf16RoundAdd = {(P.NE+1+P.BF16_NF)'(0), FpPlus1, (P.NF-P.BF16_NF)'(0)};
++  end else begin
++    assign Bf16Sticky   = 1'b0;
++    assign Bf16RoundAdd = '0;
++  end
++  assign Sticky = FmaASticky&FmaOp | (Bf16Dst ? Bf16Sticky : NormSticky) | CvtResUf&CvtOp | FmaMe[P.NE+1]&FmaOp | DivSticky&DivOp;
+ 
+   assign FpGuard  = Bf16Dst ? Mf[P.NORMSHIFTSZ-P.BF16_NF-1] : FpGuardFmt;
+   assign FpLsbRes = Bf16Dst ? Mf[P.NORMSHIFTSZ-P.BF16_NF]   : FpLsbResFmt;
+@@ -259,9 +279,9 @@ module round import cvw::*;  #(parameter cvw_t P) (
+           endcase
+   end
+ 
+-  assign Guard  = CvtToInt ? Mf[P.NORMSHIFTSZ-P.XLEN-1] : FpGuard;
+-  assign LsbRes = CvtToInt ? Mf[P.NORMSHIFTSZ-P.XLEN] : FpLsbRes;
+-  assign Round  = CvtToInt ? Mf[P.NORMSHIFTSZ-P.XLEN-2] : FpRound;
++  assign Guard  = CvtToInt ? Mf[P.NORMSHIFTSZ-P.XLEN-1] : Bf16Dst ? Mf[P.NORMSHIFTSZ-P.BF16_NF-1] : FpGuard;
++  assign LsbRes = CvtToInt ? Mf[P.NORMSHIFTSZ-P.XLEN]   : Bf16Dst ? Mf[P.NORMSHIFTSZ-P.BF16_NF]   : FpLsbRes;
++  assign Round  = CvtToInt ? Mf[P.NORMSHIFTSZ-P.XLEN-2] : Bf16Dst ? Mf[P.NORMSHIFTSZ-P.BF16_NF-2] : FpRound;
+ 
+   always_comb begin
+       // Determine if you add 1
+@@ -326,7 +346,7 @@ module round import cvw::*;  #(parameter cvw_t P) (
+ 
+   // round the result
+   //      - if the fraction overflows one should be added to the exponent
+-  assign {FullRe, Rf} = {Me, RoundFrac} + RoundAdd;
++  assign {FullRe, Rf} = {Me, RoundFrac} + (Bf16Dst ? Bf16RoundAdd : RoundAdd);
+   assign Re           = FullRe[P.NE-1:0];
+ 
+ endmodule
+diff --git a/src/fpu/postproc/specialcase.sv b/src/fpu/postproc/specialcase.sv
+index 8aaf2528b..8bebed776 100644
+--- a/src/fpu/postproc/specialcase.sv
++++ b/src/fpu/postproc/specialcase.sv
+@@ -70,7 +70,12 @@ module specialcase import cvw::*;  #(parameter cvw_t P) (
+   logic [P.FLEN-1:0]   ZNaNRes;    // Z is NaN result
+   logic [P.FLEN-1:0]   InvalidRes; // Invalid result result
+   logic [P.FLEN-1:0]   UfRes;      // underflowed result result
++<<<<<<< HEAD
+   logic [P.FLEN-1:0]   UfResFmt;   // underflowed result for the formats in OutFmt
++=======
++  logic [P.FLEN-1:0]   Bf16UfRes;  // underflowed result for a BF16 destination
++  logic [P.FLEN-1:0]   PostProcResPreBox; // result in single precision form, before BF16 reboxing
++>>>>>>> wallyguard-pr-1879
+   logic [P.FLEN-1:0]   OfRes;      // overflowed result result
+   logic [P.FLEN-1:0]   NormRes;    // normal result
+   logic [P.FLEN-1:0]   PostProcResFmt; // result before BF16 reboxing
+@@ -84,10 +89,17 @@ module specialcase import cvw::*;  #(parameter cvw_t P) (
+ 
+   // does the overflow result output the maximum normalized floating point number
+   //                output infinity if the input is infinity
++<<<<<<< HEAD
+ 
+   // BF16 shares single's exponent field, so a BF16 result is just the top half of the single
+   // precision one; only the underflow result, whose single precision LSB would be lost, differs
+   assign UfRes = Bf16Dst ? {{P.FLEN-32{1'b1}}, Rs, 14'b0, Plus1&Frm[1]&~(DivOp&YInf), 16'b0} : UfResFmt;
++=======
++  // the underflow result's one nonzero bit is the single precision LSB, which the rebox below
++  // would drop, so place it at the BF16 LSB instead
++  if (P.ZFBFMIN_SUPPORTED) assign Bf16UfRes = {{P.FLEN-32{1'b1}}, Rs, 14'b0, Plus1&Frm[1]&~(DivOp&YInf), 16'b0};
++  else                     assign Bf16UfRes = '0;
++>>>>>>> wallyguard-pr-1879
+ 
+   assign OfResMax = (~InfIn|(IntToFp&CvtOp))&~DivByZero&((Frm[1:0]==2'b01) | (Frm[1:0]==2'b10&~Rs) | (Frm[1:0]==2'b11&Rs));
+ 
+@@ -260,6 +272,7 @@ module specialcase import cvw::*;  #(parameter cvw_t P) (
+   // output infinity with result sign if divide by zero
+   if(P.IEEE754)
+     always_comb
++<<<<<<< HEAD
+       if(XNaN&~(IntToFp&CvtOp))   PostProcResFmt = XNaNRes;
+       else if(YNaN&~CvtOp)        PostProcResFmt = YNaNRes;
+       else if(ZNaN&FmaOp)         PostProcResFmt = ZNaNRes;
+@@ -273,6 +286,21 @@ module specialcase import cvw::*;  #(parameter cvw_t P) (
+       else if(SelOfRes)           PostProcResFmt = OfRes;
+       else if(KillRes)            PostProcResFmt = UfRes;
+       else                        PostProcResFmt = NormRes;
++=======
++      if(XNaN&~(IntToFp&CvtOp))   PostProcResPreBox = XNaNRes;
++      else if(YNaN&~CvtOp)        PostProcResPreBox = YNaNRes;
++      else if(ZNaN&FmaOp)         PostProcResPreBox = ZNaNRes;
++      else if(Invalid)            PostProcResPreBox = InvalidRes;
++      else if(SelOfRes)           PostProcResPreBox = OfRes;
++      else if(KillRes)            PostProcResPreBox = Bf16Dst ? Bf16UfRes : UfRes;
++      else                        PostProcResPreBox = NormRes;
++  else
++    always_comb
++      if(NaNIn|Invalid)           PostProcResPreBox = InvalidRes;
++      else if(SelOfRes)           PostProcResPreBox = OfRes;
++      else if(KillRes)            PostProcResPreBox = Bf16Dst ? Bf16UfRes : UfRes;
++      else                        PostProcResPreBox = NormRes;
++>>>>>>> wallyguard-pr-1879
+ 
+   ///////////////////////////////////////////////////////////////////////////////////////
+   // integer result selection
+@@ -374,6 +402,13 @@ module specialcase import cvw::*;  #(parameter cvw_t P) (
+       else                  FCvtIntRes = {{P.XLEN-1{1'b0}}, Plus1};
+     else if(Int64)          FCvtIntRes = Int64Res;
+     else                    FCvtIntRes = {{P.XLEN-32{CvtNegRes[31]}}, CvtNegRes[31:0]};
++<<<<<<< HEAD
+   assign PostProcRes = Bf16Dst ? {{P.FLEN-16{1'b1}}, PostProcResFmt[31:16]} : PostProcResFmt;
++=======
++
++  // BF16 shares single's exponent field and the fraction was rounded to BF16 precision, so a BF16
++  // result is the top half of the single precision one
++  assign PostProcRes = Bf16Dst ? {{P.FLEN-16{1'b1}}, PostProcResPreBox[31:16]} : PostProcResPreBox;
++>>>>>>> wallyguard-pr-1879
+ 
+ endmodule
+diff --git a/src/fpu/unpack.sv b/src/fpu/unpack.sv
+index 2b2850baa..6fc0d6dd6 100644
+--- a/src/fpu/unpack.sv
++++ b/src/fpu/unpack.sv
+@@ -55,8 +55,12 @@ module unpack import cvw::*;  #(parameter cvw_t P) (
+   if (P.ZFBFMIN_SUPPORTED) begin : bf16src
+     logic [31:0] Bf16Wide;
+     assign Bf16Wide = &X[P.FLEN-1:16] ? {X[15:0], 16'b0} : 32'h7FC00000;
++<<<<<<< HEAD
+     if (P.FLEN == 32) assign XIn = Bf16Src ? Bf16Wide : X;
+     else              assign XIn = Bf16Src ? {{P.FLEN-32{1'b1}}, Bf16Wide} : X;
++=======
++    assign XIn = Bf16Src ? {{P.FLEN-32{1'b1}}, Bf16Wide} : X;
++>>>>>>> wallyguard-pr-1879
+   end else assign XIn = X;
+ 
+   unpackinput #(P) unpackinputX (.A(XIn), .Fmt, .Sgn(Xs), .Exp(Xe), .Man(Xm), .En(XEn), .FPUActive,
+
+commit 030e70eca7ce90b858f62018e35ccbf7ff7155aa
+Merge: 6c7bb2898 f6de0c256
+Author: wallyguard <abdulrafay7582@gmail.com>
+Date:   Fri Sep 18 07:24:47 2026 +0000
+
+    Merge branch 'wallyguard-pr-1883'
+
+commit 6c7bb28986d0c57b2506e0a697e86d7d2f088ea9
+Merge: 927cf75df 9f4c9916e
+Author: wallyguard <abdulrafay7582@gmail.com>
+Date:   Fri Sep 18 07:24:46 2026 +0000
+
+    Merge branch 'wallyguard-pr-1887'
+
+commit 927cf75df5e6cf7d635f5ed1fbc909e5609c62b1
+Merge: 344e5b2fb d9be29a60
+Author: wallyguard <abdulrafay7582@gmail.com>
+Date:   Fri Sep 18 07:24:44 2026 +0000
+
+    Merge branch 'wallyguard-pr-1889'
+
+commit 344e5b2fb4303b6c4a25418d6ae4f23bd2fb73e8
+Merge: 43978de36 bc7012a92
+Author: wallyguard <abdulrafay7582@gmail.com>
+Date:   Fri Sep 18 07:24:43 2026 +0000
+
+    Merge remote-tracking branch 'origin/main'
+
+commit d9be29a60b80cca5cca3c3f6015d99622931c34c
+Author: Syed-Moeed-Ali <syedmoeedali2006@gmail.com>
+Date:   Fri Sep 18 06:18:54 2026 +0500
+
+    mmu: enforce full PMP match across memory operations
+    
+    Signed-off-by: Syed-Moeed-Ali <syedmoeedali2006@gmail.com>
+
+diff --git a/src/mmu/pmpchecker.sv b/src/mmu/pmpchecker.sv
+index 9a45d2db5..5bdbe9b3a 100644
+--- a/src/mmu/pmpchecker.sv
++++ b/src/mmu/pmpchecker.sv
+@@ -60,6 +60,15 @@ module pmpchecker import cvw::*;  #(parameter cvw_t P) (
+   logic [2:0]                      SizeBytesMinus1;
+   logic                            MatchingR, MatchingW, MatchingX, MatchingL;
+ 
++  // Signals for end-of-access PMP boundary crossing detection
++  logic [P.PA_BITS-1:0]            EndAddress;       // last byte address of the access
++  logic [P.PMP_ENTRIES-1:0]        EndMatch;         // end address matches PMP region i
++  logic [P.PMP_ENTRIES-1:0]        EndFirstMatch;    // first matching region for end address
++  logic [P.PMP_ENTRIES-1:0]        EndL, EndX, EndW, EndR; // end address permission bits
++  logic [P.PMP_ENTRIES-1:0]        EndPAgePMPAdr;    // TOR chain for end address
++  logic                            EndMatchingR, EndMatchingW; // end address permitted for R/W
++  logic                            PMPBoundaryLoadFault, PMPBoundaryStoreFault;
++
+ 
+   if (P.PMP_ENTRIES > 0) begin : pmp // prevent complaints about array of no elements when PMP_ENTRIES = 0
+     pmpadrdec #(P) pmpadrdecs[P.PMP_ENTRIES-1:0](
+@@ -71,6 +80,20 @@ module pmpchecker import cvw::*;  #(parameter cvw_t P) (
+       .PAgePMPAdrIn({PAgePMPAdr[P.PMP_ENTRIES-2:0], 1'b1}),
+       .PAgePMPAdrOut(PAgePMPAdr),
+       .Match, .L, .X, .W, .R);
++
++    // Check PMP permissions at the last byte of multi-byte accesses to detect boundary crossings
++    assign SizeBytesMinus1 = (2**Size) - 1;
++    assign EndAddress = PhysicalAddress + {{(P.PA_BITS-3){1'b0}}, SizeBytesMinus1};
++
++    pmpadrdec #(P) pmpadrdecs_end[P.PMP_ENTRIES-1:0](
++      .PhysicalAddress(EndAddress),
++      .Size(2'b00),
++      .PMPCfg(PMPCFG_ARRAY_REGW),
++      .PMPAdr(PMPADDR_ARRAY_REGW),
++      .FirstMatch(1'b0),
++      .PAgePMPAdrIn({EndPAgePMPAdr[P.PMP_ENTRIES-2:0], 1'b1}),
++      .PAgePMPAdrOut(EndPAgePMPAdr),
++      .Match(EndMatch), .L(EndL), .X(EndX), .W(EndW), .R(EndR));
+   end
+ 
+   priorityonehot #(P.PMP_ENTRIES) pmppriority(.a(Match), .y(FirstMatch)); // combine the match signal from all the address decoders to find the first one that matches.
+@@ -84,11 +107,22 @@ module pmpchecker import cvw::*;  #(parameter cvw_t P) (
+   // Only enforce PMP checking for effective S and U modes (accounting for mstatus.MPRV) or in Machine mode when L bit is set in selected region
+   assign EnforcePMP = (EffectivePrivilegeModeW != P.M_MODE) | MatchingL;
+ 
++  // Check end-of-access PMP permissions for boundary crossing detection
++  // When multi-byte access spans multiple PMP regions, all bytes must be permitted
++  priorityonehot #(P.PMP_ENTRIES) pmppriority_end(.a(EndMatch), .y(EndFirstMatch));
++  assign EndMatchingR = |(EndR & EndFirstMatch);
++  assign EndMatchingW = |(EndW & EndFirstMatch);
++
++  // Boundary crossing fault: access start and end match different PMP regions, and
++  // the end address falls in a region (or unprotected area) that doesn't permit the access
++  assign PMPBoundaryLoadFault  = EnforcePMP & ReadAccessM  & ~WriteAccessM & ~EndMatchingR & (FirstMatch != EndFirstMatch);
++  assign PMPBoundaryStoreFault = EnforcePMP & WriteAccessM & ~EndMatchingW & (FirstMatch != EndFirstMatch);
++
+   assign PMPCBOMAccessFault     = EnforcePMP & (|CMOpM[2:0]) & ~MatchingR ; // checking R is sufficient because W implies R in PMP  // exclusion-tag: immu-pmpcbom
+   assign PMPCBOZAccessFault     = EnforcePMP & CMOpM[3] & ~MatchingW ;          // exclusion-tag: immu-pmpcboz
+   assign PMPCMOAccessFault      = PMPCBOZAccessFault | PMPCBOMAccessFault;              // exclusion-tag: immu-pmpcboaccess
+ 
+   assign PMPInstrAccessFaultF     = EnforcePMP & ExecuteAccessF & ~MatchingX ;
+-  assign PMPStoreAmoAccessFaultM  = (EnforcePMP & WriteAccessM & ~MatchingW)  | PMPCMOAccessFault; // exclusion-tag: immu-pmpstoreamoaccessfault
+-  assign PMPLoadAccessFaultM      = EnforcePMP & ReadAccessM & ~WriteAccessM & ~MatchingR;
++  assign PMPStoreAmoAccessFaultM  = (EnforcePMP & WriteAccessM & ~MatchingW)  | PMPCMOAccessFault | PMPBoundaryStoreFault; // exclusion-tag: immu-pmpstoreamoaccessfault
++  assign PMPLoadAccessFaultM      = (EnforcePMP & ReadAccessM & ~WriteAccessM & ~MatchingR) | PMPBoundaryLoadFault;
+  endmodule
+
+commit 9f4c9916ec1685c664cfa8a254c98779f49ade87
+Author: David Harris <David_Harris@hmc.edu>
+Date:   Thu Sep 17 15:01:11 2026 -0700
+
+    hptw: tag the DTLB entry with the access's own VA on a chained walk
+    
+    The DTLB entry is tagged with the MMU's VAdr input, which is the LSU address
+    muxed by SelHPTWAdr, so SelHPTWAdr has to drop during DTLBWriteM.  #1875
+    qualified that term with (DTLBWalkPending & ~ITLBWalkPending), which is false
+    when a DTLB walk and an ITLB walk are both pending: on such a chained walk the
+    mux stays on the walker and the entry is tagged with the walker's PTE address.
+    
+    The bogus entry carries the leaf PTE of the data page (U=1 in the Sv tests) and
+    covers the trap handler's data region, so the next S-mode access that hits it
+    with SUM=0 fails ImproperPrivilege and takes a spurious page fault (#1885).
+    
+    Restores the #1871 expression and leaves the rest of #1875 in place.
+    
+    Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
+
+diff --git a/src/mmu/hptw.sv b/src/mmu/hptw.sv
+index 983816945..4f7a41cd8 100644
+--- a/src/mmu/hptw.sv
++++ b/src/mmu/hptw.sv
+@@ -381,8 +381,7 @@ module hptw import cvw::*;  #(parameter cvw_t P) (
+   // In the last cycle of a walk (TLB write or FAULT) switch back to the original data virtual address so the
+   // data cache reads the tag/data/valid/dirty/LRU state of the M-stage access's set (the set index lies within
+   // the page offset) and the access resumes at IDLE with a valid hit/miss decision.
+-  //assign SelHPTWAdr = SelHPTW & ~(DTLBWriteM | ITLBWriteF | (WalkerState == FAULT));
+-  assign SelHPTWAdr = SelHPTW & ~(((DTLBWalkPending & ~ITLBWalkPending & DTLBWriteM) | (ITLBWalkPending &ITLBWriteF)) | (WalkerState == FAULT));
++  assign SelHPTWAdr = SelHPTW & ~(DTLBWriteM | ITLBWriteF | (WalkerState == FAULT));
+ 
+   // multiplex the outputs to LSU
+   if (P.XLEN == 64) assign HPTWAdrExt = {{(P.XLEN+2-P.PA_BITS){1'b0}}, HPTWAdr}; // Extend to 66 bits
+
+commit bc7012a92273bf7cc5eb487f720be41e9d9e8447
+Merge: ff84ec108 734b8982e
+Author: Rose Thompson <rose@rosethompson.net>
+Date:   Thu Sep 17 14:55:39 2026 -0700
+
+    Merge pull request #1886 from davidharrishmc/dh/revert-1875
+    
+    Revert #1875: spurious load page fault after a wrong-path ITLB walk fault (#1885)
+
+commit 734b8982ec68b221445d0f2b8d7ccc22fdef9202
+Author: David Harris <David_Harris@hmc.edu>
+Date:   Thu Sep 17 14:33:47 2026 -0700
+
+    Revert "This PR depends on PR #1871 and simplifies the bug in that PR (#1875)"
+    
+    This reverts commit 310dbfabe75b9ccd08f5e83a52d5e4f6a8c62d2f.
+    
+    #1875 removed the walker/LSU arbitration guards added by #1871: ITLBReq no
+    longer defers behind MemAccessInFlightM, HPTWFlushW no longer spares an access
+    that has already been performed and captured, and lsu.sv lost the
+    MemAccessDone / ReadDataHold state.
+    
+    With those guards gone, a wrong-path fetch whose ITLB walk ends in FAULT can
+    leave a spurious load page fault on an unrelated M-stage load: the load hits in
+    the D$ and returns the correct data in the very cycle the core traps on it
+    (issue #1885).  Three Sv arch tests livelock in a recursive trap as a result.
+    
+    Reverting restores the #1871 behavior.  The sequencing argument in #1875 may
+    still be right, but something has to cover the window where the M-stage access
+    has been performed and an ITLB request arrives in the next cycle.
+    
+    Verified on this revert: the three #1885 reproducers pass (Verilator and
+    ImperasDV lockstep), the #1766 ELF and arch64vm_sv48_a/_b still pass, and the
+    ACT Sv suites pass on rv32gc and rv64gc.
+    
+    Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
+
+diff --git a/src/lsu/lsu.sv b/src/lsu/lsu.sv
+index c8a624db8..961336054 100644
+--- a/src/lsu/lsu.sv
++++ b/src/lsu/lsu.sv
+@@ -148,6 +148,10 @@ module lsu import cvw::*;  #(parameter cvw_t P) (
+   logic                  LSULoadAccessFaultM;                    // Load access fault
+   logic                  LSUStoreAmoAccessFaultM;                // Store access fault
+   logic                  HPTWFlushW;                             // HPTW needs to flush operation
++  logic                  MemAccessInFlightM;                     // M-stage access started on the D$/bus (or performed and holding) and not yet captured
++  logic                  MemAccessDoneM;                         // M-stage access performed and its result captured; do not re-issue
++  logic                  HoldAccessM;                            // Suppress the M-stage access presented to the D$/bus (already performed)
++  logic [P.LLEN-1:0]     ReadDataHoldM;                          // Captured read data of a performed access awaiting retirement
+   logic [P.LLEN-1:0]     ReadDataSelM;                           // Read data to the W stage (live or held)
+   logic                  LSUFlushW;                              // HPTW or hazard unit flushes operation
+   logic                  SelDTIM;                                // Select DTIM rather than bus or D$
+@@ -197,7 +201,7 @@ module lsu import cvw::*;  #(parameter cvw_t P) (
+   if(P.VIRTMEM_SUPPORTED) begin : hptw
+     hptw #(P) hptw(.clk, .reset, .MemRWM, .AtomicM, .ITLBMissOrUpdateAF, .ITLBWriteF,
+       .DTLBMissOrUpdateDAM, .DTLBWriteM,
+-      .FlushW, .DCacheBusStallM, .SATP_REGW, .PCSpillF,
++      .FlushW, .DCacheBusStallM, .MemAccessInFlightM, .MemAccessDoneM, .SATP_REGW, .PCSpillF,
+       .STATUS_MXR, .STATUS_SUM, .STATUS_MPRV, .STATUS_MPP, .ENVCFG_ADUE, .PrivilegeModeW,
+       .ReadDataM(ReadDataM[P.XLEN-1:0]), // ReadDataM is LLEN, but HPTW only needs XLEN
+       .WriteDataM(WriteDataZM), .Funct3M, .LSUFunct3M, .Funct7M, .LSUFunct7M,
+@@ -208,7 +212,18 @@ module lsu import cvw::*;  #(parameter cvw_t P) (
+       .LoadPageFaultM, .StoreAmoPageFaultM, .LSULoadPageFaultM, .LSUStoreAmoPageFaultM, .HPTWInstrPageFaultF
+ );
+ 
+-    // hptw ensures requests are ordered DTLB miss, ITLB miss, CPU M-stage access.
++    // Memory-access state for walker arbitration (issues #1538, #1766).
++    // An M-stage access the D$/bus has started (fetch, writeback, or bus data phase) or has performed and is
++    // holding (D$ ADDRESS_SETUP, bus MEM3) must not be pre-empted by a page table walk: it can be neither
++    // aborted nor replayed.  Once performed while the pipeline is stalled, capture its result and hold it
++    // until the pipeline advances; the walker may then use the D$/bus, and the access is not re-issued.
++    logic MemAccessPerformedM;
++    assign MemAccessPerformedM = (DCacheCommittedM | BusCommittedM) & ~DCacheBusStallM & ~SpillStallM & ~SelHPTW;
++    assign MemAccessInFlightM  = (DCacheCommittedM | BusCommittedM) & ~MemAccessDoneM;
++    always_ff @(posedge clk)
++      if (reset | FlushW | ~StallW) MemAccessDoneM <= 1'b0;
++      else if (MemAccessPerformedM) MemAccessDoneM <= 1'b1;
++    flopenr #(P.LLEN) ReadDataHoldReg(clk, reset, MemAccessPerformedM & ~MemAccessDoneM, ReadDataM, ReadDataHoldM);
+   end else begin // No HPTW, so signals are not multiplexed
+     assign PreLSURWM = MemRWM;
+     assign IHAdrM = IEUAdrExtM;
+@@ -222,8 +237,8 @@ module lsu import cvw::*;  #(parameter cvw_t P) (
+     assign LoadPageFaultM = LSULoadPageFaultM;
+     assign StoreAmoPageFaultM = LSUStoreAmoPageFaultM;
+     assign {HPTWStall, SelHPTW, PTE, PageType, DTLBWriteM, ITLBWriteF, HPTWFlushW} = '0;
+-    //assign {MemAccessInFlightM, MemAccessDoneM} = '0;
+-    //assign ReadDataHoldM = '0;
++    assign {MemAccessInFlightM, MemAccessDoneM} = '0;
++    assign ReadDataHoldM = '0;
+     assign {HPTWInstrAccessFaultF, HPTWInstrPageFaultF} = '0;
+    end
+ 
+@@ -231,7 +246,8 @@ module lsu import cvw::*;  #(parameter cvw_t P) (
+   // CommittedM is 1 after the first cycle and until the last cycle.  Partially completed memory
+   // operations delay interrupts until the next instruction by suppressing pending interrupts in
+   // the trap module.
+-  assign CommittedM = SelHPTW | DCacheCommittedM | BusCommittedM;
++  assign CommittedM = SelHPTW | DCacheCommittedM | BusCommittedM | MemAccessDoneM;
++  assign HoldAccessM = MemAccessDoneM & ~SelHPTW; // performed access awaiting retirement: don't re-issue it (walker accesses pass)
+   assign GatedStallW = StallW & ~SelHPTW;
+   assign DCacheBusStallM = DCacheStallM | LSUBusStallM;
+   assign CacheBusHPWTStall = DCacheBusStallM | HPTWStall;
+@@ -328,15 +344,15 @@ module lsu import cvw::*;  #(parameter cvw_t P) (
+ 
+       // Each datapath is gated on the extension that needs it: cbo.zero to uncached memory on Zicboz,
+       // the cache CMO port on either CBO extension, and uncached AMOs on Zaamo
+-      if(P.ZICBOZ_SUPPORTED) assign BusCMOZero = LSUCMOpM[3] & ~CacheableM;
++      if(P.ZICBOZ_SUPPORTED) assign BusCMOZero = LSUCMOpM[3] & ~CacheableM & ~HoldAccessM;
+       else                   assign BusCMOZero = 1'b0;
+-      if(P.ZICBOM_SUPPORTED | P.ZICBOZ_SUPPORTED) assign CacheCMOpM = (CacheableM & ~SelHPTW) ? CMOpM : '0;
++      if(P.ZICBOM_SUPPORTED | P.ZICBOZ_SUPPORTED) assign CacheCMOpM = (CacheableM & ~SelHPTW & ~HoldAccessM) ? CMOpM : '0;
+       else                                        assign CacheCMOpM = '0;
+       if(P.ZAAMO_SUPPORTED) assign BusAtomic = AtomicM[1] & ~CacheableM;
+       else                  assign BusAtomic = 1'b0;
+-      assign BusRW = (~CacheableM & ~SelDTIM) ? LSURWM : '0;
++      assign BusRW = (~CacheableM & ~SelDTIM & ~HoldAccessM) ? LSURWM : '0;
+       assign CacheableOrFlushCacheM = CacheableM | FlushDCacheM;
+-      assign CacheRWM = (CacheableM & ~SelDTIM) ? LSURWM : '0;
++      assign CacheRWM = (CacheableM & ~SelDTIM & ~HoldAccessM) ? LSURWM : '0;
+       assign FlushDCache = FlushDCacheM & ~SelHPTW;                          // exclusion-tag: lsu FlushDCacheSelHPTW
+ 
+       cache #(.P(P), .PA_BITS(P.PA_BITS), .LINELEN(P.DCACHE_LINELENINBITS), .NUMSETS(P.DCACHE_WAYSIZEINBYTES*8/LINELEN),
+@@ -368,7 +384,7 @@ module lsu import cvw::*;  #(parameter cvw_t P) (
+     end else begin : passthrough // No Cache, use simple ahbinterface instead of ahbcacheinterface
+       logic [1:0] BusRW;                    // Non-DTIM memory access, ignore cacheableM
+       logic [P.XLEN-1:0] FetchBuffer;
+-      assign BusRW = (~SelDTIM) ? LSURWM : 0;
++      assign BusRW = (~SelDTIM & ~HoldAccessM) ? LSURWM : 0;
+ 
+       assign LSUHADDR = PAdrM;
+       assign LSUHSIZE = LSUSizeM;
+@@ -431,9 +447,8 @@ module lsu import cvw::*;  #(parameter cvw_t P) (
+   /////////////////////////////////////////////////////////////////////////////////////////////
+ 
+   // A performed access whose result was captured while the pipeline was stalled retires from the hold register
+-  //mux2 #(P.LLEN) readdataselmux(ReadDataM, ReadDataHoldM, MemAccessDoneM, ReadDataSelM);
+-  //flopen #(P.LLEN) ReadDataMWReg(clk, ~StallW, ReadDataSelM, ReadDataW);
+-  flopen #(P.LLEN) ReadDataMWReg(clk, ~StallW, ReadDataM, ReadDataW);
++  mux2 #(P.LLEN) readdataselmux(ReadDataM, ReadDataHoldM, MemAccessDoneM, ReadDataSelM);
++  flopen #(P.LLEN) ReadDataMWReg(clk, ~StallW, ReadDataSelM, ReadDataW);
+ 
+   /////////////////////////////////////////////////////////////////////////////////////////////
+   // Big Endian Byte Swapper
+diff --git a/src/mmu/hptw.sv b/src/mmu/hptw.sv
+index 983816945..912a03108 100644
+--- a/src/mmu/hptw.sv
++++ b/src/mmu/hptw.sv
+@@ -47,6 +47,8 @@ module hptw import cvw::*;  #(parameter cvw_t P) (
+   input  logic [P.XLEN-1:0] ReadDataM,              // page table entry from LSU
+   input  logic [P.XLEN-1:0] WriteDataM,
+   input  logic              DCacheBusStallM,           // stall from LSU
++  input  logic              MemAccessInFlightM,     // LSU has started (or performed and is holding) the M-stage memory access; do not pre-empt it
++  input  logic              MemAccessDoneM,         // LSU has performed and captured the M-stage memory access; it will not be re-issued
+   input  logic [2:0]        Funct3M,
+   input  logic [6:0]        Funct7M,
+   input  logic              ITLBMissOrUpdateAF,
+@@ -82,7 +84,7 @@ module hptw import cvw::*;  #(parameter cvw_t P) (
+ 
+   logic                     DTLBWalk; // current walk is for the DTLB (else ITLB)
+   logic                     DTLBWalkPending, ITLBWalkPending; // requests recorded when the walker left IDLE, cleared as each completes
+-  logic                     AcceptReq;
++  logic                     DTLBReq, ITLBReq, AcceptReq;
+   logic                     WalkDone;
+   logic [P.PPN_BITS-1:0]    BasePageTablePPN;
+   logic [P.PPN_BITS-1:0]    CurrentPPN;
+@@ -150,13 +152,15 @@ module hptw import cvw::*;  #(parameter cvw_t P) (
+   // The walker records the translation requests present when it leaves IDLE and serves them in the order
+   // DTLB walk, then ITLB walk.  The M-stage memory access itself is performed only after both complete,
+   // because nothing but the M->W pipeline register can capture its result.
+-  //   DTLBMissOrUpdateDAM: the M-stage access needs a DTLB fill or A/D update.  It has not started, so it is pre-empted
++  //   DTLBReq: the M-stage access needs a DTLB fill or A/D update.  It has not started, so it is pre-empted
+   //            (HPTWFlushW) and replayed after the walk(s).
+-  //   ITLBMissOrUpdateAF: the F-stage fetch needs an ITLB fill or A update.  It is deferred while the LSU has a memory
++  //   ITLBReq: the F-stage fetch needs an ITLB fill or A update.  It is deferred while the LSU has a memory
+   //            access in flight, because an access that has started on the D$ or bus can be neither aborted
+   //            (AHB transaction in progress) nor replayed (uncached loads/stores and AMOs are not idempotent).
+   //            The IFU stalls the pipeline while its request is outstanding.
+-  assign AcceptReq = (WalkerState == IDLE) & (DTLBMissOrUpdateDAM | ITLBMissOrUpdateAF);
++  assign DTLBReq   = DTLBMissOrUpdateDAM;
++  assign ITLBReq   = ITLBMissOrUpdateAF & ~MemAccessInFlightM;
++  assign AcceptReq = (WalkerState == IDLE) & (DTLBReq | ITLBReq);
+ 
+   // Determine which address to translate
+   mux2 #(P.XLEN) vadrmux(PCSpillF, IEUAdrExtM[P.XLEN-1:0], DTLBWalk, TranslationVAdr);
+@@ -169,7 +173,7 @@ module hptw import cvw::*;  #(parameter cvw_t P) (
+   assign WalkDone = ((WalkerState == LEAF) & ~UpdatePTE) | (WalkerState == FAULT);
+   always_ff @(posedge clk)
+     if (reset | FlushW)       {DTLBWalkPending, ITLBWalkPending} <= 2'b00;
+-    else if (StartWalk)       {DTLBWalkPending, ITLBWalkPending} <= {DTLBMissOrUpdateDAM, ITLBMissOrUpdateAF};
++    else if (StartWalk)       {DTLBWalkPending, ITLBWalkPending} <= {DTLBReq, ITLBReq};
+     else if (WalkDone)
+       if (DTLBWalkPending) begin
+         DTLBWalkPending <= 1'b0;
+@@ -367,7 +371,7 @@ module hptw import cvw::*;  #(parameter cvw_t P) (
+   // Pre-empt the M-stage memory access when a walk is accepted so it replays after the TLB fill (unless the LSU
+   // has already performed and captured it), and squash the walker's own access when it faults.  A walk is only
+   // accepted while no access is in flight, so this flush never abandons a bus transaction.
+-  assign HPTWFlushW = AcceptReq | (WalkerState != IDLE & HPTWFaultM);
++  assign HPTWFlushW = (AcceptReq & ~MemAccessDoneM) | (WalkerState != IDLE & HPTWFaultM);
+ 
+   assign SelHPTW = WalkerState != IDLE;
+   // Stall the pipeline from the cycle a request is accepted until the walker returns to IDLE, including FAULT:
+@@ -381,8 +385,7 @@ module hptw import cvw::*;  #(parameter cvw_t P) (
+   // In the last cycle of a walk (TLB write or FAULT) switch back to the original data virtual address so the
+   // data cache reads the tag/data/valid/dirty/LRU state of the M-stage access's set (the set index lies within
+   // the page offset) and the access resumes at IDLE with a valid hit/miss decision.
+-  //assign SelHPTWAdr = SelHPTW & ~(DTLBWriteM | ITLBWriteF | (WalkerState == FAULT));
+-  assign SelHPTWAdr = SelHPTW & ~(((DTLBWalkPending & ~ITLBWalkPending & DTLBWriteM) | (ITLBWalkPending &ITLBWriteF)) | (WalkerState == FAULT));
++  assign SelHPTWAdr = SelHPTW & ~(DTLBWriteM | ITLBWriteF | (WalkerState == FAULT));
+ 
+   // multiplex the outputs to LSU
+   if (P.XLEN == 64) assign HPTWAdrExt = {{(P.XLEN+2-P.PA_BITS){1'b0}}, HPTWAdr}; // Extend to 66 bits
+
+commit f6de0c2568ad923604cd7716df62787f8f8d3d85
+Author: David Harris <David_Harris@hmc.edu>
+Date:   Wed Sep 16 21:23:24 2026 -0700
+
+    Repair license URLs mangled by comment-marker conversion
+    
+    The Solderpad license link in 40 files read https:##solderpad.org, and in
+    five of those every slash in the path was a # as well.  A bulk conversion of
+    // comment markers to ## had rewritten the slashes inside the URLs, not just
+    the markers.  One unrelated link, a stackoverflow reference in
+    fpga/zsbl/splitfile.sh, was mangled the same way.
+    
+    Also drop a duplicated project URL line in bin/derivgen.pl.
+    
+    Only comment lines change, and no copyright, SPDX identifier, or license
+    text is touched.
+    
+    Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
+
+diff --git a/.github/scripts/cli-space-cleanup.sh b/.github/scripts/cli-space-cleanup.sh
+index 3c0b32402..485e199ff 100755
+--- a/.github/scripts/cli-space-cleanup.sh
++++ b/.github/scripts/cli-space-cleanup.sh
+@@ -19,7 +19,7 @@
+ ## except in compliance with the License, or, at your option, the Apache License version 2.0. You
+ ## may obtain a copy of the License at
+ ##
+-## https:##solderpad.org/licenses/SHL-2.1/
++## https://solderpad.org/licenses/SHL-2.1/
+ ##
+ ## Unless required by applicable law or agreed to in writing, any work distributed under the
+ ## License is distributed on an “AS IS” BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+diff --git a/bin/CModelBTBAccuracy.sh b/bin/CModelBTBAccuracy.sh
+index d8dc21e23..a53217dc3 100755
+--- a/bin/CModelBTBAccuracy.sh
++++ b/bin/CModelBTBAccuracy.sh
+@@ -19,7 +19,7 @@
+ ## except in compliance with the License, or, at your option, the Apache License version 2.0. You
+ ## may obtain a copy of the License at
+ ##
+-## https:##solderpad.org/licenses/SHL-2.1/
++## https://solderpad.org/licenses/SHL-2.1/
+ ##
+ ## Unless required by applicable law or agreed to in writing, any work distributed under the
+ ## License is distributed on an “AS IS” BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+diff --git a/bin/CModelBranchAccuracy.sh b/bin/CModelBranchAccuracy.sh
+index 092f51611..83a309922 100755
+--- a/bin/CModelBranchAccuracy.sh
++++ b/bin/CModelBranchAccuracy.sh
+@@ -19,7 +19,7 @@
+ ## except in compliance with the License, or, at your option, the Apache License version 2.0. You
+ ## may obtain a copy of the License at
+ ##
+-## https:##solderpad.org/licenses/SHL-2.1/
++## https://solderpad.org/licenses/SHL-2.1/
+ ##
+ ## Unless required by applicable law or agreed to in writing, any work distributed under the
+ ## License is distributed on an “AS IS” BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+diff --git a/bin/CacheSim.py b/bin/CacheSim.py
+index 19e226e86..9ca8f2523 100755
+--- a/bin/CacheSim.py
++++ b/bin/CacheSim.py
+@@ -20,7 +20,7 @@
+ ## except in compliance with the License, or, at your option, the Apache License version 2.0. You
+ ## may obtain a copy of the License at
+ ##
+-## https:##solderpad.org/licenses/SHL-2.1/
++## https://solderpad.org/licenses/SHL-2.1/
+ ##
+ ## Unless required by applicable law or agreed to in writing, any work distributed under the
+ ## License is distributed on an “AS IS” BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+diff --git a/bin/SeparateBranch.sh b/bin/SeparateBranch.sh
+index 26b29ab15..8a3f6516a 100755
+--- a/bin/SeparateBranch.sh
++++ b/bin/SeparateBranch.sh
+@@ -22,7 +22,7 @@
+ ## except in compliance with the License, or, at your option, the Apache License version 2.0. You
+ ## may obtain a copy of the License at
+ ##
+-## https:##solderpad.org/licenses/SHL-2.1/
++## https://solderpad.org/licenses/SHL-2.1/
+ ##
+ ## Unless required by applicable law or agreed to in writing, any work distributed under the
+ ## License is distributed on an “AS IS” BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+diff --git a/bin/analyze_riscv_elf.py b/bin/analyze_riscv_elf.py
+index 63cf4037d..b15e1e972 100755
+--- a/bin/analyze_riscv_elf.py
++++ b/bin/analyze_riscv_elf.py
+@@ -23,7 +23,7 @@
+ ## except in compliance with the License, or, at your option, the Apache License version 2.0. You
+ ## may obtain a copy of the License at
+ ##
+-## https:##solderpad.org/licenses/SHL-2.1/
++## https://solderpad.org/licenses/SHL-2.1/
+ ##
+ ## Unless required by applicable law or agreed to in writing, any work distributed under the
+ ## License is distributed on an “AS IS” BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+diff --git a/bin/derivgen.pl b/bin/derivgen.pl
+index 39313996c..09cc055ab 100755
+--- a/bin/derivgen.pl
++++ b/bin/derivgen.pl
+@@ -12,7 +12,6 @@
+ ##
+ ## A component of the CORE-V-WALLY configurable RISC-V project.
+ ## https://github.com/openhwfoundation/cvw
+-## https://github.com/openhwfoundation/cvw
+ ##
+ ## Copyright (C) 2021-23 Harvey Mudd College & Oklahoma State University
+ ##
+@@ -22,7 +21,7 @@
+ ## except in compliance with the License, or, at your option, the Apache License version 2.0. You
+ ## may obtain a copy of the License at
+ ##
+-## https:##solderpad.org/licenses/SHL-2.1/
++## https://solderpad.org/licenses/SHL-2.1/
+ ##
+ ## Unless required by applicable law or agreed to in writing, any work distributed under the
+ ## License is distributed on an “AS IS” BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+diff --git a/bin/extractFunctionRadix.sh b/bin/extractFunctionRadix.sh
+index c723a6a22..8175fd825 100755
+--- a/bin/extractFunctionRadix.sh
++++ b/bin/extractFunctionRadix.sh
+@@ -21,7 +21,7 @@
+ ## except in compliance with the License, or, at your option, the Apache License version 2.0. You
+ ## may obtain a copy of the License at
+ ##
+-## https:##solderpad.org/licenses/SHL-2.1/
++## https://solderpad.org/licenses/SHL-2.1/
+ ##
+ ## Unless required by applicable law or agreed to in writing, any work distributed under the
+ ## License is distributed on an “AS IS” BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+diff --git a/bin/installation/activate-tools.sh b/bin/installation/activate-tools.sh
+index 7e1699dac..230617edc 100755
+--- a/bin/installation/activate-tools.sh
++++ b/bin/installation/activate-tools.sh
+@@ -19,7 +19,7 @@
+ ## except in compliance with the License, or, at your option, the Apache License version 2.0. You
+ ## may obtain a copy of the License at
+ ##
+-## https:##solderpad.org/licenses/SHL-2.1/
++## https://solderpad.org/licenses/SHL-2.1/
+ ##
+ ## Unless required by applicable law or agreed to in writing, any work distributed under the
+ ## License is distributed on an “AS IS” BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+diff --git a/bin/installation/boost-install.sh b/bin/installation/boost-install.sh
+index 03dd9eade..781dba42d 100755
+--- a/bin/installation/boost-install.sh
++++ b/bin/installation/boost-install.sh
+@@ -19,7 +19,7 @@
+ ## except in compliance with the License, or, at your option, the Apache License version 2.0. You
+ ## may obtain a copy of the License at
+ ##
+-## https:##solderpad.org/licenses/SHL-2.1/
++## https://solderpad.org/licenses/SHL-2.1/
+ ##
+ ## Unless required by applicable law or agreed to in writing, any work distributed under the
+ ## License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+diff --git a/bin/installation/buildroot-install.sh b/bin/installation/buildroot-install.sh
+index 517498482..a4de0728a 100755
+--- a/bin/installation/buildroot-install.sh
++++ b/bin/installation/buildroot-install.sh
+@@ -19,7 +19,7 @@
+ ## except in compliance with the License, or, at your option, the Apache License version 2.0. You
+ ## may obtain a copy of the License at
+ ##
+-## https:##solderpad.org/licenses/SHL-2.1/
++## https://solderpad.org/licenses/SHL-2.1/
+ ##
+ ## Unless required by applicable law or agreed to in writing, any work distributed under the
+ ## License is distributed on an “AS IS” BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+diff --git a/bin/installation/glib-installation.sh b/bin/installation/glib-installation.sh
+index 131440e94..89b322866 100755
+--- a/bin/installation/glib-installation.sh
++++ b/bin/installation/glib-installation.sh
+@@ -19,7 +19,7 @@
+ ## except in compliance with the License, or, at your option, the Apache License version 2.0. You
+ ## may obtain a copy of the License at
+ ##
+-## https:##solderpad.org/licenses/SHL-2.1/
++## https://solderpad.org/licenses/SHL-2.1/
+ ##
+ ## Unless required by applicable law or agreed to in writing, any work distributed under the
+ ## License is distributed on an “AS IS” BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+diff --git a/bin/installation/mise-install.sh b/bin/installation/mise-install.sh
+index 84c8c44a8..810d747cb 100755
+--- a/bin/installation/mise-install.sh
++++ b/bin/installation/mise-install.sh
+@@ -19,7 +19,7 @@
+ ## except in compliance with the License, or, at your option, the Apache License version 2.0. You
+ ## may obtain a copy of the License at
+ ##
+-## https:##solderpad.org/licenses/SHL-2.1/
++## https://solderpad.org/licenses/SHL-2.1/
+ ##
+ ## Unless required by applicable law or agreed to in writing, any work distributed under the
+ ## License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+diff --git a/bin/installation/qemu-install.sh b/bin/installation/qemu-install.sh
+index 4d8ea81ae..14cd7d7f5 100755
+--- a/bin/installation/qemu-install.sh
++++ b/bin/installation/qemu-install.sh
+@@ -19,7 +19,7 @@
+ ## except in compliance with the License, or, at your option, the Apache License version 2.0. You
+ ## may obtain a copy of the License at
+ ##
+-## https:##solderpad.org/licenses/SHL-2.1/
++## https://solderpad.org/licenses/SHL-2.1/
+ ##
+ ## Unless required by applicable law or agreed to in writing, any work distributed under the
+ ## License is distributed on an “AS IS” BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+diff --git a/bin/installation/riscv-gnu-toolchain-install.sh b/bin/installation/riscv-gnu-toolchain-install.sh
+index cfaf5d0d9..d2ea51744 100755
+--- a/bin/installation/riscv-gnu-toolchain-install.sh
++++ b/bin/installation/riscv-gnu-toolchain-install.sh
+@@ -19,7 +19,7 @@
+ ## except in compliance with the License, or, at your option, the Apache License version 2.0. You
+ ## may obtain a copy of the License at
+ ##
+-## https:##solderpad.org/licenses/SHL-2.1/
++## https://solderpad.org/licenses/SHL-2.1/
+ ##
+ ## Unless required by applicable law or agreed to in writing, any work distributed under the
+ ## License is distributed on an “AS IS” BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+diff --git a/bin/installation/sail-install.sh b/bin/installation/sail-install.sh
+index ee0167666..3164ac2a1 100755
+--- a/bin/installation/sail-install.sh
++++ b/bin/installation/sail-install.sh
+@@ -19,7 +19,7 @@
+ ## except in compliance with the License, or, at your option, the Apache License version 2.0. You
+ ## may obtain a copy of the License at
+ ##
+-## https:##solderpad.org/licenses/SHL-2.1/
++## https://solderpad.org/licenses/SHL-2.1/
+ ##
+ ## Unless required by applicable law or agreed to in writing, any work distributed under the
+ ## License is distributed on an “AS IS” BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+diff --git a/bin/installation/skywater-lib-install.sh b/bin/installation/skywater-lib-install.sh
+index ee940dd99..ca058ca72 100755
+--- a/bin/installation/skywater-lib-install.sh
++++ b/bin/installation/skywater-lib-install.sh
+@@ -19,7 +19,7 @@
+ ## except in compliance with the License, or, at your option, the Apache License version 2.0. You
+ ## may obtain a copy of the License at
+ ##
+-## https:##solderpad.org/licenses/SHL-2.1/
++## https://solderpad.org/licenses/SHL-2.1/
+ ##
+ ## Unless required by applicable law or agreed to in writing, any work distributed under the
+ ## License is distributed on an “AS IS” BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+diff --git a/bin/installation/spike-install.sh b/bin/installation/spike-install.sh
+index 800b40f18..b3bb45272 100755
+--- a/bin/installation/spike-install.sh
++++ b/bin/installation/spike-install.sh
+@@ -19,7 +19,7 @@
+ ## except in compliance with the License, or, at your option, the Apache License version 2.0. You
+ ## may obtain a copy of the License at
+ ##
+-## https:##solderpad.org/licenses/SHL-2.1/
++## https://solderpad.org/licenses/SHL-2.1/
+ ##
+ ## Unless required by applicable law or agreed to in writing, any work distributed under the
+ ## License is distributed on an “AS IS” BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+diff --git a/bin/installation/uv-install.sh b/bin/installation/uv-install.sh
+index b8d12c8d1..de8374a57 100755
+--- a/bin/installation/uv-install.sh
++++ b/bin/installation/uv-install.sh
+@@ -19,7 +19,7 @@
+ ## except in compliance with the License, or, at your option, the Apache License version 2.0. You
+ ## may obtain a copy of the License at
+ ##
+-## https:##solderpad.org/licenses/SHL-2.1/
++## https://solderpad.org/licenses/SHL-2.1/
+ ##
+ ## Unless required by applicable law or agreed to in writing, any work distributed under the
+ ## License is distributed on an “AS IS” BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+diff --git a/bin/installation/verilator-install.sh b/bin/installation/verilator-install.sh
+index db15f10ca..c50ade6c6 100755
+--- a/bin/installation/verilator-install.sh
++++ b/bin/installation/verilator-install.sh
+@@ -19,7 +19,7 @@
+ ## except in compliance with the License, or, at your option, the Apache License version 2.0. You
+ ## may obtain a copy of the License at
+ ##
+-## https:##solderpad.org/licenses/SHL-2.1/
++## https://solderpad.org/licenses/SHL-2.1/
+ ##
+ ## Unless required by applicable law or agreed to in writing, any work distributed under the
+ ## License is distributed on an “AS IS” BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+diff --git a/bin/installation/wally-installation-helper-functions.sh b/bin/installation/wally-installation-helper-functions.sh
+index 543e7e237..8fef3da94 100755
+--- a/bin/installation/wally-installation-helper-functions.sh
++++ b/bin/installation/wally-installation-helper-functions.sh
+@@ -19,7 +19,7 @@
+ ## except in compliance with the License, or, at your option, the Apache License version 2.0. You
+ ## may obtain a copy of the License at
+ ##
+-## https:##solderpad.org/licenses/SHL-2.1/
++## https://solderpad.org/licenses/SHL-2.1/
+ ##
+ ## Unless required by applicable law or agreed to in writing, any work distributed under the
+ ## License is distributed on an “AS IS” BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+diff --git a/bin/installation/whisper-install.sh b/bin/installation/whisper-install.sh
+index 4f19bed8d..3292055c2 100755
+--- a/bin/installation/whisper-install.sh
++++ b/bin/installation/whisper-install.sh
+@@ -19,7 +19,7 @@
+ ## except in compliance with the License, or, at your option, the Apache License version 2.0. You
+ ## may obtain a copy of the License at
+ ##
+-## https:##solderpad.org/licenses/SHL-2.1/
++## https://solderpad.org/licenses/SHL-2.1/
+ ##
+ ## Unless required by applicable law or agreed to in writing, any work distributed under the
+ ## License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+diff --git a/bin/libppa.pl b/bin/libppa.pl
+index d48c2bb6a..a461900c6 100755
+--- a/bin/libppa.pl
++++ b/bin/libppa.pl
+@@ -23,7 +23,7 @@
+ ## except in compliance with the License, or, at your option, the Apache License version 2.0. You
+ ## may obtain a copy of the License at
+ ##
+-## https:##solderpad.org/licenses/SHL-2.1/
++## https://solderpad.org/licenses/SHL-2.1/
+ ##
+ ## Unless required by applicable law or agreed to in writing, any work distributed under the
+ ## License is distributed on an “AS IS” BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+diff --git a/bin/parseHPMC.py b/bin/parseHPMC.py
+index 107636899..afa0dc939 100755
+--- a/bin/parseHPMC.py
++++ b/bin/parseHPMC.py
+@@ -18,7 +18,7 @@
+ ## except in compliance with the License, or, at your option, the Apache License version 2.0. You
+ ## may obtain a copy of the License at
+ ##
+-## https:##solderpad.org/licenses/SHL-2.1/
++## https://solderpad.org/licenses/SHL-2.1/
+ ##
+ ## Unless required by applicable law or agreed to in writing, any work distributed under the
+ ## License is distributed on an “AS IS” BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+diff --git a/bin/testcount.pl b/bin/testcount.pl
+index 7a594e75e..c35863e22 100755
+--- a/bin/testcount.pl
++++ b/bin/testcount.pl
+@@ -22,7 +22,7 @@
+ ## except in compliance with the License, or, at your option, the Apache License version 2.0. You
+ ## may obtain a copy of the License at
+ ##
+-## https:##solderpad.org/licenses/SHL-2.1/
++## https://solderpad.org/licenses/SHL-2.1/
+ ##
+ ## Unless required by applicable law or agreed to in writing, any work distributed under the
+ ## License is distributed on an “AS IS” BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+diff --git a/bin/testlist.pl b/bin/testlist.pl
+index 8d56c27dc..cbaf3cf5d 100755
+--- a/bin/testlist.pl
++++ b/bin/testlist.pl
+@@ -21,7 +21,7 @@
+ ## except in compliance with the License, or, at your option, the Apache License version 2.0. You
+ ## may obtain a copy of the License at
+ ##
+-## https:##solderpad.org/licenses/SHL-2.1/
++## https://solderpad.org/licenses/SHL-2.1/
+ ##
+ ## Unless required by applicable law or agreed to in writing, any work distributed under the
+ ## License is distributed on an “AS IS” BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+diff --git a/bin/vclean.pl b/bin/vclean.pl
+index 186f77e31..5f5fa3672 100755
+--- a/bin/vclean.pl
++++ b/bin/vclean.pl
+@@ -21,7 +21,7 @@
+ ## except in compliance with the License, or, at your option, the Apache License version 2.0. You
+ ## may obtain a copy of the License at
+ ##
+-## https:##solderpad.org/licenses/SHL-2.1/
++## https://solderpad.org/licenses/SHL-2.1/
+ ##
+ ## Unless required by applicable law or agreed to in writing, any work distributed under the
+ ## License is distributed on an “AS IS” BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+diff --git a/bin/wally-environment-check.sh b/bin/wally-environment-check.sh
+index 00fa70ecc..1e2a708ed 100755
+--- a/bin/wally-environment-check.sh
++++ b/bin/wally-environment-check.sh
+@@ -19,7 +19,7 @@
+ ## except in compliance with the License, or, at your option, the Apache License version 2.0. You
+ ## may obtain a copy of the License at
+ ##
+-## https:##solderpad.org/licenses/SHL-2.1/
++## https://solderpad.org/licenses/SHL-2.1/
+ ##
+ ## Unless required by applicable law or agreed to in writing, any work distributed under the
+ ## License is distributed on an “AS IS” BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+diff --git a/bin/wally-package-install.sh b/bin/wally-package-install.sh
+index d00c2946b..2bc67c156 100755
+--- a/bin/wally-package-install.sh
++++ b/bin/wally-package-install.sh
+@@ -19,7 +19,7 @@
+ ## except in compliance with the License, or, at your option, the Apache License version 2.0. You
+ ## may obtain a copy of the License at
+ ##
+-## https:##solderpad.org/licenses/SHL-2.1/
++## https://solderpad.org/licenses/SHL-2.1/
+ ##
+ ## Unless required by applicable law or agreed to in writing, any work distributed under the
+ ## License is distributed on an “AS IS” BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+diff --git a/bin/wally-tool-chain-install.sh b/bin/wally-tool-chain-install.sh
+index a9d52e66a..73960e67b 100755
+--- a/bin/wally-tool-chain-install.sh
++++ b/bin/wally-tool-chain-install.sh
+@@ -19,7 +19,7 @@
+ ## except in compliance with the License, or, at your option, the Apache License version 2.0. You
+ ## may obtain a copy of the License at
+ ##
+-## https:##solderpad.org/licenses/SHL-2.1/
++## https://solderpad.org/licenses/SHL-2.1/
+ ##
+ ## Unless required by applicable law or agreed to in writing, any work distributed under the
+ ## License is distributed on an “AS IS” BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+diff --git a/config/derivlist.txt b/config/derivlist.txt
+index f72417ac8..8d8c7f907 100644
+--- a/config/derivlist.txt
++++ b/config/derivlist.txt
+@@ -20,7 +20,7 @@
+ ## except in compliance with the License, or, at your option, the Apache License version 2.0. You
+ ## may obtain a copy of the License at
+ ##
+-## https:##solderpad.org/licenses/SHL-2.1/
++## https://solderpad.org/licenses/SHL-2.1/
+ ##
+ ## Unless required by applicable law or agreed to in writing, any work distributed under the
+ ## License is distributed on an “AS IS” BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+diff --git a/docs/Dockerfile b/docs/Dockerfile
+index 2f279c69a..ff3ff77cd 100644
+--- a/docs/Dockerfile
++++ b/docs/Dockerfile
+@@ -17,7 +17,7 @@
+ ## except in compliance with the License, or, at your option, the Apache License version 2.0. You
+ ## may obtain a copy of the License at
+ ##
+-## https:##solderpad.org#licenses#SHL-2.1#
++## https://solderpad.org/licenses/SHL-2.1/
+ ##
+ ## Unless required by applicable law or agreed to in writing, any work distributed under the
+ ## License is distributed on an “AS IS” BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+diff --git a/fpga/generator/insert_debug_comment.sh b/fpga/generator/insert_debug_comment.sh
+index d3d028115..74453725a 100755
+--- a/fpga/generator/insert_debug_comment.sh
++++ b/fpga/generator/insert_debug_comment.sh
+@@ -17,7 +17,7 @@
+ ## except in compliance with the License, or, at your option, the Apache License version 2.0. You
+ ## may obtain a copy of the License at
+ ##
+-## https:##solderpad.org#licenses#SHL-2.1#
++## https://solderpad.org/licenses/SHL-2.1/
+ ##
+ ## Unless required by applicable law or agreed to in writing, any work distributed under the
+ ## License is distributed on an “AS IS” BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+diff --git a/fpga/probe b/fpga/probe
+index 382588d6b..08d8cc631 100755
+--- a/fpga/probe
++++ b/fpga/probe
+@@ -17,7 +17,7 @@
+ ## except in compliance with the License, or, at your option, the Apache License version 2.0. You
+ ## may obtain a copy of the License at
+ ##
+-## https:##solderpad.org#licenses#SHL-2.1#
++## https://solderpad.org/licenses/SHL-2.1/
+ ##
+ ## Unless required by applicable law or agreed to in writing, any work distributed under the
+ ## License is distributed on an “AS IS” BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+diff --git a/fpga/proberange b/fpga/proberange
+index 6ed8c7b0c..65b05934d 100755
+--- a/fpga/proberange
++++ b/fpga/proberange
+@@ -17,7 +17,7 @@
+ ## except in compliance with the License, or, at your option, the Apache License version 2.0. You
+ ## may obtain a copy of the License at
+ ##
+-## https:##solderpad.org#licenses#SHL-2.1#
++## https://solderpad.org/licenses/SHL-2.1/
+ ##
+ ## Unless required by applicable law or agreed to in writing, any work distributed under the
+ ## License is distributed on an “AS IS” BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+diff --git a/fpga/probes b/fpga/probes
+index 58fad0f6b..495695c96 100755
+--- a/fpga/probes
++++ b/fpga/probes
+@@ -17,7 +17,7 @@
+ ## except in compliance with the License, or, at your option, the Apache License version 2.0. You
+ ## may obtain a copy of the License at
+ ##
+-## https:##solderpad.org#licenses#SHL-2.1#
++## https://solderpad.org/licenses/SHL-2.1/
+ ##
+ ## Unless required by applicable law or agreed to in writing, any work distributed under the
+ ## License is distributed on an “AS IS” BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+diff --git a/fpga/zsbl/splitfile.sh b/fpga/zsbl/splitfile.sh
+index 31a5d92ef..fd0b4dc3e 100755
+--- a/fpga/zsbl/splitfile.sh
++++ b/fpga/zsbl/splitfile.sh
+@@ -30,7 +30,7 @@
+ 
+ 
+ # Acquired from here.
+-# https:##stackoverflow.com#questions#3066948#how-to-file-split-at-a-line-number
++# https://stackoverflow.com/questions/3066948/how-to-file-split-at-a-line-number
+ file_name=$1
+ 
+ # set first K lines:
+diff --git a/linux/qemuBoot.sh b/linux/qemuBoot.sh
+index b40bcf48b..830505a9d 100755
+--- a/linux/qemuBoot.sh
++++ b/linux/qemuBoot.sh
+@@ -17,7 +17,7 @@
+ ## except in compliance with the License, or, at your option, the Apache License version 2.0. You
+ ## may obtain a copy of the License at
+ ##
+-## https:##solderpad.org/licenses/SHL-2.1/
++## https://solderpad.org/licenses/SHL-2.1/
+ ##
+ ## Unless required by applicable law or agreed to in writing, any work distributed under the
+ ## License is distributed on an “AS IS” BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+diff --git a/linux/sdcard/flash-sd.sh b/linux/sdcard/flash-sd.sh
+index 39bd0a6c0..854ea1da9 100755
+--- a/linux/sdcard/flash-sd.sh
++++ b/linux/sdcard/flash-sd.sh
+@@ -18,7 +18,7 @@
+ ## except in compliance with the License, or, at your option, the Apache License version 2.0. You
+ ## may obtain a copy of the License at
+ ##
+-## https:##solderpad.org/licenses/SHL-2.1/
++## https://solderpad.org/licenses/SHL-2.1/
+ ##
+ ## Unless required by applicable law or agreed to in writing, any work distributed under the
+ ## License is distributed on an “AS IS” BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+diff --git a/linux/sdcard/write-bytes.sh b/linux/sdcard/write-bytes.sh
+index 3598cb4d6..e64f93ed4 100755
+--- a/linux/sdcard/write-bytes.sh
++++ b/linux/sdcard/write-bytes.sh
+@@ -19,7 +19,7 @@
+ ## except in compliance with the License, or, at your option, the Apache License version 2.0. You
+ ## may obtain a copy of the License at
+ ##
+-## https:##solderpad.org/licenses/SHL-2.1/
++## https://solderpad.org/licenses/SHL-2.1/
+ ##
+ ## Unless required by applicable law or agreed to in writing, any work distributed under the
+ ## License is distributed on an “AS IS” BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+diff --git a/synthDC/extractArea.pl b/synthDC/extractArea.pl
+index 90e67f954..1ff76393f 100755
+--- a/synthDC/extractArea.pl
++++ b/synthDC/extractArea.pl
+@@ -20,7 +20,7 @@
+ ## except in compliance with the License, or, at your option, the Apache License version 2.0. You
+ ## may obtain a copy of the License at
+ ##
+-## https:##solderpad.org/licenses/SHL-2.1/
++## https://solderpad.org/licenses/SHL-2.1/
+ ##
+ ## Unless required by applicable law or agreed to in writing, any work distributed under the
+ ## License is distributed on an “AS IS” BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+
+Finished: 2026-09-18T09:42:23.076144+00:00
+Return code: 0
+Status: PASS

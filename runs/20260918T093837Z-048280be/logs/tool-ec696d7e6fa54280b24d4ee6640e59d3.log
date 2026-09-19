@@ -1,0 +1,10 @@
+Started: 2026-09-18T09:56:48.927664+00:00
+Command: bash -o pipefail -c 'git grep -rn "pmachecker" src/'
+
+src/mmu/mmu.sv:119:  pmachecker #(P) pmachecker(.PhysicalAddress, .Size, .CMOpM,
+src/mmu/pmachecker.sv:2:// pmachecker.sv
+src/mmu/pmachecker.sv:32:module pmachecker import cvw::*;  #(parameter cvw_t P) (
+
+Finished: 2026-09-18T09:56:49.005253+00:00
+Return code: 0
+Status: PASS

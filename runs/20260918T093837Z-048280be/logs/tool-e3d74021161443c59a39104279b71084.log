@@ -1,0 +1,29 @@
+Started: 2026-09-18T10:40:35.964977+00:00
+Command: bash -o pipefail -c 'TEST_DIR=/home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be
+sed -n '"'"'730,750p'"'"' $TEST_DIR/build/wally_clean/testbench/testbench.sv'
+
+    debugger #(P) debugger(.clk, .reset, .tck, .tms, .tdi, .tdo, .filename(debugger_filename));
+  end else begin
+    assign tck = 1;
+    assign tdi = 0;
+    assign tms = 0;
+  end
+
+  wallypipelinedsoc  #(P) dut(.clk, .reset_ext, .reset, .ExternalStall(RVVIStall),
+    .HRDATAEXT, .HREADYEXT, .HRESPEXT, .HSELEXT,
+    .HCLK, .HRESETn, .HADDR, .HWDATA, .HWSTRB, .HWRITE, .HSIZE, .HBURST, .HPROT,
+    .HTRANS, .HMASTLOCK, .HREADY, .TIMECLK(1'b0), .GPIOIN, .GPIOOUT, .GPIOEN,
+    .UARTSin, .UARTSout, .SPIIn, .SPIOut, .SPICS, .SPICLK, .SDCIn, .SDCCmd, .SDCCS, .SDCCLK, .PWMGPIO,
+    .tck, .tms, .tdi, .tdo);
+
+  // generate clock to sequence tests
+  always begin
+    clk = 1'b1; # 5; clk = 1'b0; # 5;
+  end
+
+  if(RVVI_SYNTH_SUPPORTED) begin : rvvi_synth
+    localparam MAX_CSRS = 5;
+
+Finished: 2026-09-18T10:40:36.042855+00:00
+Return code: 0
+Status: PASS

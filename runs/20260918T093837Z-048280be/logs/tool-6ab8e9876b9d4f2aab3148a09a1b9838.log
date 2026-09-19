@@ -1,0 +1,29 @@
+Started: 2026-09-18T09:47:54.547634+00:00
+Command: bash -o pipefail -c 'sed -n '"'"'325,355p'"'"' src/privileged/csrm.sv'
+
+      MENVCFG:       if (P.U_SUPPORTED) CSRMReadValM = MENVCFG_REGW[P.XLEN-1:0];
+                     else IllegalCSRMAccessM = 1'b1;
+      MENVCFGH:      if (P.U_SUPPORTED & P.XLEN==32) CSRMReadValM = MENVCFGH_REGW;
+                     else IllegalCSRMAccessM = 1'b1;
+      MCOUNTINHIBIT: CSRMReadValM = {{(P.XLEN-32){1'b0}}, MCOUNTINHIBIT_REGW};
+      MSTATEEN0:     if (P.SMSTATEEN_SUPPORTED) CSRMReadValM = MSTATEEN0_REGW[P.XLEN-1:0];
+                     else IllegalCSRMAccessM = 1'b1;
+      MSTATEEN1,
+      MSTATEEN2,
+      MSTATEEN3:     if (P.SMSTATEEN_SUPPORTED) CSRMReadValM = '0; // read-only zero
+                     else IllegalCSRMAccessM = 1'b1;
+      MSTATEEN0H:    if (P.SMSTATEEN_SUPPORTED & P.XLEN==32) CSRMReadValM = MSTATEEN0_REGW[63:32];
+                     else IllegalCSRMAccessM = 1'b1;
+      MSTATEEN1H,
+      MSTATEEN2H,
+      MSTATEEN3H:    if (P.SMSTATEEN_SUPPORTED & P.XLEN==32) CSRMReadValM = '0; // read-only zero
+                     else IllegalCSRMAccessM = 1'b1;
+      default:       IllegalCSRMAccessM = 1'b1;
+    endcase
+  end
+  // verilator lint_on WIDTH
+endmodule
+
+Finished: 2026-09-18T09:47:54.617724+00:00
+Return code: 0
+Status: PASS

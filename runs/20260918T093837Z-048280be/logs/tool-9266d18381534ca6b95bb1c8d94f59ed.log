@@ -1,0 +1,13 @@
+Started: 2026-09-18T10:44:02.890415+00:00
+Command: bash -o pipefail -c 'TEST_DIR=/home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be
+sed -i "s|export PATH=\$WALLY_CLEAN/bin:/home/rafay/riscv/bin:\$PATH|export PATH=/home/rafay/riscv/bin:\$PATH|" $TEST_DIR/reproducer.sh
+$TEST_DIR/reproducer.sh'
+
+Running Wally control...
+Running Wally reproducer (store)...
+Wally passed store test unexpectedly (bug not reproduced)
+
+Finished: 2026-09-18T10:44:04.938057+00:00
+Return code: 2
+Status: COMMAND_FAILED
+ERROR: Command exited with code 2

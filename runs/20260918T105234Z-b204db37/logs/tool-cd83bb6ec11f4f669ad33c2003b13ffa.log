@@ -1,0 +1,250 @@
+Started: 2026-09-18T11:03:00.639518+00:00
+Command: bash -o pipefail -c 'grep -n -C 5 "signature" testbench/testbench.sv'
+
+350-  logic        ResetCntEn;
+351-  logic        ResetCntRst;
+352-  logic        CopyRAM;
+353-
+354-  string  signame, elffilename, memfilename, bootmemfilename, uartoutfilename, pathname;
+355:  integer begin_signature_addr, end_signature_addr, signature_size, selfcheck_record_addr;
+356-  integer uartoutfile;
+357-
+358-  string  debugger_filename;
+359-
+360-
+--
+370-    if (TestBenchReset) CurrState <= STATE_TESTBENCH_RESET;
+371-    else CurrState <= NextState;
+372-
+373-  // fsm next state logic
+374-  always_comb begin
+375:    // riscof tests have a different signature, tests[0] == "0" refers to RiscvArchTests
+376-    // and tests[0] == "1" refers to WallyRiscvArchTests
+377-    riscofTest = tests[0] == "0" | tests[0] == "1";
+378-    debugTest = tests[0] == "7" | "9";
+379-    pathname = tvpaths[tests[0].atoi()];
+380-
+--
+422-
+423-  //VCS ignores the dynamic types while processing the implicit sensitivity lists of always @*, always_comb, and always_latch
+424-  //procedural blocks. VCS supports the dynamic types in the implicit sensitivity list of always @* block as specified in the Section 9.2 of the IEEE Standard SystemVerilog Specification 1800-2012.
+425-  //To support memory load and dump task verbosity: flag : -diag sys_task_mem
+426-  always @(*) begin
+427:    begin_signature_addr = ProgramAddrLabelArray["begin_signature"];
+428:    end_signature_addr = ProgramAddrLabelArray["sig_end_canary"];
+429:    signature_size = end_signature_addr - begin_signature_addr;
+430-    selfcheck_record_addr = ProgramAddrLabelArray["selfcheck_record"]; // nonzero for self-checking tests
+431-  end
+432-  logic EcallFaultM;
+433-  if (P.ZICSR_SUPPORTED)
+434-    assign EcallFaultM = dut.core.priv.priv.EcallFaultM;
+435-  else
+436-    assign EcallFaultM = 0;
+437-
+438-  always @(posedge clk) begin
+439-    ////////////////////////////////////////////////////////////////////////////////
+440:    // Verify the test ran correctly by checking the memory against a known signature.
+441-    ////////////////////////////////////////////////////////////////////////////////
+442-    if(TestBenchReset) test = 1;
+443-    if (P.ZICSR_SUPPORTED & TEST == "coremark")
+444-      if (EcallFaultM) begin
+445-        $display("Benchmark: coremark is done.");
+--
+496-    if(Validate) begin
+497-      if (PrevPCZero) totalerrors = totalerrors + 1; //  error if PC is stuck at zero
+498-      if (uartoutfile)
+499-        $fclose(uartoutfile);
+500-      if (TEST == "embench") begin
+501:        // Writes contents of begin_signature to .sim.output file
+502-        // this contains instret and cycles for start and end of test run, used by embench
+503-        // python speed script to calculate embench speed score.
+504:        // also, begin_signature contains the results of the self checking mechanism,
+505-        // which will be read by the python script for error checking
+506-        $display("Embench Benchmark: %s is done.", tests[test]);
+507-        if (riscofTest) outputfile = {pathname, tests[test], "/ref/ref.sim.output"};
+508-        else outputfile = {pathname, tests[test], ".sim.output"};
+509-        outputFilePointer = $fopen(outputfile, "w");
+510-        i = 0;
+511:        testadr = ($unsigned(begin_signature_addr))/(P.XLEN/8);
+512-        while ($unsigned(i) < $unsigned(5'd5)) begin
+513-          $fdisplayh(outputFilePointer, DCacheFlushFSM.ShadowRAM[testadr+i]);
+514-          i = i + 1;
+515-        end
+516-        $fclose(outputFilePointer);
+--
+522-          $display("Breker test is done.");
+523-        `elsif FCOV
+524-          $display("Functional coverage test complete.");
+525-        `else
+526-          if (selfcheck_record_addr != 0) CheckSelfCheck(ElfFile, selfcheck_record_addr, errors);
+527:          else $display("Single Elf file tests are not signatured verified.");
+528-        `endif
+529-`ifdef QUESTA
+530-        $stop;  // if this is changed to $finish for Questa, wally-batch.do does not go to the next step to run coverage, and wally.do terminates without allowing GUI debug
+531-`else
+532-        $finish;
+533-`endif
+534-      end else begin
+535:        // self-checking tests record their own result; for other tests, read .signature.output file and compare to check for errors
+536:        // clear signature to prevent contamination from previous tests
+537:        if (!begin_signature_addr)
+538:          $display("begin_signature addr not found in %s", ProgramLabelMapFile);
+539-        else if (TEST != "embench") begin
+540-          if (selfcheck_record_addr != 0) CheckSelfCheck(tests[test], selfcheck_record_addr, errors);
+541:          else CheckSignature(pathname, tests[test], riscofTest, begin_signature_addr, errors);
+542-          if(errors > 0) totalerrors = totalerrors + 1;
+543-        end
+544-      end
+545-      test = test + 1;
+546-      if (test == tests.size()) begin
+--
+641-        end
+642-        if (TEST == "embench") $display("Read memfile %s", memfilename);
+643-      end
+644-      if (CopyRAM) begin
+645-        LogXLEN = (1 + P.XLEN/32); // 2 for rv32 and 3 for rv64
+646:        StartIndex = begin_signature_addr >> LogXLEN;
+647:        EndIndex = (end_signature_addr >> LogXLEN) + 8;
+648-        BaseIndex = P.UNCORE_RAM_BASE >> LogXLEN;
+649-        for(ShadowIndex = StartIndex; ShadowIndex <= EndIndex; ShadowIndex++) begin
+650-          testbench.DCacheFlushFSM.ShadowRAM[ShadowIndex] = dut.uncoregen.uncore.ram.ram.memory.ram.RAM[ShadowIndex - BaseIndex];
+651-        end
+652-        if (selfcheck_record_addr != 0) begin // also copy the result record of a self-checking test
+--
+664-      if (LoadMem) begin
+665-        $readmemh(memfilename, dut.core.lsu.dtim.dtim.ram.ram.RAM);
+666-      end
+667-      if (CopyRAM) begin
+668-        LogXLEN = (1 + P.XLEN/32); // 2 for rv32 and 3 for rv64
+669:        StartIndex = begin_signature_addr >> LogXLEN;
+670:        EndIndex = (end_signature_addr >> LogXLEN) + 8;
+671-        BaseIndex = P.UNCORE_RAM_BASE >> LogXLEN;
+672-        for(ShadowIndex = StartIndex; ShadowIndex <= EndIndex; ShadowIndex++) begin
+673-          testbench.DCacheFlushFSM.ShadowRAM[ShadowIndex] = dut.core.lsu.dtim.dtim.ram.ram.RAM[ShadowIndex - BaseIndex];
+674-        end
+675-        if (selfcheck_record_addr != 0) begin // also copy the result record of a self-checking test
+--
+1067-    // no way to pass P to the task unless we convert it to a module.
+1068-
+1069-    input string  pathname;
+1070-    input string  TestName;
+1071-    input logic   riscofTest;
+1072:    input integer begin_signature_addr;
+1073-    output integer errors;
+1074-    int fd, code;
+1075-    string line;
+1076-    int siglines, sigentries;
+1077-
+1078-    localparam SIGNATURESIZE = 5000000;
+1079-    integer        i;
+1080-    logic [31:0]   sig32[0:SIGNATURESIZE];
+1081-    logic [31:0]   parsed;
+1082:    logic [P.XLEN-1:0] signature[0:SIGNATURESIZE];
+1083-    string            signame;
+1084-    logic [P.XLEN-1:0] testadr, testadrNoBase;
+1085-
+1086-    //$display("Invoking CheckSignature %s %s %0t", pathname, TestName, $time);
+1087-
+1088:    // read .signature.output file and compare to check for errors
+1089:    if (riscofTest) signame = {pathname, TestName, "/ref/Reference-sail_c_simulator.signature"};
+1090:    else signame = {pathname, TestName, ".signature.output"};
+1091-
+1092:    // read signature file from memory and count lines.  Can't use readmemh because we need the line count
+1093-    // $readmemh(signame, sig32);
+1094-    fd = $fopen(signame, "r");
+1095-    siglines = 0;
+1096-    if (fd == 0) $display("Unable to read %s", signame);
+1097-    else begin
+--
+1117-    if (siglines == 0) begin
+1118-      errors = 1;
+1119-      $display("Error: empty test file %s", signame);
+1120-    end else if (P.XLEN == 64 & (siglines % 2)) begin
+1121-      errors = 1;
+1122:      $display("Error: RV64 signature has odd number of lines %s", signame);
+1123-    end else errors = 0;
+1124-
+1125:    // copy lines into signature, converting to XLEN if necessary
+1126:    sigentries = (P.XLEN == 32) ? siglines : siglines/2; // number of signature entries
+1127-    for (i=0; i<sigentries; i++) begin
+1128:      signature[i] = (P.XLEN == 32) ? sig32[i] : {sig32[i*2+1], sig32[i*2]};
+1129:      //$display("XLEN = %d signature[%d] = %x", P.XLEN, i, signature[i]);
+1130-    end
+1131-
+1132-    // Check errors
+1133:    testadr = ($unsigned(begin_signature_addr))/(P.XLEN/8);
+1134:    testadrNoBase = (begin_signature_addr - P.UNCORE_RAM_BASE)/(P.XLEN/8);
+1135-    for (i=0; i<sigentries; i++) begin
+1136:      if (signature[i] !== testbench.DCacheFlushFSM.ShadowRAM[testadr+i]) begin
+1137-        errors = errors+1;
+1138:        $display("  Error on test %s result %d: adr = %h sim (D$) %h signature = %h",
+1139:          TestName, i, (testadr+i)*(P.XLEN/8), testbench.DCacheFlushFSM.ShadowRAM[testadr+i], signature[i]);
+1140-        $stop; // if this is changed to $finish, wally-batch.do does not get to the next step to run coverage
+1141-      end
+1142-    end
+1143-    if (errors) $display("%s failed with %d errors. :(", TestName, errors);
+1144-    else $display("%s succeeded.  Brilliant!!!", TestName);
+1145-  endtask
+1146-
+1147:  // Report the result of a self-checking test.  Such a test embeds its expected signature, compares
+1148-  // each entry as it is written, and leaves the outcome in selfcheck_record (XLEN-sized entries):
+1149-  //   0: status (0 = did not finish, 1 = passed, 2 = entry mismatch, 3 = wrong number of entries)
+1150-  //   1: entry index    2: entry address    3: expected value    4: actual value
+1151-  task automatic CheckSelfCheck;
+1152-    input string  TestName;
+--
+1163-    errors = 0;
+1164-    case (status)
+1165-      1: $display("%s succeeded.  Brilliant!!!", TestName);
+1166-      2: begin
+1167-        errors = 1;
+1168:        $display("  Error on test %s result %0d: adr = %h sim (D$) %h signature = %h", TestName, index, adr, actual, expected);
+1169-      end
+1170-      3: begin
+1171-        errors = 1;
+1172:        $display("  Error on test %s: wrote %0d signature entries but expected %0d (next adr = %h)", TestName, actual, expected, adr);
+1173-      end
+1174-      default: begin
+1175-        errors = 1;
+1176-        $display("  Error on test %s: halted without completing its self-check (status = %h)", TestName, status);
+1177-      end
+--
+1196-task automatic updateProgramAddrLabelArray;
+1197-  /* verilator lint_off WIDTHTRUNC */
+1198-  /* verilator lint_off WIDTHEXPAND */
+1199-  input string ProgramAddrMapFile, ProgramLabelMapFile, memfilename, WALLY_DIR;
+1200-  inout  integer ProgramAddrLabelArray [string];
+1201:  // Gets the memory location of begin_signature
+1202-  integer ProgramLabelMapFP, ProgramAddrMapFP;
+1203-  string cmd;
+1204-
+1205-  // if memfile, label, or addr files are out of date or don't exist, generate them
+1206-  cmd = {"make -s -f ", WALLY_DIR, "/testbench/Makefile ", memfilename, " ", ProgramAddrMapFile};
+--
+1208-
+1209-  ProgramLabelMapFP = $fopen(ProgramLabelMapFile, "r");
+1210-  ProgramAddrMapFP = $fopen(ProgramAddrMapFile, "r");
+1211-
+1212-  if (ProgramLabelMapFP & ProgramAddrMapFP) begin // check we found both files
+1213:    ProgramAddrLabelArray["begin_signature"] = 0;
+1214-    ProgramAddrLabelArray["tohost"] = 0;
+1215-    ProgramAddrLabelArray["sig_end_canary"] = 0;
+1216-    ProgramAddrLabelArray["selfcheck_record"] = 0;
+1217-    while (!$feof(ProgramLabelMapFP)) begin
+1218-      string label, adrstr;
+--
+1221-      returncode = $fscanf(ProgramAddrMapFP, "%s\n", adrstr);
+1222-      if (ProgramAddrLabelArray.exists(label)) ProgramAddrLabelArray[label] = adrstr.atohex();
+1223-    end
+1224-  end
+1225-
+1226://  if(ProgramAddrLabelArray["begin_signature"] == 0) $display("Couldn't find begin_signature in %s", ProgramLabelMapFile);
+1227-//  if(ProgramAddrLabelArray["sig_end_canary"] == 0) $display("Couldn't find sig_end_canary in %s", ProgramLabelMapFile);
+1228-
+1229-  $fclose(ProgramLabelMapFP);
+1230-  $fclose(ProgramAddrMapFP);
+1231-  /* verilator lint_on WIDTHTRUNC */
+
+Finished: 2026-09-18T11:03:00.726844+00:00
+Return code: 0
+Status: PASS

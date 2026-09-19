@@ -1,0 +1,18 @@
+Started: 2026-09-18T10:46:03.701632+00:00
+Command: bash -o pipefail -c 'TEST_DIR=/home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be
+grep WALLY_DIR $TEST_DIR/build/wally_clean/testbench/testbench.sv'
+
+      string       WALLY_DIR = getenvval("WALLY"); // ~/cvw typical
+      string       WALLY_DIR = getenv("WALLY");
+      string       WALLY_DIR = "$WALLY";
+        bootmemfilename = {WALLY_DIR, "/fpga/src/boot.mem"};
+        memfilename = {WALLY_DIR, "/fpga/src/data.mem"};
+        ProgramAddrMapFile = {WALLY_DIR, "/fpga/zsbl/bin/boot.objdump.addr"};
+        ProgramLabelMapFile = {WALLY_DIR, "/fpga/zsbl/bin/boot.objdump.lab"};
+      updateProgramAddrLabelArray(ProgramAddrMapFile, ProgramLabelMapFile, memfilename, WALLY_DIR, ProgramAddrLabelArray);
+  input string ProgramAddrMapFile, ProgramLabelMapFile, memfilename, WALLY_DIR;
+  cmd = {"make -s -f ", WALLY_DIR, "/testbench/Makefile ", memfilename, " ", ProgramAddrMapFile};
+
+Finished: 2026-09-18T10:46:03.793845+00:00
+Return code: 0
+Status: PASS

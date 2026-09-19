@@ -1,0 +1,9 @@
+Started: 2026-09-19T19:43:25.290227+00:00
+Command: bash -o pipefail -c 'spike --isa=rv64gc /home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/build/test_pmp_mmode_store_cross.elf'
+
+{"time":"2026-09-19T19:43:25.405830874Z","level":"WARN","msg":"Lock","msg":"Failed to lock memory","err":"cannot allocate memory"}
+
+Finished: 2026-09-19T20:32:19.003579+00:00
+Return code: -15
+Status: INFRA_FAILURE
+ERROR: Command cancelled by tool shutdown

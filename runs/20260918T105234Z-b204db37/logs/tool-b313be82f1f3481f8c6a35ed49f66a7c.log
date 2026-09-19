@@ -1,0 +1,22 @@
+Started: 2026-09-18T11:11:53.179283+00:00
+Command: bash -o pipefail -c 'sed -i '"'"'s/grep -v "round.sv"/grep -vE "\\/fcvt\\\\.sv$|\\/round\\\\.sv$|\\/specialcase\\\\.sv$|\\/unpack\\\\.sv$"/g'"'"' /home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/build_reproducer.sh
+sed -i '"'"'s/| grep -v "fcvt.sv" | grep -v "specialcase.sv" | grep -v "unpack.sv"//g'"'"' /home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/build_reproducer.sh
+bash /home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/build_reproducer.sh > /tmp/build_log.txt 2>&1
+tail -n 10 /tmp/build_log.txt
+'
+
+sed: -e expression #1, char 35: unknown option to `s'
+             fround.v
+             fround.sv
+             /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/sim/verilator/wkdir/rv64gc_testbench/fround
+             /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/sim/verilator/wkdir/rv64gc_testbench/fround.v
+             /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/sim/verilator/wkdir/rv64gc_testbench/fround.sv
+%Error: Exiting due to 1 error(s)
+make: *** [Makefile:53: compile] Error 1
+make: Leaving directory '/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/sim/verilator'
+Touching executable...
+Compiling ELFs...
+
+Finished: 2026-09-18T11:11:54.770729+00:00
+Return code: 0
+Status: PASS

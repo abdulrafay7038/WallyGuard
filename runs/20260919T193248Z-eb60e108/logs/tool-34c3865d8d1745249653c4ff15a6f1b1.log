@@ -1,0 +1,88 @@
+Started: 2026-09-19T19:41:19.147494+00:00
+Command: bash -o pipefail -c 'sed -n '"'"'200,280p'"'"' src/fpu/postproc/round.sv'
+
+  assign Sticky = FmaASticky&FmaOp | (Bf16Dst ? Bf16Sticky : NormSticky) | CvtResUf&CvtOp | FmaMe[P.NE+1]&FmaOp | DivSticky&DivOp;
+
+  // determine round and LSB of the rounded value
+  //      - underflow round bit is used to determint the underflow flag
+  if (P.FPSIZES == 1) begin
+      assign FpGuard  = Mf[P.NORMSHIFTSZ-P.NF-1];
+      assign FpLsbRes = Mf[P.NORMSHIFTSZ-P.NF];
+      assign FpRound  = Mf[P.NORMSHIFTSZ-P.NF-2];
+
+  end else if (P.FPSIZES == 2) begin
+      assign FpGuard  = OutFmt ? Mf[P.NORMSHIFTSZ-P.NF-1] : Mf[P.NORMSHIFTSZ-P.NF1-1];
+      assign FpLsbRes = OutFmt ? Mf[P.NORMSHIFTSZ-P.NF] : Mf[P.NORMSHIFTSZ-P.NF1];
+      assign FpRound  = OutFmt ? Mf[P.NORMSHIFTSZ-P.NF-2] : Mf[P.NORMSHIFTSZ-P.NF1-2];
+
+  end else if (P.FPSIZES == 3) begin
+      always_comb
+          case (OutFmt)
+              P.FMT: begin
+                  FpGuard  = Mf[P.NORMSHIFTSZ-P.NF-1];
+                  FpLsbRes = Mf[P.NORMSHIFTSZ-P.NF];
+                  FpRound  = Mf[P.NORMSHIFTSZ-P.NF-2];
+              end
+              P.FMT1: begin
+                  FpGuard  = Mf[P.NORMSHIFTSZ-P.NF1-1];
+                  FpLsbRes = Mf[P.NORMSHIFTSZ-P.NF1];
+                  FpRound  = Mf[P.NORMSHIFTSZ-P.NF1-2];
+              end
+              P.FMT2: begin
+                  FpGuard  = Mf[P.NORMSHIFTSZ-P.NF2-1];
+                  FpLsbRes = Mf[P.NORMSHIFTSZ-P.NF2];
+                  FpRound  = Mf[P.NORMSHIFTSZ-P.NF2-2];
+              end
+              default: begin
+                  FpGuard  = 1'bx;
+                  FpLsbRes = 1'bx;
+                  FpRound  = 1'bx;
+              end
+          endcase
+  end else if (P.FPSIZES == 4) begin
+      always_comb
+          case (OutFmt)
+              2'h3: begin
+                  FpGuard  = Mf[P.NORMSHIFTSZ-P.Q_NF-1];
+                  FpLsbRes = Mf[P.NORMSHIFTSZ-P.Q_NF];
+                  FpRound  = Mf[P.NORMSHIFTSZ-P.Q_NF-2];
+              end
+              2'h1: begin
+                  FpGuard  = Mf[P.NORMSHIFTSZ-P.D_NF-1];
+                  FpLsbRes = Mf[P.NORMSHIFTSZ-P.D_NF];
+                  FpRound  = Mf[P.NORMSHIFTSZ-P.D_NF-2];
+              end
+              2'h0: begin
+                  FpGuard  = Mf[P.NORMSHIFTSZ-P.S_NF-1];
+                  FpLsbRes = Mf[P.NORMSHIFTSZ-P.S_NF];
+                  FpRound  = Mf[P.NORMSHIFTSZ-P.S_NF-2];
+              end
+              2'h2: begin
+                  FpGuard  = Mf[P.NORMSHIFTSZ-P.H_NF-1];
+                  FpLsbRes = Mf[P.NORMSHIFTSZ-P.H_NF];
+                  FpRound  = Mf[P.NORMSHIFTSZ-P.H_NF-2];
+              end
+          endcase
+  end
+
+  assign Guard  = CvtToInt ? Mf[P.NORMSHIFTSZ-P.XLEN-1] : Bf16Dst ? Mf[P.NORMSHIFTSZ-P.BF16_NF-1] : FpGuard;
+  assign LsbRes = CvtToInt ? Mf[P.NORMSHIFTSZ-P.XLEN]   : Bf16Dst ? Mf[P.NORMSHIFTSZ-P.BF16_NF]   : FpLsbRes;
+  assign Round  = CvtToInt ? Mf[P.NORMSHIFTSZ-P.XLEN-2] : Bf16Dst ? Mf[P.NORMSHIFTSZ-P.BF16_NF-2] : FpRound;
+
+  always_comb begin
+      // Determine if you add 1
+      case (Frm)
+          3'b000: CalcPlus1  = Guard & (Round|Sticky|LsbRes);//round to nearest even
+          3'b001: CalcPlus1  = 1'b0;//round to zero
+          3'b010: CalcPlus1  = Ms;//round down
+          3'b011: CalcPlus1  = ~Ms;//round up
+          3'b100: CalcPlus1  = Guard;//round to nearest max magnitude
+          default: CalcPlus1 = 1'bx;
+      endcase
+      // Determine if you add 1 (for underflow flag)
+      case (Frm)
+          3'b000: UfCalcPlus1  = Round & (Sticky|Guard);//round to nearest even
+
+Finished: 2026-09-19T19:41:19.211367+00:00
+Return code: 0
+Status: PASS

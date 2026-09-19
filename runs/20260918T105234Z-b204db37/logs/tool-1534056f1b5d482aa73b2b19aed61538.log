@@ -1,0 +1,20 @@
+Started: 2026-09-18T10:58:49.338171+00:00
+Command: bash -o pipefail -c 'make -n -C sim/verilator compile'
+
+make: Entering directory '/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/sim/verilator'
+mkdir -p /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/sim/verilator/wkdir/rv64gc        _testbench     
+verilator \
+--Mdir /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/sim/verilator/wkdir/rv64gc        _testbench      -o Vtestbench      \
+--binary --trace \
+--assert --no-trace-top --stats \
+--top-module testbench       --relative-includes \
+"-I/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/config/shared" "-I/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/config/rv64gc        " "-I/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/config/deriv/rv64gc        " \
+ \
+ \
+ \
+/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/src/cvw.sv /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/testbench     .sv /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/*.sv /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/src/*/*.sv /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/src/*/*/*.sv /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/addins/verilog-ethernet/*/*.sv /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/addins/verilog-ethernet/*/*/*/*.sv
+make: Leaving directory '/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/sim/verilator'
+
+Finished: 2026-09-18T10:58:49.416185+00:00
+Return code: 0
+Status: PASS

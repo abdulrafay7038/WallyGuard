@@ -1,0 +1,41 @@
+Started: 2026-09-19T20:33:54.054075+00:00
+Command: bash -o pipefail -c 'cat << '"'"'EOF'"'"' > /home/rafay/miniconda3/WallyGuard2/runs/20260919T193248Z-eb60e108/build_reproducer.sh
+#!/bin/bash
+set -ex
+TEST_DIR=/home/rafay/miniconda3/WallyGuard2/runs/20260919T193248Z-eb60e108
+cd $TEST_DIR
+mkdir -p build logs
+
+export PATH=$WALLY/bin:$PATH
+
+riscv64-unknown-elf-gcc -march=rv64gc -mabi=lp64d -mcmodel=medany -static -std=gnu99 -O2 \
+    -nostdlib -nostartfiles -T $WALLY/tests/riscof/spike/env/link.ld \
+    -I$TEST_DIR/tests \
+    $TEST_DIR/tests/test.S -o $TEST_DIR/build/test.elf
+
+riscv64-unknown-elf-gcc -march=rv64gc -mabi=lp64d -mcmodel=medany -static -std=gnu99 -O2 \
+    -nostdlib -nostartfiles -T $WALLY/tests/riscof/spike/env/link.ld \
+    -I$TEST_DIR/tests \
+    $TEST_DIR/tests/control.S -o $TEST_DIR/build/control.elf
+
+# Run Spike locally to check
+spike --isa=rv64gc $TEST_DIR/build/test.elf
+spike --isa=rv64gc $TEST_DIR/build/control.elf
+
+# Run Wally locally to verify failure
+$WALLY/bin/wsim rv64gc --sim verilator --elf $TEST_DIR/build/test.elf || true
+$WALLY/bin/wsim rv64gc --sim verilator --elf $TEST_DIR/build/control.elf || true
+
+EOF
+/home/rafay/miniconda3/WallyGuard2/runs/20260919T193248Z-eb60e108/build_reproducer.sh
+'
+
++ TEST_DIR=/home/rafay/miniconda3/WallyGuard2/runs/20260919T193248Z-eb60e108
++ cd /home/rafay/miniconda3/WallyGuard2/runs/20260919T193248Z-eb60e108
++ mkdir -p build logs
++ export PATH=/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/bin:/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/bin:/cad/mentor/QUESTA/bin:/cad/synopsys/SYN/bin:/cad/synopsys/VCS/bin:/cad/synopsys/SPYGLASS_HOME/bin:/home/rafay/miniconda3/WallyGuard2/cvw/bin:/home/rafay/miniconda3/envs/chia_env/bin:/home/rafay/miniconda3/condabin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/home/rafay/riscv/bin
++ PATH=/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/bin:/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/bin:/cad/mentor/QUESTA/bin:/cad/synopsys/SYN/bin:/cad/synopsys/VCS/bin:/cad/synopsys/SPYGLASS_HOME/bin:/home/rafay/miniconda3/WallyGuard2/cvw/bin:/home/rafay/miniconda3/envs/chia_env/bin:/home/rafay/miniconda3/condabin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/home/rafay/riscv/bin
++ riscv64-unknown-elf-gcc -march=rv64gc -mabi=lp64d -mcmodel=medany -static -std=gnu99 -O2 -nostdlib -nostartfiles -T /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/tests/riscof/spike/env/link.ld -I/home/rafay/miniconda3/WallyGuard2/runs/20260919T193248Z-eb60e108/tests /home/rafay/miniconda3/WallyGuard2/runs/20260919T193248Z-eb60e108/tests/test.S -o /home/rafay/miniconda3/WallyGuard2/runs/20260919T193248Z-eb60e108/build/test.elf
++ riscv64-unknown-elf-gcc -march=rv64gc -mabi=lp64d -mcmodel=medany -static -std=gnu99 -O2 -nostdlib -nostartfiles -T /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/tests/riscof/spike/env/link.ld -I/home/rafay/miniconda3/WallyGuard2/runs/20260919T193248Z-eb60e108/tests /home/rafay/miniconda3/WallyGuard2/runs/20260919T193248Z-eb60e108/tests/control.S -o /home/rafay/miniconda3/WallyGuard2/runs/20260919T193248Z-eb60e108/build/control.elf
++ spike --isa=rv64gc /home/rafay/miniconda3/WallyGuard2/runs/20260919T193248Z-eb60e108/build/test.elf
+{"time":"2026-09-19T20:33:54.182567252Z","level":"WARN","msg":"Lock","msg":"Failed to lock memory","err":"cannot allocate memory"}

@@ -1,0 +1,11 @@
+Started: 2026-09-18T09:45:07.821494+00:00
+Command: bash -o pipefail -c 'git grep -rn "AMOFunctD" src/ieu/controller.sv'
+
+src/ieu/controller.sv:153:  logic        AFunctD, AMOFunctD;             // Detect atomic instructions
+src/ieu/controller.sv:228:    assign AMOFunctD        = (InstrD[31:27] == 5'b00001) |
+src/ieu/controller.sv:263:    assign AMOFunctD = 1'b1; // don't bother to check Funct7 for AMO operations
+src/ieu/controller.sv:307:                    else if ((P.ZAAMO_SUPPORTED & AMOFunctD) | CASFunctD)
+
+Finished: 2026-09-18T09:45:07.925161+00:00
+Return code: 0
+Status: PASS

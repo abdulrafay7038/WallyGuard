@@ -1,0 +1,8 @@
+Started: 2026-09-18T10:59:37.866568+00:00
+Command: bash -o pipefail -c 'find /home/rafay/miniconda3/WallyGuard2/ -name "Vtestbench"'
+
+/home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/rv64gc_testbench/Vtestbench
+
+Finished: 2026-09-18T10:59:39.548355+00:00
+Return code: 0
+Status: PASS

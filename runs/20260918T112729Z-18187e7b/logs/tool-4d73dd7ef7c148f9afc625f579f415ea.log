@@ -1,0 +1,9 @@
+Started: 2026-09-18T11:29:09.864474+00:00
+Command: bash -o pipefail -c 'jq '"'"'.[0].test_revisions'"'"' /home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/attempt.json'
+
+jq: error (at /home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/attempt.json:478): Cannot index object with number
+
+Finished: 2026-09-18T11:29:09.959954+00:00
+Return code: 5
+Status: COMMAND_FAILED
+ERROR: Command exited with code 5

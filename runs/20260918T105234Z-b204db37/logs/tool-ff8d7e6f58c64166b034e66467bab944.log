@@ -1,0 +1,14 @@
+Started: 2026-09-18T11:03:42.482090+00:00
+Command: bash -o pipefail -c 'grep -rn "=======" config/'
+
+config/rv32imc/config.vh:107:=======
+config/shared/parameter-defs.vh:37:=======
+config/rv32i/config.vh:107:=======
+config/rv32e/config.vh:107:=======
+config/rv64gc/config.vh:107:=======
+config/rv64i/config.vh:107:=======
+config/rv32gc/config.vh:107:=======
+
+Finished: 2026-09-18T11:03:42.673090+00:00
+Return code: 0
+Status: PASS

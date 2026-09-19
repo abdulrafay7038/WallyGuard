@@ -1,0 +1,24 @@
+Started: 2026-09-18T09:51:32.689998+00:00
+Command: bash -o pipefail -c 'cat /home/rafay/miniconda3/WallyGuard2/runs/20260917T123710Z-9bc09998/logs/build.log'
+
+mkdir -p /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/sim/verilator/wkdir/rv64gc_testbench
+verilator \
+--Mdir /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/sim/verilator/wkdir/rv64gc_testbench -o Vtestbench \
+--binary --trace \
+--assert --no-trace-top --stats \
+--top-module testbench  --relative-includes \
+"-I/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/config/shared" "-I/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/config/rv64gc" "-I/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/config/deriv/rv64gc" \
+/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/sim/verilator/wrapper.c \
+ \
+ \
+/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/src/cvw.sv /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/testbench.sv /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/*.sv /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/src/*/*.sv /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/src/*/*/*.sv /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/addins/verilog-ethernet/*/*.sv /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/addins/verilog-ethernet/*/*/*/*.sv
+make[1]: Entering directory '/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/sim/verilator/wkdir/rv64gc_testbench'
+make[1]: Nothing to be done for 'default'.
+make[1]: Leaving directory '/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/sim/verilator/wkdir/rv64gc_testbench'
+- V e r i l a t i o n   R e p o r t: Verilator 5.036 2025-04-27 rev v5.036
+- Verilator: Built from 0.000 MB sources in 0 modules, into 0.000 MB in 0 C++ files needing 0.000 MB
+- Verilator: Walltime 0.287 s (elab=0.000, cvt=0.000, bld=0.267); cpu 0.009 s on 1 threads; alloced 19.480 MB
+
+Finished: 2026-09-18T09:51:32.767473+00:00
+Return code: 0
+Status: PASS

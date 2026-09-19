@@ -1,0 +1,53 @@
+Started: 2026-09-18T10:40:13.066140+00:00
+Command: bash -o pipefail -c 'TEST_DIR=/home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be
+grep -i signature $TEST_DIR/build/wally_clean/testbench/testbench.sv'
+
+  integer begin_signature_addr, end_signature_addr, signature_size, selfcheck_record_addr;
+    // riscof tests have a different signature, tests[0] == "0" refers to RiscvArchTests
+    begin_signature_addr = ProgramAddrLabelArray["begin_signature"];
+    end_signature_addr = ProgramAddrLabelArray["sig_end_canary"];
+    signature_size = end_signature_addr - begin_signature_addr;
+    // Verify the test ran correctly by checking the memory against a known signature.
+        // Writes contents of begin_signature to .sim.output file
+        // also, begin_signature contains the results of the self checking mechanism,
+        testadr = ($unsigned(begin_signature_addr))/(P.XLEN/8);
+          else $display("Single Elf file tests are not signatured verified.");
+        // self-checking tests record their own result; for other tests, read .signature.output file and compare to check for errors
+        // clear signature to prevent contamination from previous tests
+        if (!begin_signature_addr)
+          $display("begin_signature addr not found in %s", ProgramLabelMapFile);
+          else CheckSignature(pathname, tests[test], riscofTest, begin_signature_addr, errors);
+        StartIndex = begin_signature_addr >> LogXLEN;
+        EndIndex = (end_signature_addr >> LogXLEN) + 8;
+        StartIndex = begin_signature_addr >> LogXLEN;
+        EndIndex = (end_signature_addr >> LogXLEN) + 8;
+  task automatic CheckSignature;
+    input integer begin_signature_addr;
+    localparam SIGNATURESIZE = 5000000;
+    logic [31:0]   sig32[0:SIGNATURESIZE];
+    logic [P.XLEN-1:0] signature[0:SIGNATURESIZE];
+    //$display("Invoking CheckSignature %s %s %0t", pathname, TestName, $time);
+    // read .signature.output file and compare to check for errors
+    if (riscofTest) signame = {pathname, TestName, "/ref/Reference-sail_c_simulator.signature"};
+    else signame = {pathname, TestName, ".signature.output"};
+    // read signature file from memory and count lines.  Can't use readmemh because we need the line count
+      $display("Error: RV64 signature has odd number of lines %s", signame);
+    // copy lines into signature, converting to XLEN if necessary
+    sigentries = (P.XLEN == 32) ? siglines : siglines/2; // number of signature entries
+      signature[i] = (P.XLEN == 32) ? sig32[i] : {sig32[i*2+1], sig32[i*2]};
+      //$display("XLEN = %d signature[%d] = %x", P.XLEN, i, signature[i]);
+    testadr = ($unsigned(begin_signature_addr))/(P.XLEN/8);
+    testadrNoBase = (begin_signature_addr - P.UNCORE_RAM_BASE)/(P.XLEN/8);
+      if (signature[i] !== testbench.DCacheFlushFSM.ShadowRAM[testadr+i]) begin
+        $display("  Error on test %s result %d: adr = %h sim (D$) %h signature = %h",
+          TestName, i, (testadr+i)*(P.XLEN/8), testbench.DCacheFlushFSM.ShadowRAM[testadr+i], signature[i]);
+  // Report the result of a self-checking test.  Such a test embeds its expected signature, compares
+        $display("  Error on test %s result %0d: adr = %h sim (D$) %h signature = %h", TestName, index, adr, actual, expected);
+        $display("  Error on test %s: wrote %0d signature entries but expected %0d (next adr = %h)", TestName, actual, expected, adr);
+  // Gets the memory location of begin_signature
+    ProgramAddrLabelArray["begin_signature"] = 0;
+//  if(ProgramAddrLabelArray["begin_signature"] == 0) $display("Couldn't find begin_signature in %s", ProgramLabelMapFile);
+
+Finished: 2026-09-18T10:40:13.143642+00:00
+Return code: 0
+Status: PASS

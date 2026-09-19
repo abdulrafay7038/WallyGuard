@@ -1,0 +1,20 @@
+Started: 2026-09-19T19:40:35.378646+00:00
+Command: bash -o pipefail -c 'git grep -n "SSTATEEN0" src/'
+
+src/privileged/csr.sv:296:      .SE0AccessM, .ENVCFGAccessM, .SSTATEEN0_MASK(MSTATEEN0_REGW[2:0]));
+src/privileged/csrs.sv:54:  input  logic [2:0]        SSTATEEN0_MASK // mstateen0 bits that permit the matching sstateen0 bits to be nonzero
+src/privileged/csrs.sv:71:  localparam SSTATEEN0  = 12'h10C;
+src/privileged/csrs.sv:85:  logic [P.XLEN-1:0]       SSTATEEN0_REGW;
+src/privileged/csrs.sv:159:    logic WriteSSTATEEN0M;
+src/privileged/csrs.sv:160:    logic [P.XLEN-1:0] SSTATEEN0_WriteValM;
+src/privileged/csrs.sv:161:    assign WriteSSTATEEN0M = CSRSWriteM & (CSRAdrM == SSTATEEN0) & SE0AccessM;
+src/privileged/csrs.sv:162:    assign SSTATEEN0_WriteValM = {
+src/privileged/csrs.sv:164:      CSRWriteValM[2] & P.ZCMT_SUPPORTED  & SSTATEEN0_MASK[2], // JVT
+src/privileged/csrs.sv:165:      CSRWriteValM[1] & P.ZFINX_SUPPORTED & SSTATEEN0_MASK[1], // FCSR
+src/privileged/csrs.sv:168:    flopenr #(P.XLEN) SSTATEEN0reg(clk, reset, WriteSSTATEEN0M, SSTATEEN0_WriteValM, SSTATEEN0_REGW);
+src/privileged/csrs.sv:169:  end else assign SSTATEEN0_REGW = '0;
+src/privileged/csrs.sv:189:      SSTATEEN0: if (P.SSSTATEEN_SUPPORTED & SE0AccessM) CSRSReadValM = SSTATEEN0_REGW & {{(P.XLEN-3){1'b0}}, SSTATEEN0_MASK}; // a bit reads as zero once the matching mstateen0 bit is cleared
+
+Finished: 2026-09-19T19:40:35.438485+00:00
+Return code: 0
+Status: PASS

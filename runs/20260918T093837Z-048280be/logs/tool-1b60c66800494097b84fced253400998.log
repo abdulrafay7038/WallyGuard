@@ -1,0 +1,69 @@
+Started: 2026-09-18T09:48:27.446802+00:00
+Command: bash -o pipefail -c 'git grep -rn "IllegalCSR" src/privileged/'
+
+src/privileged/csr.sv:98:  output logic                     IllegalCSRAccessM,         // Illegal CSR access: CSR doesn't exist or is inaccessible at this privilege level
+src/privileged/csr.sv:143:  logic                    IllegalCSRCAccessM, IllegalCSRMAccessM, IllegalCSRSAccessM, IllegalCSRUAccessM, IllegalCSRDAccessM, IllegalCSRTrigAccessM;
+src/privileged/csr.sv:147:  logic                    IllegalCSRMWriteReadonlyM;
+src/privileged/csr.sv:274:    .IllegalCSRMAccessM, .IllegalCSRMWriteReadonlyM,
+src/privileged/csr.sv:295:      .WriteSSTATUSM, .IllegalCSRSAccessM, .STimerInt, .SENVCFG_REGW,
+src/privileged/csr.sv:304:    assign IllegalCSRSAccessM = 1'b1;
+src/privileged/csr.sv:314:      .IllegalCSRUAccessM);
+src/privileged/csr.sv:318:    assign IllegalCSRUAccessM = 1'b1;
+src/privileged/csr.sv:331:    .MTIME_CLINT,  .CSRCReadValM, .IllegalCSRCAccessM, .DebugStopCounters);
+src/privileged/csr.sv:336:      .DebugMode, .NextValidPCE, .PCM, .IllegalCSRDAccessM, .DebugResume, .DebugHaltFlush, .DebugResumeFlush,
+src/privileged/csr.sv:346:    assign IllegalCSRDAccessM = 1'b1;
+src/privileged/csr.sv:365:      .CSRTrigWriteM, .CSRWriteValM, . CSRAdrM, .CSRTrigReadValM, .IllegalCSRTrigAccessM,
+src/privileged/csr.sv:370:    assign IllegalCSRTrigAccessM = 1'b1;
+src/privileged/csr.sv:397:  assign IllegalCSRAccessM = ((IllegalCSRCAccessM & IllegalCSRMAccessM &
+src/privileged/csr.sv:398:    IllegalCSRSAccessM & IllegalCSRUAccessM & IllegalCSRDAccessM & IllegalCSRTrigAccessM |
+src/privileged/csr.sv:399:    InsufficientCSRPrivilegeM) & CSRReadM) | IllegalCSRMWriteReadonlyM;
+src/privileged/csrc.sv:61:  output logic              IllegalCSRCAccessM,
+src/privileged/csrc.sv:182:    IllegalCSRCAccessM = 1'b0;
+src/privileged/csrc.sv:207:          else IllegalCSRCAccessM = 1'b1;  // requested CSR doesn't exist
+src/privileged/csrc.sv:232:          else    IllegalCSRCAccessM = 1'b1; // requested CSR doesn't exist
+src/privileged/csrc.sv:236:    else IllegalCSRCAccessM = 1'b1; // no privileges for this csr
+src/privileged/csrd.sv:46:  output logic              IllegalCSRDAccessM,
+src/privileged/csrd.sv:232:      IllegalCSRDAccessM = 1'b1;
+src/privileged/csrd.sv:235:      IllegalCSRDAccessM = 1'b0;
+src/privileged/csrd.sv:253:          IllegalCSRDAccessM = 1'b1;
+src/privileged/csrm.sv:53:  output logic                     IllegalCSRMAccessM, IllegalCSRMWriteReadonlyM,
+src/privileged/csrm.sv:181:  assign IllegalCSRMWriteReadonlyM = UngatedCSRMWriteM & (CSRAdrM == MVENDORID | CSRAdrM == MARCHID | CSRAdrM == MIMPID | CSRAdrM == MHARTID | CSRAdrM == MCONFIGPTR);
+src/privileged/csrm.sv:290:    IllegalCSRMAccessM = !(P.S_SUPPORTED) & (CSRAdrM == MEDELEG | CSRAdrM == MIDELEG); // trap on DELEG register access when no S or N-mode
+src/privileged/csrm.sv:313:                     else IllegalCSRMAccessM = 1'b1;
+src/privileged/csrm.sv:324:                     else IllegalCSRMAccessM = 1'b1;
+src/privileged/csrm.sv:326:                     else IllegalCSRMAccessM = 1'b1;
+src/privileged/csrm.sv:328:                     else IllegalCSRMAccessM = 1'b1;
+src/privileged/csrm.sv:331:                     else IllegalCSRMAccessM = 1'b1;
+src/privileged/csrm.sv:335:                     else IllegalCSRMAccessM = 1'b1;
+src/privileged/csrm.sv:337:                     else IllegalCSRMAccessM = 1'b1;
+src/privileged/csrm.sv:341:                     else IllegalCSRMAccessM = 1'b1;
+src/privileged/csrm.sv:342:      default:       IllegalCSRMAccessM = 1'b1;
+src/privileged/csrs.sv:49:  output logic              IllegalCSRSAccessM,
+src/privileged/csrs.sv:174:    IllegalCSRSAccessM = 1'b0;
+src/privileged/csrs.sv:185:                 else IllegalCSRSAccessM = 1'b1;
+src/privileged/csrs.sv:188:                 else IllegalCSRSAccessM = 1'b1;
+src/privileged/csrs.sv:190:                 else IllegalCSRSAccessM = 1'b1;
+src/privileged/csrs.sv:194:                 else IllegalCSRSAccessM = 1'b1;
+src/privileged/csrs.sv:196:                 else IllegalCSRSAccessM = 1'b1;
+src/privileged/csrs.sv:198:                 else IllegalCSRSAccessM = 1'b1; // not supported for RV64
+src/privileged/csrs.sv:199:      default:   IllegalCSRSAccessM = 1'b1;
+src/privileged/csru.sv:41:  output logic              IllegalCSRUAccessM
+src/privileged/csru.sv:71:    IllegalCSRUAccessM = 1'b0;
+src/privileged/csru.sv:72:    if (STATUS_FS == 2'b00)  IllegalCSRUAccessM = 1'b1; // fpu disabled, trap
+src/privileged/csru.sv:78:        default:   IllegalCSRUAccessM = 1'b1;
+src/privileged/privdec.sv:37:  input  logic         IllegalCSRAccessM,                   // Not a legal CSR access
+src/privileged/privdec.sv:126:  assign IllegalInstrFaultM = IllegalIEUFPUInstrM | IllegalPrivilegedInstrM | IllegalCSRAccessM |
+src/privileged/privileged.sv:128:  logic                     IllegalCSRAccessM;                              // Illegal access to CSR
+src/privileged/privileged.sv:157:    .PrivilegedM, .IllegalIEUFPUInstrM, .IllegalCSRAccessM,
+src/privileged/privileged.sv:177:    .CSRReadValM, .CSRReadValW, .IllegalCSRAccessM, .BigEndianM,
+src/privileged/trigger.sv:39:  output logic              IllegalCSRTrigAccessM,
+src/privileged/trigger.sv:59:          IllegalCSRTrigAccessM = 1'b0;
+src/privileged/trigger.sv:64:          IllegalCSRTrigAccessM = 1'b0;
+src/privileged/trigger.sv:69:          IllegalCSRTrigAccessM = 1'b0;
+src/privileged/trigger.sv:74:          IllegalCSRTrigAccessM = 1'b0;
+src/privileged/trigger.sv:79:          IllegalCSRTrigAccessM = 1'b1;
+src/privileged/trigger.sv:85:      IllegalCSRTrigAccessM = 1'b1;
+
+Finished: 2026-09-18T09:48:27.525280+00:00
+Return code: 0
+Status: PASS

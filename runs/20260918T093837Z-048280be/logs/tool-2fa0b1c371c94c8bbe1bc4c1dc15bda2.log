@@ -1,0 +1,8 @@
+Started: 2026-09-18T09:49:25.740959+00:00
+Command: bash -o pipefail -c 'git grep -rn "module mux3" src/'
+
+src/generic/mux.sv:38:module mux3 #(parameter WIDTH = 8) (
+
+Finished: 2026-09-18T09:49:25.943768+00:00
+Return code: 0
+Status: PASS

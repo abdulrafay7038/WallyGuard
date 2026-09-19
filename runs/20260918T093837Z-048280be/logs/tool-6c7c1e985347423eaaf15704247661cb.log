@@ -1,0 +1,12 @@
+Started: 2026-09-18T09:48:15.045800+00:00
+Command: bash -o pipefail -c 'git grep -rn "IllegalCSRMWriteReadonlyM" src/'
+
+src/privileged/csr.sv:147:  logic                    IllegalCSRMWriteReadonlyM;
+src/privileged/csr.sv:274:    .IllegalCSRMAccessM, .IllegalCSRMWriteReadonlyM,
+src/privileged/csr.sv:399:    InsufficientCSRPrivilegeM) & CSRReadM) | IllegalCSRMWriteReadonlyM;
+src/privileged/csrm.sv:53:  output logic                     IllegalCSRMAccessM, IllegalCSRMWriteReadonlyM,
+src/privileged/csrm.sv:181:  assign IllegalCSRMWriteReadonlyM = UngatedCSRMWriteM & (CSRAdrM == MVENDORID | CSRAdrM == MARCHID | CSRAdrM == MIMPID | CSRAdrM == MHARTID | CSRAdrM == MCONFIGPTR);
+
+Finished: 2026-09-18T09:48:15.122534+00:00
+Return code: 0
+Status: PASS

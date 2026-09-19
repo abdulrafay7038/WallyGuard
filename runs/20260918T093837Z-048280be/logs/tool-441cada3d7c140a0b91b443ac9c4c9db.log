@@ -1,0 +1,30 @@
+Started: 2026-09-18T09:44:09.802850+00:00
+Command: bash -o pipefail -c 'git log --grep="rd+1" --grep="pair" --oneline'
+
+f6de0c256 Repair license URLs mangled by comment-marker conversion
+068ec4693 Stall amocas until its unforwarded operands are ready
+376bf0517 Zacas review cleanups
+b855414fd Add the amocas register-pair forms
+fddf26ae5 Implement Zacas compare-and-swap (single-register forms)
+002994279 Zacas groundwork: paired register file, parameters, assertions
+9d97f39bb Fix PWM pending bits, counter reset, and pwms write; add thorough self-checking PWM test (#1830)
+f07735a17 IFU: clear InstrMisalignedFaultM on FlushM (#1838 item 4)
+80060ce00 feat: Debug tests now generate in parallel using unique tcp/ip ports for each Spike and OpenOCD pair. Works with make --jobs.
+664231c0d Merge branch 'localhistory' Repair to wave file. Created implementations of local history. Part of my Ph.D. research.
+429875e8d Repaired wave file.
+ad3ecd35f Repaired wave file.
+d545a2ec7 Partially working local history repair.
+3a98fb868 Baseline localhistory with speculative repair built.
+b52990e2c Possible workign instruction class prediction repair.
+6c86c0389 Very hacky. But I think gshare is now correct with respect to repair on instruction class miss prediction.
+29d4cd7ff Modified the RAS to correctly repair itself.
+11c610602 Repaired fpga debugger.
+4e1e10a72 Fixed bug with gshare repair from branch class miss prediction.
+d2ab17e1a Repaired linux-wave.do
+3475e142a Repaired wavefile and fixed modelsim warning.
+58d478eb2 restore functionality of being able to turn on waves at a certain instruction count; restore linux-waves.do because wave.do seems to be in disrepair
+1db8d0e59 may have fixed the global branch history predictor. The solution required a completed rewrite and understanding of how the GHR needs to be speculatively updated and repaired.
+
+Finished: 2026-09-18T09:44:10.109222+00:00
+Return code: 0
+Status: PASS

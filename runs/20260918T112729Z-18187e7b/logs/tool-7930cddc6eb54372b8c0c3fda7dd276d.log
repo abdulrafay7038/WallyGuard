@@ -1,0 +1,24 @@
+Started: 2026-09-18T11:28:49.215700+00:00
+Command: bash -o pipefail -c 'jq '"'"'keys'"'"' /home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/attempt.json'
+
+[
+  "active",
+  "base_commit",
+  "baseline_reproducer",
+  "baseline_tree",
+  "iteration",
+  "models",
+  "plan",
+  "run_regression",
+  "scratch",
+  "status",
+  "tag",
+  "test_dir",
+  "test_revisions",
+  "tester",
+  "verification_scope"
+]
+
+Finished: 2026-09-18T11:28:49.410117+00:00
+Return code: 0
+Status: PASS

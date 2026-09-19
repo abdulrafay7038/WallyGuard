@@ -1,0 +1,23 @@
+Started: 2026-09-18T10:57:35.400011+00:00
+Command: bash -o pipefail -c 'sed -n '"'"'221,270p'"'"' /home/rafay/miniconda3/WallyGuard2/orchestration/test_preflight.py'
+
+        else:
+            errors = vector_preflight(contract, tests, root, directory, timeout, env)
+            if errors:
+                raise ValueError('; '.join(errors))
+            control = pair(contract['control'], 'control')
+            if control['status'] != Outcome.MATCH:
+                result = ReproducerResult(Outcome.TEST_INVALID, 'Positive/control test failed').dict()
+                result['control'] = control
+            else:
+                result = pair(contract['test'], 'test')
+                result['control'] = control
+    except (ValueError, KeyError, IndexError, TypeError, OSError) as exc:
+        result = ReproducerResult(Outcome.TEST_INVALID, str(exc)).dict()
+    result.update(steps=steps, log_path=str(log_path), evidence_dir=str(directory), captured=captured)
+    Path(log_path).write_text(json.dumps(result, indent=2) + '\n')
+    return result
+
+Finished: 2026-09-18T10:57:35.471383+00:00
+Return code: 0
+Status: PASS

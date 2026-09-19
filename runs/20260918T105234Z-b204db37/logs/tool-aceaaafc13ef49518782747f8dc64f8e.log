@@ -1,0 +1,34 @@
+Started: 2026-09-18T11:07:39.774978+00:00
+Command: bash -o pipefail -c 'ls -l /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/src/fpu/
+find /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/ -name round.sv
+find /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/ -name fcvt.sv
+find /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/ -name specialcase.sv
+find /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/ -name unpack.sv
+'
+
+total 160
+-rw-rw-r-- 1 rafay rafay  2604 Sep 18 07:24 fclassify.sv
+-rw-rw-r-- 1 rafay rafay  7937 Sep 18 07:24 fcmp.sv
+-rw-rw-r-- 1 rafay rafay 27489 Sep 18 07:24 fctrl.sv
+-rw-rw-r-- 1 rafay rafay 12008 Sep 18 07:24 fcvt.sv
+drwxrwxr-x 2 rafay rafay  4096 Sep 18 07:24 fdivsqrt
+-rw-rw-r-- 1 rafay rafay  3532 Sep 18 07:24 fhazard.sv
+-rw-rw-r-- 1 rafay rafay  8451 Sep 18 07:24 fli.sv
+drwxrwxr-x 2 rafay rafay  4096 Sep 18 07:24 fma
+-rw-rw-r-- 1 rafay rafay  2695 Sep 18 07:24 fmtparams.sv
+-rw-rw-r-- 1 rafay rafay 28458 Sep 18 07:24 fpu.sv
+-rw-rw-r-- 1 rafay rafay  1972 Sep 18 07:24 fregfile.sv
+-rw-rw-r-- 1 rafay rafay  8733 Sep 18 07:24 fround.sv
+-rw-rw-r-- 1 rafay rafay  3088 Sep 18 07:24 fsgninj.sv
+-rw-rw-r-- 1 rafay rafay  3853 Sep 18 07:24 packoutput.sv
+drwxrwxr-x 2 rafay rafay  4096 Sep 18 07:24 postproc
+-rw-rw-r-- 1 rafay rafay  4484 Sep 18 07:24 unpack.sv
+-rw-rw-r-- 1 rafay rafay 13803 Sep 18 07:24 unpackinput.sv
+/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/src/fpu/postproc/round.sv
+/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/src/fpu/fcvt.sv
+/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/src/fpu/postproc/specialcase.sv
+/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/src/fpu/unpack.sv
+
+Finished: 2026-09-18T11:07:41.606378+00:00
+Return code: 0
+Status: PASS

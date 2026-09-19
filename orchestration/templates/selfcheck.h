@@ -1,0 +1,45 @@
+// Native CVW/Spike self-check record. RV64 starter; adapt widths for RV32.
+// WG_CHECK_EQ index, actual-register, expected-register (clobbers a0-a3).
+.macro WG_CHECK_EQ index, actual, expected
+    mv a3, \actual
+    mv a2, \expected
+    li a0, \index
+    li a1, 0
+    bne a3, a2, wg_fail
+.endm
+
+.macro WG_FINISH
+wg_pass:
+    la t0, selfcheck_record
+    li t1, 1
+    sd t1, 0(t0)
+    j wg_complete
+wg_fail:
+    la t0, selfcheck_record
+    li t1, 2
+    sd t1, 0(t0)
+    sd a0, 8(t0)
+    sd a1, 16(t0)
+    sd a2, 24(t0)
+    sd a3, 32(t0)
+    slli t1, a0, 1
+    ori t1, t1, 1
+wg_complete:
+    fence rw, rw
+    la t0, tohost
+    sw t1, 0(t0)
+wg_halt:
+    j wg_halt
+
+.section .data
+.balign 64
+.globl begin_signature, end_signature, selfcheck_record
+begin_signature:
+selfcheck_record:
+    .zero 40
+end_signature:
+.balign 64
+.globl tohost, fromhost
+tohost: .dword 0
+fromhost: .dword 0
+.endm

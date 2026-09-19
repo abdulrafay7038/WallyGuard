@@ -1,0 +1,12 @@
+Started: 2026-09-18T10:51:09.222663+00:00
+Command: bash -o pipefail -c 'ls -l /home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/tests'
+
+total 16
+-rw-rw-r-- 1 rafay rafay 1480 Sep 18 09:59 test_pmp_mmode.S
+-rw-rw-r-- 1 rafay rafay 1353 Sep 18 10:47 test_pmp_mmode_control.S
+-rw-rw-r-- 1 rafay rafay 1378 Sep 18 10:47 test_pmp_mmode_load_cross.S
+-rw-rw-r-- 1 rafay rafay 1400 Sep 18 10:47 test_pmp_mmode_store_cross.S
+
+Finished: 2026-09-18T10:51:09.319730+00:00
+Return code: 0
+Status: PASS

@@ -1,0 +1,413 @@
+Started: 2026-09-18T09:44:12.775420+00:00
+Command: bash -o pipefail -c 'git show b855414fd'
+
+commit b855414fd65b8b7040d2047aaaa5f8cda4e039f4
+Author: David Harris <David_Harris@hmc.edu>
+Date:   Wed Sep 16 06:15:24 2026 -0700
+
+    Add the amocas register-pair forms
+    
+    amocas.d on RV32 and amocas.q on RV64 name even register pairs and operate
+    on twice XLEN bits. Both pairs come off the same register file pair output
+    on successive cycles: the borrowed Decode cycle reads the rd pair (the
+    compare value) and the normal cycle reads the rs2 pair (the swap value).
+    
+    The wide compare and select happen in the LSU, where the read data is
+    already LLEN wide, and feed the same write path quad floats use. The loaded
+    high half writes rd+1 through the register file pair write port. Encodings
+    with an odd rd or rs2 are reserved and trap.
+    
+    Two bugs found while testing:
+      - The pair flag keyed on funct3 alone, but funct3 100 is also lbu, so
+        ordinary byte loads were treated as pair operations and hung the core.
+        It is now qualified by the opcode.
+      - The captured compare value took the pair's low half, which is the wrong
+        register when a scalar amocas has an odd rd. The low half now comes
+        from the selected read port.
+    
+    The RVVI tracer reports only one register write per instruction, so a pair
+    write left rd+1 invisible and lockstep flagged it even though the
+    architectural state was right. It now reports both.
+    
+    Verified on rv64gc and rv32gc: every amocas form passes its arch test and
+    runs clean in ImperasDV lockstep. Lint clean on all configs, and the
+    regression shows no new failures.
+    
+    Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
+
+diff --git a/config/shared/config-shared.vh b/config/shared/config-shared.vh
+index ceb0f2d1f..ea6885f9b 100644
+--- a/config/shared/config-shared.vh
++++ b/config/shared/config-shared.vh
+@@ -117,8 +117,9 @@ localparam INTDIVb        = INTFPDUR*RK - LOGR;
+ // largest length in IEU/FPU
+ localparam BASECVTLEN = `max(XLEN, NF); // convert length excluding Zfa fcvtmod.w.d
+ localparam CVTLEN = (ZFA_SUPPORTED & D_SUPPORTED) ? `max(BASECVTLEN, 32'd84) : BASECVTLEN; // fcvtmod.w.d needs at least 32+52 because a double with 52 fractional bits might be into upper bits of 32 bit word
+-// amocas.q reads and writes 128 bits, so it needs the same wide load/store path as quad floats
+-localparam CASLEN = (ZACAS_SUPPORTED & (XLEN == 64)) ? 128 : XLEN;
++// The amocas pair forms (amocas.d on RV32, amocas.q on RV64) read and write 2*XLEN bits, so they
++// need the same wide load/store path that quad floats use
++localparam CASLEN = ZACAS_SUPPORTED ? XLEN*2 : XLEN;
+ localparam LLEN = `max(`max($unsigned(FLEN), $unsigned(XLEN)), $unsigned(CASLEN));
+ localparam LOGCVTLEN = $unsigned($clog2(CVTLEN+1));
+ 
+diff --git a/src/ieu/controller.sv b/src/ieu/controller.sv
+index cea4b461c..1a97e366e 100644
+--- a/src/ieu/controller.sv
++++ b/src/ieu/controller.sv
+@@ -78,6 +78,8 @@ module controller import cvw::*;  #(parameter cvw_t P) (
+   output logic        CSRReadM, CSRWriteM, PrivilegedM, // CSR read, write, or privileged instruction
+   output logic [1:0]  AtomicM,                 // Atomic (AMO) instruction
+   output logic        AMOCASM,                 // amocas: compare the loaded value before swapping
++  output logic        AMOCASPairM,             // amocas on a register pair, twice XLEN wide
++  output logic        AMOCASPairW,             // pair amocas in Writeback, writes rd and rd+1
+   output logic        CASStallD,               // amocas is reading its compare operand through the rs2 port
+   output logic [2:0]  Funct3M,                 // Instruction's funct3 field
+   output logic        InvalidateICacheM, FlushDCacheM, // Invalidate I$, flush D$
+@@ -149,6 +151,9 @@ module controller import cvw::*;  #(parameter cvw_t P) (
+   logic        CMOFunctD;                      // Detect CMO instruction
+   logic        AFunctD, AMOFunctD;             // Detect atomic instructions
+   logic        AMOCASFunctD;                   // Detect a legal amocas encoding
++  logic        AMOCASWidthD;                   // amocas width is supported
++  logic        AMOCASPairWidthD;               // funct3 selects a pair width (not yet qualified by opcode)
++  logic        AMOCASPairD, AMOCASPairE;       // amocas names a register pair (twice XLEN wide)
+   logic        AMOCASD, AMOCASE;               // amocas in Decode and Execute
+   logic        CASCapturedD;                   // amocas compare operand has been captured
+   logic        RWFunctD, MWFunctD;             // detect RW/MW instructions
+@@ -204,11 +209,15 @@ module controller import cvw::*;  #(parameter cvw_t P) (
+                                (P.ZICBOM_SUPPORTED & (((InstrD[31:20] == 12'd0) & (ENVCFG_CBE[1:0] == 2'b01 | ENVCFG_CBE[1:0] == 2'b11)) |
+                                                       ((InstrD[31:20] == 12'd1 | InstrD[31:20] == 12'd2) & ENVCFG_CBE[2]))));
+     assign AFunctD          = (Funct3D == 3'b010) | (P.XLEN == 64 & Funct3D == 3'b011) | AMOCASFunctD;
+-    // amocas is funct5 00101.  Word always, doubleword when XLEN is 64, byte and halfword with Zabha.
+-    // The pair forms (amocas.d on RV32, amocas.q) are not implemented, so they remain reserved.
+-    assign AMOCASFunctD     = P.ZACAS_SUPPORTED & (InstrD[31:27] == 5'b00101) &
+-                              ((Funct3D == 3'b010) | ((Funct3D == 3'b011) & (P.XLEN == 64)) |
+-                               (P.ZABHA_SUPPORTED & ((Funct3D == 3'b000) | (Funct3D == 3'b001))));
++    // amocas is funct5 00101.  Word always, doubleword, byte and halfword with Zabha, and quadword
++    // on RV64.  The forms twice XLEN wide (amocas.d on RV32, amocas.q on RV64) name register pairs;
++    // encodings with an odd rd or rs2 are reserved.
++    assign AMOCASPairWidthD = P.ZACAS_SUPPORTED & (Funct3D == (P.XLEN == 64 ? 3'b100 : 3'b011));
++    assign AMOCASWidthD     = (Funct3D == 3'b010) | ((Funct3D == 3'b011) & (P.XLEN == 64)) |
++                              (P.ZABHA_SUPPORTED & ((Funct3D == 3'b000) | (Funct3D == 3'b001))) |
++                              AMOCASPairWidthD;
++    assign AMOCASFunctD     = P.ZACAS_SUPPORTED & (InstrD[31:27] == 5'b00101) & AMOCASWidthD &
++                              ~(AMOCASPairWidthD & (RdD[0] | Rs2D[0])); // odd register pairs are reserved
+     assign AMOFunctD        = (InstrD[31:27] == 5'b00001) |
+                               (InstrD[31:27] == 5'b00000) |
+                               (InstrD[31:27] == 5'b00100) |
+@@ -241,6 +250,8 @@ module controller import cvw::*;  #(parameter cvw_t P) (
+     assign CMOFunctD = 1'b1; // don't bother to check fields for CMO instructions
+     assign AFunctD = 1'b1; // don't bother to check fields for atomics
+     assign AMOCASFunctD = P.ZACAS_SUPPORTED & (InstrD[31:27] == 5'b00101); // don't bother to check width
++    assign AMOCASPairWidthD = P.ZACAS_SUPPORTED & (Funct3D == (P.XLEN == 64 ? 3'b100 : 3'b011));
++    assign AMOCASWidthD = 1'b1;
+     assign AMOFunctD = 1'b1; // don't bother to check Funct7 for AMO operations
+     assign RWFunctD = 1'b1; // don't bother to check fields for RW instructions
+     assign MWFunctD = 1'b1; // don't bother to check fields for MW instructions
+@@ -439,6 +450,7 @@ module controller import cvw::*;  #(parameter cvw_t P) (
+   // compare value.  Rather than add a third read port, stall one cycle in Decode and borrow the
+   // rs2 port to read rd, capturing the result in the datapath.
+   assign AMOCASD = (OpD == 7'b0101111) & AMOCASFunctD;
++  assign AMOCASPairD = AMOCASD & AMOCASPairWidthD; // qualified: funct3 alone also names lbu
+   assign CASStallD = AMOCASD & ~CASCapturedD;
+   always_ff @(posedge clk)
+     if (reset | FlushD)  CASCapturedD <= 1'b0;
+@@ -449,9 +461,9 @@ module controller import cvw::*;  #(parameter cvw_t P) (
+   flopenrc #(1)  controlregD(clk, reset, FlushD, ~StallD, 1'b1, InstrValidD);
+ 
+   // Execute stage pipeline control register and logic
+-  flopenrc #(46) controlregE(clk, reset, FlushE, ~StallE,
+-                           {ALUSelectD, RegWriteD, ResultSrcD, MemRWD, JumpD, BranchD, ALUSrcAD, ALUSrcBD, ALUResultSrcD, CSRReadD, CSRWriteD, PrivilegedD, Funct3D, Funct7D, W64D, BUW64D, SubArithD, MDUD, AtomicD, InvalidateICacheD, FlushDCacheD, FenceD, CMOpD, IFUPrefetchD, LSUPrefetchD, CZeroD, InstrValidD, AMOCASD},
+-                           {ALUSelectE, IEURegWriteE, ResultSrcE, MemRWE, JumpE, BranchE, ALUSrcAE, ALUSrcBE, ALUResultSrcE, CSRReadE, CSRWriteE, PrivilegedE, Funct3E, Funct7E, W64E, UW64E, SubArithE, MDUE, AtomicE, InvalidateICacheE, FlushDCacheE, FenceE, CMOpE, IFUPrefetchE, LSUPrefetchE, CZeroE, InstrValidE, AMOCASE});
++  flopenrc #(47) controlregE(clk, reset, FlushE, ~StallE,
++                           {ALUSelectD, RegWriteD, ResultSrcD, MemRWD, JumpD, BranchD, ALUSrcAD, ALUSrcBD, ALUResultSrcD, CSRReadD, CSRWriteD, PrivilegedD, Funct3D, Funct7D, W64D, BUW64D, SubArithD, MDUD, AtomicD, InvalidateICacheD, FlushDCacheD, FenceD, CMOpD, IFUPrefetchD, LSUPrefetchD, CZeroD, InstrValidD, AMOCASD, AMOCASPairD},
++                           {ALUSelectE, IEURegWriteE, ResultSrcE, MemRWE, JumpE, BranchE, ALUSrcAE, ALUSrcBE, ALUResultSrcE, CSRReadE, CSRWriteE, PrivilegedE, Funct3E, Funct7E, W64E, UW64E, SubArithE, MDUE, AtomicE, InvalidateICacheE, FlushDCacheE, FenceE, CMOpE, IFUPrefetchE, LSUPrefetchE, CZeroE, InstrValidE, AMOCASE, AMOCASPairE});
+   flopenrc #(5)  Rs1EReg(clk, reset, FlushE, ~StallE, Rs1D, Rs1E);
+   flopenrc #(5)  Rs2EReg(clk, reset, FlushE, ~StallE, Rs2D, Rs2E);
+   flopenrc #(5)  RdEReg(clk, reset, FlushE, ~StallE, RdD, RdE);
+@@ -473,15 +485,15 @@ module controller import cvw::*;  #(parameter cvw_t P) (
+   assign IntDivE = MDUE & Funct3E[2]; // Integer division operation
+ 
+   // Memory stage pipeline control register
+-  flopenrc #(26) controlregM(clk, reset, FlushM, ~StallM,
+-                         {RegWriteE, ResultSrcE, MemRWE, CSRReadE, CSRWriteE, PrivilegedE, Funct3E, FWriteIntE, AtomicE, InvalidateICacheE, FlushDCacheE, FenceE, InstrValidE, IntDivE, CMOpE, LSUPrefetchE, AMOCASE},
+-                         {RegWriteM, ResultSrcM, MemRWM, CSRReadM, CSRWriteM, PrivilegedM, Funct3M, FWriteIntM, AtomicM, InvalidateICacheM, FlushDCacheM, FenceM, InstrValidM, IntDivM, CMOpM, LSUPrefetchM, AMOCASM});
++  flopenrc #(27) controlregM(clk, reset, FlushM, ~StallM,
++                         {RegWriteE, ResultSrcE, MemRWE, CSRReadE, CSRWriteE, PrivilegedE, Funct3E, FWriteIntE, AtomicE, InvalidateICacheE, FlushDCacheE, FenceE, InstrValidE, IntDivE, CMOpE, LSUPrefetchE, AMOCASE, AMOCASPairE},
++                         {RegWriteM, ResultSrcM, MemRWM, CSRReadM, CSRWriteM, PrivilegedM, Funct3M, FWriteIntM, AtomicM, InvalidateICacheM, FlushDCacheM, FenceM, InstrValidM, IntDivM, CMOpM, LSUPrefetchM, AMOCASM, AMOCASPairM});
+   flopenrc #(5)  RdMReg(clk, reset, FlushM, ~StallM, RdE, RdM);
+ 
+   // Writeback stage pipeline control register
+-  flopenrc #(5) controlregW(clk, reset, FlushW, ~StallW,
+-                         {RegWriteM, ResultSrcM, IntDivM},
+-                         {RegWriteW, ResultSrcW, IntDivW});
++  flopenrc #(6) controlregW(clk, reset, FlushW, ~StallW,
++                         {RegWriteM, ResultSrcM, IntDivM, AMOCASPairM},
++                         {RegWriteW, ResultSrcW, IntDivW, AMOCASPairW});
+   flopenrc #(5) RdWReg(clk, reset, FlushW, ~StallW, RdM, RdW);
+ 
+   // Flush F, D, and E stages on a CSR write or Fence.I or SFence.VMA
+diff --git a/src/ieu/datapath.sv b/src/ieu/datapath.sv
+index b8f29c171..4d98ab73b 100644
+--- a/src/ieu/datapath.sv
++++ b/src/ieu/datapath.sv
+@@ -35,7 +35,9 @@ module datapath import cvw::*;  #(parameter cvw_t P) (
+   input  logic [31:0]       InstrD,                  // Instruction in Decode stage
+   input  logic [4:0]        Rs1D, Rs2D, Rs2E,             // Source registers
+   input  logic              CASStallD,               // amocas is borrowing the rs2 port to read its compare operand
+-  output logic [P.XLEN-1:0] CompareDataM,            // amocas compare operand, read from rd
++  input  logic              AMOCASPairW,             // pair amocas writes rd and rd+1
++  output logic [P.XLEN*2-1:0] ComparePairM,          // amocas compare operand (pair forms use both halves)
++  output logic [P.XLEN*2-1:0] SwapPairM,             // amocas swap value (pair forms use both halves)
+   // Execute stage signals
+   input  logic [P.XLEN-1:0] PCE,                     // PC in Execute stage
+   input  logic [P.XLEN-1:0] PCLinkE,                 // PC + 4 (of instruction in Execute stage)
+@@ -71,6 +73,7 @@ module datapath import cvw::*;  #(parameter cvw_t P) (
+   input  logic [2:0]        ResultSrcW,              // Select source of result to write back to register file
+   input  logic [P.XLEN-1:0] FCvtIntResW,             // FPU convert fp to integer result
+   input  logic [P.XLEN-1:0] ReadDataW,               // Read data from LSU
++  input  logic [P.XLEN-1:0] ReadDataHighW,           // High half of a loaded pair, written to rd+1
+   input  logic [P.XLEN-1:0] CSRReadValW,             // CSR read result
+   input  logic [P.XLEN-1:0] MDUResultW,              // MDU (Multiply/divide unit) result
+   input  logic [P.XLEN-1:0] FIntDivResultW,          // FPU's integer divide result
+@@ -89,7 +92,8 @@ module datapath import cvw::*;  #(parameter cvw_t P) (
+   logic [P.XLEN-1:0] ALUResultE, AltResultE, IEUResultE; // ALU result, Alternative result (ImmExtE or PC+4), result of execution stage
+   logic [P.XLEN*2-1:0] R2PD;                        // Zacas register pair read through the rs2 port
+   logic [4:0]          A2D;                         // rs2 port address, borrowed by amocas to read rd
+-  logic [P.XLEN-1:0]   CompareDataD, CompareDataE;  // amocas compare operand on its way to the LSU
++  logic [P.XLEN*2-1:0] ComparePairD, ComparePairE;   // amocas compare operand on its way to the LSU
++  logic [P.XLEN*2-1:0] SwapPairD, SwapPairE;         // amocas swap value on its way to the LSU
+   logic [P.XLEN-1:0] IEUAdrRawE;                     // ALU sum before clearing bit 0 of a jump target
+   // Memory stage signals
+   logic [P.XLEN-1:0] IEUResultM;                     // Result from execution stage
+@@ -104,12 +108,19 @@ module datapath import cvw::*;  #(parameter cvw_t P) (
+   // Decode stage
+   // amocas borrows the rs2 read port for one cycle to read its compare operand from rd
+   assign A2D = CASStallD ? InstrD[11:7] : Rs2D;
+-  regfile #(P.XLEN, P.E_SUPPORTED, P.ZACAS_SUPPORTED) regf(clk, reset, RegWriteW, 1'b0,
+-    Rs1D, A2D, RdW, ResultW, '0, R1D, R2D, R2PD);
+-  // Capture the compare operand during the borrowed cycle and carry it to the Memory stage
+-  flopenr #(P.XLEN) CompareDataDReg(clk, reset, CASStallD, R2D, CompareDataD);
+-  flopenrc #(P.XLEN) CompareDataEReg(clk, reset, FlushE, ~StallE, CompareDataD, CompareDataE);
+-  flopenrc #(P.XLEN) CompareDataMReg(clk, reset, FlushM, ~StallM, CompareDataE, CompareDataM);
++  // A pair amocas writes both halves: rd takes the low word of the loaded pair, rd+1 the high word
++  regfile #(P.XLEN, P.E_SUPPORTED, P.ZACAS_SUPPORTED) regf(clk, reset, RegWriteW, RegWriteW & AMOCASPairW,
++    Rs1D, A2D, RdW, ResultW, ReadDataHighW, R1D, R2D, R2PD);
++  // The borrowed cycle reads the rd pair (the compare value); the normal cycle reads the rs2 pair
++  // (the swap value).  Both come off the same pair output, so carry each to the Memory stage.
++  assign SwapPairD = R2PD;
++  // The low half must be X(rd) itself, which R2D selects; the pair forms have an even rd so the
++  // two agree there, while a scalar amocas with an odd rd needs the selected half.
++  flopenr #(P.XLEN*2) ComparePairDReg(clk, reset, CASStallD, {R2PD[P.XLEN*2-1:P.XLEN], R2D}, ComparePairD);
++  flopenrc #(P.XLEN*2) ComparePairEReg(clk, reset, FlushE, ~StallE, ComparePairD, ComparePairE);
++  flopenrc #(P.XLEN*2) ComparePairMReg(clk, reset, FlushM, ~StallM, ComparePairE, ComparePairM);
++  flopenrc #(P.XLEN*2) SwapPairEReg(clk, reset, FlushE, ~StallE, SwapPairD, SwapPairE);
++  flopenrc #(P.XLEN*2) SwapPairMReg(clk, reset, FlushM, ~StallM, SwapPairE, SwapPairM);
+   extend #(P)        ext(.InstrD(InstrD[31:7]), .ImmSrcD, .ImmExtD);
+ 
+   // Execute stage pipeline register and logic
+diff --git a/src/ieu/ieu.sv b/src/ieu/ieu.sv
+index 66046e5a8..fe954ae24 100644
+--- a/src/ieu/ieu.sv
++++ b/src/ieu/ieu.sv
+@@ -71,12 +71,15 @@ module ieu import cvw::*;  #(parameter cvw_t P) (
+   input  logic              FCvtIntW,                        // FPU converts float to int
+   output logic [4:0]        RdW,                             // Destination register
+   input  logic [P.XLEN-1:0] ReadDataW,                       // LSU's read data
++  input  logic [P.XLEN-1:0] ReadDataHighW,                   // High half of a loaded pair
+   // Hazard unit signals
+   input  logic              StallD, StallE, StallM, StallW,  // Stall signals from hazard unit
+   input  logic              FlushD, FlushE, FlushM, FlushW,  // Flush signals
+   output logic              StructuralStallD,                // IEU detects structural hazard in Decode stage
+-  output logic [P.XLEN-1:0] CompareDataM,                    // amocas compare operand for the LSU
++  output logic [P.XLEN*2-1:0] ComparePairM,                  // amocas compare operand for the LSU
++  output logic [P.XLEN*2-1:0] SwapPairM,                     // amocas swap value for the LSU
+   output logic              AMOCASM,                         // amocas instruction
++  output logic              AMOCASPairM,                     // amocas on a register pair
+   output logic              LoadStallD,                      // Structural stalls for load, sent to performance counters
+   output logic              StoreStallD,                     // load after store hazard
+   output logic              CSRReadM, CSRWriteM, PrivilegedM,// CSR read, CSR write, is privileged instruction
+@@ -108,11 +111,12 @@ module ieu import cvw::*;  #(parameter cvw_t P) (
+   logic       BMUActiveE;                                    // Bit manipulation instruction being executed
+   logic [1:0] CZeroE;                                        // {czero.nez, czero.eqz} instructions active
+   logic       CASStallD;                                     // amocas borrows the rs2 port for a cycle
++  logic       AMOCASPairW;                                   // pair amocas in Writeback
+ 
+   controller #(P) c(
+     .clk, .reset, .StallD, .FlushD, .InstrD, .STATUS_FS, .ENVCFG_CBE, .ImmSrcD,
+     .IllegalIEUFPUInstrD, .IllegalBaseInstrD,
+-    .StructuralStallD, .LoadStallD, .StoreStallD, .Rs1D, .Rs2D,  .Rs2E, .CASStallD, .AMOCASM,
++    .StructuralStallD, .LoadStallD, .StoreStallD, .Rs1D, .Rs2D,  .Rs2E, .CASStallD, .AMOCASM, .AMOCASPairM, .AMOCASPairW,
+     .StallE, .FlushE, .FlagsE, .FWriteIntE,
+     .PCSrcE, .ALUSrcAE, .ALUSrcBE, .ALUResultSrcE, .ALUSelectE,
+     .Funct3E, .Funct7E, .IntDivE, .W64E, .UW64E, .SubArithE, .BranchD, .BranchE, .JumpD, .JumpE,
+@@ -124,10 +128,10 @@ module ieu import cvw::*;  #(parameter cvw_t P) (
+     .RdW, .RdE, .RdM);
+ 
+   datapath #(P) dp(
+-    .clk, .reset, .ImmSrcD, .InstrD, .Rs1D, .Rs2D, .Rs2E, .CASStallD, .CompareDataM, .StallE, .FlushE, .ForwardAE, .ForwardBE, .W64E, .UW64E, .SubArithE,
++    .clk, .reset, .ImmSrcD, .InstrD, .Rs1D, .Rs2D, .Rs2E, .CASStallD, .AMOCASPairW, .ComparePairM, .SwapPairM, .StallE, .FlushE, .ForwardAE, .ForwardBE, .W64E, .UW64E, .SubArithE,
+     .Funct3E, .Funct7E, .ALUSrcAE, .ALUSrcBE, .ALUResultSrcE, .ALUSelectE, .JumpE, .BranchSignedE,
+     .PCE, .PCLinkE, .FlagsE, .IEUAdrE, .ForwardedSrcAE, .ForwardedSrcBE, .BSelectE, .ZBBSelectE, .BALUControlE, .BMUActiveE, .CZeroE,
+     .StallM, .FlushM, .FWriteIntM, .FIntResM, .SrcAM, .WriteDataM, .FCvtIntW,
+-    .StallW, .FlushW, .RegWriteW, .IntDivW, .SquashSCW, .ResultSrcW, .ReadDataW, .FCvtIntResW,
++    .StallW, .FlushW, .RegWriteW, .IntDivW, .SquashSCW, .ResultSrcW, .ReadDataW, .ReadDataHighW, .FCvtIntResW,
+     .CSRReadValW, .MDUResultW, .FIntDivResultW, .RdW);
+ endmodule
+diff --git a/src/lsu/lsu.sv b/src/lsu/lsu.sv
+index 293ac6646..fbb3a61b3 100644
+--- a/src/lsu/lsu.sv
++++ b/src/lsu/lsu.sv
+@@ -38,8 +38,10 @@ module lsu import cvw::*;  #(parameter cvw_t P) (
+   input  logic [1:0]              MemRWE,                               // Read/Write control
+   input  logic [1:0]              MemRWM,                               // Read/Write control
+   input  logic [2:0]              Funct3M,                              // Size of memory operation
+-  input  logic [P.XLEN-1:0]       CompareDataM,                         // amocas compare operand
++  input  logic [P.XLEN*2-1:0]     ComparePairM,                         // amocas compare operand
++  input  logic [P.XLEN*2-1:0]     SwapPairM,                            // amocas swap value
+   input  logic                    AMOCASM,                              // amocas instruction
++  input  logic                    AMOCASPairM,                          // amocas on a register pair
+   input  logic [6:0]              Funct7M,                              // Atomic memory operation function
+   input  logic [1:0]              AtomicM,                              // Atomic memory operation
+   input  logic                    FlushDCacheM,                         // Flush D cache to next level of memory
+@@ -400,7 +402,7 @@ module lsu import cvw::*;  #(parameter cvw_t P) (
+   /////////////////////////////////////////////////////////////////////////////////////////////
+ 
+   if (P.ZAAMO_SUPPORTED | P.ZALRSC_SUPPORTED) begin : atomic
+-    atomic #(P) atomic(.clk, .reset, .StallW, .ReadDataM(ReadDataM[P.XLEN-1:0]), .IHWriteDataM, .PAdrM, .CompareDataM, .AMOCASM,
++    atomic #(P) atomic(.clk, .reset, .StallW, .ReadDataM(ReadDataM[P.XLEN-1:0]), .IHWriteDataM, .PAdrM, .CompareDataM(ComparePairM[P.XLEN-1:0]), .AMOCASM,
+       .LSUFunct7M, .LSUFunct3M, .LSUAtomicM, .PreLSURWM, .LSUFlushW,
+       .IMAWriteDataM, .SquashSCW, .LSURWM);
+   end else begin : lrsc
+@@ -409,18 +411,31 @@ module lsu import cvw::*;  #(parameter cvw_t P) (
+     assign IMAWriteDataM = IHWriteDataM;
+   end
+ 
+-  // Zero extend both sources to LLEN; LLEN can exceed both XLEN and FLEN when amocas.q needs a wide path
++  // Zero extend both sources to LLEN; LLEN can exceed both XLEN and FLEN when an amocas pair needs
++  // a wide path.  A pair amocas compares and selects across both halves at once.
++  logic [P.LLEN-1:0] IMAFWriteDataPreM;
+   if (P.F_SUPPORTED)
+     mux2 #(P.LLEN) datamux({{(P.LLEN-P.XLEN){1'b0}}, IMAWriteDataM},
+-                           {{(P.LLEN-P.FLEN){1'b0}}, FWriteDataM}, FpLoadStoreM, IMAFWriteDataM);
+-  else assign IMAFWriteDataM = {{(P.LLEN-P.XLEN){1'b0}}, IMAWriteDataM};
++                           {{(P.LLEN-P.FLEN){1'b0}}, FWriteDataM}, FpLoadStoreM, IMAFWriteDataPreM);
++  else assign IMAFWriteDataPreM = {{(P.LLEN-P.XLEN){1'b0}}, IMAWriteDataM};
++
++  if (P.ZACAS_SUPPORTED) begin : caspair
++    logic CASPairMatchM;
++    logic [P.XLEN*2-1:0] CASPairResultM;
++
++    assign CASPairMatchM  = (ReadDataM[P.XLEN*2-1:0] == ComparePairM);
++    assign CASPairResultM = CASPairMatchM ? SwapPairM : ReadDataM[P.XLEN*2-1:0];
++    assign IMAFWriteDataM = AMOCASPairM ? {{(P.LLEN-P.XLEN*2){1'b0}}, CASPairResultM} : IMAFWriteDataPreM;
++  end else begin : caspair
++    assign IMAFWriteDataM = IMAFWriteDataPreM;
++  end
+ 
+   /////////////////////////////////////////////////////////////////////////////////////////////
+   // Subword Accesses
+   /////////////////////////////////////////////////////////////////////////////////////////////
+ 
+   subwordread #(P) subwordread(.ReadDataWordMuxM(LittleEndianReadDataWordM), .PAdrM(PAdrM[3:0]), .BigEndianM,
+-    .FpLoadStoreM, .Funct3M(LSUFunct3M), .ReadDataM);
++    .FpLoadStoreM, .WideAccessM(FpLoadStoreM | AMOCASPairM), .Funct3M(LSUFunct3M), .ReadDataM);
+   subwordwrite #(P.LLEN) subwordwrite(.LSUFunct3M, .IMAFWriteDataM, .LittleEndianWriteDataM);
+ 
+   // Compute byte masks
+diff --git a/src/lsu/subwordread.sv b/src/lsu/subwordread.sv
+index 86b572da3..cd2347af3 100644
+--- a/src/lsu/subwordread.sv
++++ b/src/lsu/subwordread.sv
+@@ -33,6 +33,7 @@ module subwordread import cvw::*;  #(parameter cvw_t P) (
+    input logic [3:0]         PAdrM,
+    input logic [2:0]         Funct3M,
+    input logic               FpLoadStoreM,
++   input logic               WideAccessM,   // access uses the full LLEN width (flq or a pair amocas)
+    input logic               BigEndianM,
+    output logic [P.LLEN-1:0] ReadDataM
+ );
+@@ -66,7 +67,7 @@ module subwordread import cvw::*;  #(parameter cvw_t P) (
+       3'b010:  ReadDataM = {{P.LLEN-32{WordM[31]|FpLoadStoreM}}, WordM[31:0]};                                  // lw/flw
+       3'b011:  if (P.LLEN >= 64) ReadDataM = {{P.LLEN-64{DblWordM[63]|FpLoadStoreM}}, DblWordM[63:0]};          // ld/fld
+                else ReadDataM = ReadDataWordMuxM;                                                               // shouldn't happen
+-      3'b100:  if (P.LLEN == 128) ReadDataM = FpLoadStoreM ? ReadDataWordMuxM : {{P.LLEN-8{1'b0}}, ByteM[7:0]}; // lbu/flq
++      3'b100:  if (P.LLEN == 128) ReadDataM = WideAccessM ? ReadDataWordMuxM : {{P.LLEN-8{1'b0}}, ByteM[7:0]}; // lbu/flq/amocas.q
+                else ReadDataM = {{P.LLEN-8{1'b0}}, ByteM[7:0]};                                                 // lbu
+       3'b101:  ReadDataM = {{P.LLEN-16{1'b0}}, HalfwordM[15:0]};                                                // lhu
+       3'b110:  ReadDataM = {{P.LLEN-32{1'b0}}, WordM[31:0]};                                                    // lwu
+diff --git a/src/wally/wallypipelinedcore.sv b/src/wally/wallypipelinedcore.sv
+index 592139fc1..0de2d3f7c 100644
+--- a/src/wally/wallypipelinedcore.sv
++++ b/src/wally/wallypipelinedcore.sv
+@@ -78,8 +78,9 @@ module wallypipelinedcore import cvw::*; #(parameter cvw_t P) (
+   logic                          CSRWriteFenceM;
+   logic                          DivBusyE;
+   logic                          StructuralStallD;
+-  logic [P.XLEN-1:0]             CompareDataM;                  // amocas compare operand
+-  logic                          AMOCASM;                       // amocas instruction
++  logic [P.XLEN*2-1:0]           ComparePairM, SwapPairM;       // amocas compare and swap operands
++  logic [P.XLEN-1:0]             ReadDataHighW;                 // high half of a loaded pair, for rd+1
++  logic                          AMOCASM, AMOCASPairM;          // amocas, and the register-pair forms
+   logic                          LoadStallD;
+   logic                          StoreStallD;
+   logic                          SquashSCW;
+@@ -216,17 +217,21 @@ module wallypipelinedcore import cvw::*; #(parameter cvw_t P) (
+      .RdE, .RdM, .FIntResM, .FlushDCacheM,
+      .BranchD, .BranchE, .JumpD, .JumpE,
+      // Writeback stage
+-     .CSRReadValW, .MDUResultW, .FIntDivResultW, .RdW, .ReadDataW(ReadDataW[P.XLEN-1:0]),
++     .CSRReadValW, .MDUResultW, .FIntDivResultW, .RdW, .ReadDataW(ReadDataW[P.XLEN-1:0]), .ReadDataHighW,
+      .InstrValidM, .InstrValidE, .InstrValidD, .FCvtIntResW, .FCvtIntW,
+      // hazards
+      .StallD, .StallE, .StallM, .StallW, .FlushD, .FlushE, .FlushM, .FlushW,
+-     .StructuralStallD, .LoadStallD, .StoreStallD, .PCSrcE, .CompareDataM, .AMOCASM,
++     .StructuralStallD, .LoadStallD, .StoreStallD, .PCSrcE, .ComparePairM, .SwapPairM, .AMOCASM, .AMOCASPairM,
+      .CSRReadM, .CSRWriteM, .PrivilegedM, .CSRWriteFenceM, .InvalidateICacheM);
+ 
++  // A pair amocas loads 2*XLEN bits; the high half goes to rd+1
++  if (P.LLEN >= P.XLEN*2) assign ReadDataHighW = ReadDataW[P.XLEN*2-1:P.XLEN];
++  else                    assign ReadDataHighW = '0;
++
+   lsu #(P) lsu(
+     .clk, .reset, .StallM, .FlushM, .StallW, .FlushW,
+     // CPU interface
+-    .MemRWE, .MemRWM, .Funct3M, .Funct7M(InstrM[31:25]), .AtomicM, .CompareDataM, .AMOCASM,
++    .MemRWE, .MemRWM, .Funct3M, .Funct7M(InstrM[31:25]), .AtomicM, .ComparePairM, .SwapPairM, .AMOCASM, .AMOCASPairM,
+     .CommittedM, .DCacheMiss, .DCacheAccess, .SquashSCW,
+     .FpLoadStoreM, .FWriteDataM, .IEUAdrE, .IEUAdrM, .WriteDataM,
+     .ReadDataW, .FlushDCacheM, .CMOpM, .LSUPrefetchM,
+diff --git a/testbench/common/wallyTracer.sv b/testbench/common/wallyTracer.sv
+index 15e851b18..1e2850d78 100644
+--- a/testbench/common/wallyTracer.sv
++++ b/testbench/common/wallyTracer.sv
+@@ -62,6 +62,7 @@ module wallyTracer import cvw::*; #(parameter cvw_t P) (rvviTrace rvvi);
+   logic [NUM_REGS-1:0]   rf_wb;
+   logic [4:0]            rf_a3;
+   logic                  rf_we3;
++  logic                  rf_we3p;
+   logic [P.FLEN-1:0]     frf[32];
+   logic [31:0]           frf_wb;
+   logic [4:0]            frf_a4;
+@@ -301,11 +302,16 @@ module wallyTracer import cvw::*; #(parameter cvw_t P) (rvviTrace rvvi);
+ 
+   assign rf_a3  = testbench.dut.core.ieu.dp.regf.a3;
+   assign rf_we3 = testbench.dut.core.ieu.dp.regf.we3;
++  // A pair amocas writes rd and rd+1 through the same address port, so report both
++  if (P.ZACAS_SUPPORTED) assign rf_we3p = testbench.dut.core.ieu.dp.regf.we3p;
++  else                   assign rf_we3p = 1'b0;
+ 
+   always_comb begin
+     rf_wb <= 0;
+-    if(rf_we3)
++    if(rf_we3) begin
+       rf_wb[rf_a3] <= 1'b1;
++      if (rf_we3p) rf_wb[rf_a3 | 5'b1] <= 1'b1; // the pair's odd register
++    end
+   end
+ 
+   // Floating-point register file
+
+Finished: 2026-09-18T09:44:12.964572+00:00
+Return code: 0
+Status: PASS

@@ -1,0 +1,103 @@
+Started: 2026-09-18T09:42:30.466959+00:00
+Command: bash -o pipefail -c 'git log -n 5 -p -- src/privileged/csrc.sv'
+
+commit 030e70eca7ce90b858f62018e35ccbf7ff7155aa
+Merge: 6c7bb2898 f6de0c256
+Author: wallyguard <abdulrafay7582@gmail.com>
+Date:   Fri Sep 18 07:24:47 2026 +0000
+
+    Merge branch 'wallyguard-pr-1883'
+
+commit 3ddf20f2f9bb9c641373959f9f721af42c5b3acd
+Author: David Harris <David_Harris@hmc.edu>
+Date:   Wed Sep 16 13:11:48 2026 -0700
+
+    Migrate openhwgroup links to openhwfoundation
+    
+    The organization renamed, so point every link at the new name.  313 files, all
+    but two of them a mechanical openhwgroup -> openhwfoundation in a URL or repo
+    slug: the license header in the RTL and tests, the GitHub Actions badge and
+    workflow links, clone URLs, issue references, and the raw.githubusercontent
+    fetches in the toolchain installer, the buildroot Dockerfile and the nightly
+    build instructions in the README.
+    
+    The two exceptions are the website links in CONTRIBUTING.md, which needed real
+    replacements rather than a rename.  openhwfoundation.org has no /membership/ or
+    /working-groups/ page; the old URLs now redirect to the site root.  Membership
+    moved to /become-a-member/ and the closest thing to the working groups page is
+    /projects/, so use those, and call the organization the OpenHW Foundation in the
+    sentence that links to them.
+    
+    Nothing was broken beforehand: GitHub redirects both the web and raw URLs for a
+    renamed organization, and every rewritten link was checked to return 200.
+    
+    Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
+
+diff --git a/src/privileged/csrc.sv b/src/privileged/csrc.sv
+index efc873204..a24de53e5 100644
+--- a/src/privileged/csrc.sv
++++ b/src/privileged/csrc.sv
+@@ -10,7 +10,7 @@
+ // Documentation: RISC-V System on Chip Design
+ //
+ // A component of the CORE-V-WALLY configurable RISC-V project.
+-// https://github.com/openhwgroup/cvw
++// https://github.com/openhwfoundation/cvw
+ //
+ // Copyright (C) 2021-23 Harvey Mudd College & Oklahoma State University
+ //
+
+commit 43978de36c885d9f4660523eb9bf5f884085a306
+Merge: 46b36c469 34b488f2c
+Author: wallyguard <abdulrafay7582@gmail.com>
+Date:   Wed Sep 16 19:12:22 2026 +0000
+
+    Merge branch 'wallyguard-pr-1882'
+
+commit 34b488f2c87b97a7a981420e1788547d333cd651
+Author: Abdul Rafay <abdulrafay7038@gmail.com>
+Date:   Wed Sep 16 12:06:10 2026 -0700
+
+    Fix off-by-three address decode on mhpmevent CSR writes
+
+diff --git a/src/privileged/csrc.sv b/src/privileged/csrc.sv
+index efc873204..00e5cc1e8 100644
+--- a/src/privileged/csrc.sv
++++ b/src/privileged/csrc.sv
+@@ -162,7 +162,7 @@ module csrc  import cvw::*;  #(parameter cvw_t P) (
+   // hpmevent update and write logic
+   if (P.COUNTERS > 3) begin : mhpmeventgen
+     for (i = 3; i < P.COUNTERS; i = i+1) begin : mhpmevent
+-      assign WriteMHPMEVENTM[i] = CSRMWriteM & (CSRAdrM == MHPMEVENTBASE + i);
++      assign WriteMHPMEVENTM[i] = CSRMWriteM & (CSRAdrM == MHPMEVENTBASE + i - 3);
+       assign NextMHPMEVENTM[i] = WriteMHPMEVENTM[i] ? CSRWriteValM : MHPMEVENT_REGW[i];
+       always_ff @(posedge clk)
+         if (reset) MHPMEVENT_REGW[i] <= '0;
+
+commit 46b36c469407c0a9710eb52d029145fef3c451f2
+Merge: a79b30ce7 5e6cdcebf
+Author: wallyguard <abdulrafay7582@gmail.com>
+Date:   Wed Sep 16 17:32:16 2026 +0000
+
+    Merge branch 'wallyguard-pr-1590'
+    
+    # Conflicts:
+    #       config/shared/config-shared.vh
+    #       errata.md
+    #       src/cvw.sv
+    #       src/ieu/datapath.sv
+    #       src/ieu/ieu.sv
+    #       src/privileged/csr.sv
+    #       src/privileged/csrc.sv
+    #       src/privileged/csri.sv
+    #       src/privileged/privdec.sv
+    #       src/privileged/privileged.sv
+    #       src/wally/wallypipelinedcore.sv
+    #       src/wally/wallypipelinedsoc.sv
+    #       testbench/testbench.sv
+    #       testbench/tests.vh
+    #       testbench/wallywrapper.sv
+
+Finished: 2026-09-18T09:42:30.662116+00:00
+Return code: 0
+Status: PASS

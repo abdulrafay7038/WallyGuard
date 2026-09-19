@@ -1,0 +1,14 @@
+Started: 2026-09-19T19:42:42.050158+00:00
+Command: bash -o pipefail -c 'git grep -n "IEEE754" config/'
+
+config/rv32e/config.vh:34:localparam logic IEEE754 = 0;
+config/rv32gc/config.vh:34:localparam logic IEEE754 = 0;
+config/rv32i/config.vh:34:localparam logic IEEE754 = 0;
+config/rv32imc/config.vh:34:localparam logic IEEE754 = 0;
+config/rv64gc/config.vh:34:localparam logic IEEE754 = 0;
+config/rv64i/config.vh:34:localparam logic IEEE754 = 0;
+config/shared/parameter-defs.vh:8:  IEEE754 :              IEEE754,
+
+Finished: 2026-09-19T19:42:42.113864+00:00
+Return code: 0
+Status: PASS

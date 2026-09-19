@@ -1,0 +1,150 @@
+Started: 2026-09-18T11:00:00.978636+00:00
+Command: bash -o pipefail -c 'make -C sim/verilator compile'
+
+make: Entering directory '/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/sim/verilator'
+mkdir -p /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/sim/verilator/wkdir/rv64gc        _testbench     
+verilator \
+--Mdir /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/sim/verilator/wkdir/rv64gc        _testbench      -o Vtestbench      \
+--binary --trace \
+--assert --no-trace-top --stats \
+--top-module testbench       --relative-includes \
+"-I/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/config/shared" "-I/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/config/rv64gc        " "-I/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/config/deriv/rv64gc        " \
+ \
+ \
+ \
+/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/src/cvw.sv /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/testbench     .sv /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/common/*.sv /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/src/*/*.sv /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/src/*/*/*.sv /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/addins/verilog-ethernet/*/*.sv /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/addins/verilog-ethernet/*/*/*/*.sv
+%Error: Cannot find file containing module: '_testbench'
+        ... See the manual at https://verilator.org/verilator_doc.html?v=5.036 for more assistance.
+        ... Looked in:
+             /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/config/shared/_testbench
+             /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/config/shared/_testbench.v
+             /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/config/shared/_testbench.sv
+             /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/config/rv64gc        /_testbench
+             /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/config/rv64gc        /_testbench.v
+             /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/config/rv64gc        /_testbench.sv
+             /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/config/deriv/rv64gc        /_testbench
+             /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/config/deriv/rv64gc        /_testbench.v
+             /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/config/deriv/rv64gc        /_testbench.sv
+             _testbench
+             _testbench.v
+             _testbench.sv
+             /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/sim/verilator/wkdir/rv64gc/_testbench
+             /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/sim/verilator/wkdir/rv64gc/_testbench.v
+             /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/sim/verilator/wkdir/rv64gc/_testbench.sv
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/testbench.sv:29:10: Cannot find include file: 'config.vh'
+   29 | `include "config.vh"
+      |          ^~~~~~~~~~~
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/config/shared/parameter-defs.vh:21:1: Version control conflict marker in file
+   21 | <<<<<<< HEAD
+      | ^~~~~~~~~~~~
+        /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/testbench.sv:83:1: ... note: In file included from 'testbench.sv'
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/config/shared/parameter-defs.vh:37:1: Version control conflict marker in file
+   37 | =======
+      | ^~~~~~~
+        /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/testbench.sv:83:1: ... note: In file included from 'testbench.sv'
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/config/shared/parameter-defs.vh:38:1: Version control conflict marker in file
+   38 | >>>>>>> wallyguard-pr-1879
+      | ^~~~~~~~~~~~~~~~~~~~~~~~~~
+        /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/testbench.sv:83:1: ... note: In file included from 'testbench.sv'
+%Error: Cannot find file containing module: '.sv'
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/src/fpu/fcvt.sv:210:1: Version control conflict marker in file
+  210 | <<<<<<< HEAD
+      | ^~~~~~~~~~~~
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/src/fpu/fcvt.sv:215:1: Version control conflict marker in file
+  215 | =======
+      | ^~~~~~~
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/src/fpu/fcvt.sv:221:1: Version control conflict marker in file
+  221 | >>>>>>> wallyguard-pr-1879
+      | ^~~~~~~~~~~~~~~~~~~~~~~~~~
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/src/fpu/unpack.sv:58:1: Version control conflict marker in file
+   58 | <<<<<<< HEAD
+      | ^~~~~~~~~~~~
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/src/fpu/unpack.sv:61:1: Version control conflict marker in file
+   61 | =======
+      | ^~~~~~~
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/src/fpu/unpack.sv:63:1: Version control conflict marker in file
+   63 | >>>>>>> wallyguard-pr-1879
+      | ^~~~~~~~~~~~~~~~~~~~~~~~~~
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/src/fpu/postproc/round.sv:32:1: Version control conflict marker in file
+   32 | <<<<<<< HEAD
+      | ^~~~~~~~~~~~
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/src/fpu/postproc/round.sv:34:1: Version control conflict marker in file
+   34 | =======
+      | ^~~~~~~
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/src/fpu/postproc/round.sv:36:1: Version control conflict marker in file
+   36 | >>>>>>> wallyguard-pr-1879
+      | ^~~~~~~~~~~~~~~~~~~~~~~~~~
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/src/fpu/postproc/round.sv:79:1: Version control conflict marker in file
+   79 | <<<<<<< HEAD
+      | ^~~~~~~~~~~~
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/src/fpu/postproc/round.sv:81:1: Version control conflict marker in file
+   81 | =======
+      | ^~~~~~~
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/src/fpu/postproc/round.sv:84:1: Version control conflict marker in file
+   84 | >>>>>>> wallyguard-pr-1879
+      | ^~~~~~~~~~~~~~~~~~~~~~~~~~
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/src/fpu/postproc/specialcase.sv:73:1: Version control conflict marker in file
+   73 | <<<<<<< HEAD
+      | ^~~~~~~~~~~~
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/src/fpu/postproc/specialcase.sv:75:1: Version control conflict marker in file
+   75 | =======
+      | ^~~~~~~
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/src/fpu/postproc/specialcase.sv:78:1: Version control conflict marker in file
+   78 | >>>>>>> wallyguard-pr-1879
+      | ^~~~~~~~~~~~~~~~~~~~~~~~~~
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/src/fpu/postproc/specialcase.sv:92:1: Version control conflict marker in file
+   92 | <<<<<<< HEAD
+      | ^~~~~~~~~~~~
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/src/fpu/postproc/specialcase.sv:97:1: Version control conflict marker in file
+   97 | =======
+      | ^~~~~~~
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/src/fpu/postproc/specialcase.sv:102:1: Version control conflict marker in file
+  102 | >>>>>>> wallyguard-pr-1879
+      | ^~~~~~~~~~~~~~~~~~~~~~~~~~
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/src/fpu/postproc/specialcase.sv:275:1: Version control conflict marker in file
+  275 | <<<<<<< HEAD
+      | ^~~~~~~~~~~~
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/src/fpu/postproc/specialcase.sv:289:1: Version control conflict marker in file
+  289 | =======
+      | ^~~~~~~
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/src/fpu/postproc/specialcase.sv:290:53: syntax error, unexpected '=', expecting '('
+  290 |       if(XNaN&~(IntToFp&CvtOp))   PostProcResPreBox = XNaNRes;
+      |                                                     ^
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/src/fpu/postproc/specialcase.sv:291:53: syntax error, unexpected '=', expecting '('
+  291 |       else if(YNaN&~CvtOp)        PostProcResPreBox = YNaNRes;
+      |                                                     ^
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/src/fpu/postproc/specialcase.sv:292:53: syntax error, unexpected '=', expecting '('
+  292 |       else if(ZNaN&FmaOp)         PostProcResPreBox = ZNaNRes;
+      |                                                     ^
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/src/fpu/postproc/specialcase.sv:293:53: syntax error, unexpected '=', expecting '('
+  293 |       else if(Invalid)            PostProcResPreBox = InvalidRes;
+      |                                                     ^
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/src/fpu/postproc/specialcase.sv:294:53: syntax error, unexpected '=', expecting '('
+  294 |       else if(SelOfRes)           PostProcResPreBox = OfRes;
+      |                                                     ^
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/src/fpu/postproc/specialcase.sv:295:53: syntax error, unexpected '=', expecting '('
+  295 |       else if(KillRes)            PostProcResPreBox = Bf16Dst ? Bf16UfRes : UfRes;
+      |                                                     ^
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/src/fpu/postproc/specialcase.sv:296:53: syntax error, unexpected '=', expecting '('
+  296 |       else                        PostProcResPreBox = NormRes;
+      |                                                     ^
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/src/fpu/postproc/specialcase.sv:303:1: Version control conflict marker in file
+  303 | >>>>>>> wallyguard-pr-1879
+      | ^~~~~~~~~~~~~~~~~~~~~~~~~~
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/src/fpu/postproc/specialcase.sv:405:1: Version control conflict marker in file
+  405 | <<<<<<< HEAD
+      | ^~~~~~~~~~~~
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/src/fpu/postproc/specialcase.sv:407:1: Version control conflict marker in file
+  407 | =======
+      | ^~~~~~~
+%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/src/fpu/postproc/specialcase.sv:412:1: Version control conflict marker in file
+  412 | >>>>>>> wallyguard-pr-1879
+      | ^~~~~~~~~~~~~~~~~~~~~~~~~~
+%Error: Exiting due to 37 error(s)
+make: *** [Makefile:53: compile] Error 1
+make: Leaving directory '/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/sim/verilator'
+
+Finished: 2026-09-18T11:00:01.750889+00:00
+Return code: 2
+Status: COMMAND_FAILED
+ERROR: Command exited with code 2

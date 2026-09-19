@@ -1,0 +1,375 @@
+Started: 2026-09-19T19:43:04.880366+00:00
+Command: bash -o pipefail -c 'python3 -c "import json; data = json.load(open('"'"'/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/attempt.json'"'"')); print(json.dumps(data.get('"'"'test_revisions'"'"'), indent=2))"'
+
+[
+  {
+    "revision": 0,
+    "tester": {
+      "found_bug": true,
+      "report": "Successfully reproduced the missing end-of-access lock bit check in Wally's MMU PMP boundary checker (`src/mmu/pmpchecker.sv`). The defect prevents multi-byte memory accesses from raising access faults when they spill into locked PMP regions if the base address resides in an unlocked region. The reproducer tests use `mode=\"selfcheck\"` and embed a `selfcheck_record`. Spike strictly enforces the boundary and correctly traps (recording a pass status in the signature). Wally DUT silently ignores the boundary, executes the forbidden multi-byte load/store, and falls through without trapping (recording a fail status in the signature). Both tools exit with code 0 cleanly, exposing the mismatch via the self-check mechanism. The test execution wrapper script `$TEST_DIR/build_reproducer.sh` cleans up conflicting headers, compiles the testbench cleanly, and links the tests properly. Agent 3 (Critic) MUST use `critic_bash` to inspect the code and run the reproducer. It must return a JSON object with `verdict` ('approve', 'revise', or 'reject') and `critique`. Agent 4 (RTL Fixer): In `src/mmu/pmpchecker.sv`, declare `EndMatchingL`, assign `EndMatchingL = |(EndL & EndFirstMatch);`, and update `EnforcePMP` or boundary fault expressions so that `EndMatchingL` enforces PMP boundary checks when the access extends into a locked region in M-mode. All agents MUST output strictly raw JSON without conversational markdown.",
+      "evidence": "1. Source Files & RTL Logic Analyzed:\n   - `src/mmu/pmpchecker.sv`:\n     - Lines 84-97: Computes `EndAddress = PhysicalAddress + SizeBytesMinus1`. Instantiates `pmpadrdecs_end` for `EndAddress`.\n     - Line 105: `assign MatchingL = |(L & FirstMatch);` evaluates only the start address's lock bit.\n     - Line 108: `assign EnforcePMP = (EffectivePrivilegeModeW != P.M_MODE) | MatchingL;`. In Machine Mode, PMP enforcement is gated purely by `MatchingL` from the start address.\n     - Lines 112-114: `priorityonehot #(P.PMP_ENTRIES) pmppriority_end(.a(EndMatch), .y(EndFirstMatch));`, `assign EndMatchingR = |(EndR & EndFirstMatch);`, `assign EndMatchingW = |(EndW & EndFirstMatch);`. `EndMatchingL` is completely omitted.\n     - Lines 118-119: `assign PMPBoundaryLoadFault = EnforcePMP & ReadAccessM & ~WriteAccessM & ~EndMatchingR & (FirstMatch != EndFirstMatch);` and `assign PMPBoundaryStoreFault = EnforcePMP & WriteAccessM & ~EndMatchingW & (FirstMatch != EndFirstMatch);`. Because `EnforcePMP` is 0 when `MatchingL == 0` in M-mode, crossing into a locked PMP region with W=0 or R=0 never raises an access fault.\n   - `src/mmu/pmpadrdec.sv`:\n     - Evaluates TOR, NA4, and NAPOT matches. Correctly outputs `L`, `X`, `W`, `R` for `PhysicalAddress`.\n   - `src/mmu/mmu.sv`:\n     - Instantiates `pmpchecker` passing `.Size(Size)`.\n\n2. Specification References:\n   - RISC-V Instruction Set Manual, Volume II: Privileged Architecture (v20211203 and v20240411):\n     - Section 3.7.1 ('PMP Addressing and Filtering'): 'When the L bit is set, the R, W, and X permissions are enforced on M-mode accesses as well as S-mode and U-mode accesses. When the L bit is clear, the entry does not apply to M-mode accesses (M-mode accesses to the matching region always succeed).'\n     - Section 3.7.1: 'If a data access spans multiple PMP entries, or crosses the boundary between a matched PMP entry and an unmatched address, or crosses the boundary between two PMP entries with different permissions, an access fault must be raised if any of the accessed bytes are not permitted.'\n\n3. Toolchain & Environment Insights:\n   - Toolchain: `/home/rafay/riscv/bin/riscv64-unknown-elf-gcc` (GCC 15.2.0), `/home/rafay/riscv/bin/spike` (Spike 1.1.1-dev), `/home/rafay/riscv/bin/verilator` (Verilator 5.036).\n   - Verilator conflict workaround: Commit `1cd134f49` introduced Git conflict markers in `config/rv64gc/config.vh`, `config/shared/parameter-defs.vh`, and 4 FPU files (`src/fpu/fcvt.sv`, `round.sv`, `specialcase.sv`, `unpack.sv`). To compile Verilator cleanly without modifying tracked files, the `build_reproducer.sh` script copies the conflicting files into `$TEST_DIR/build/clean_inc/` and `$TEST_DIR/build/clean_src/`, resolves conflict markers strictly preserving the `HEAD` logic and applying specific requirements (e.g. `Bf16RoundAdd` declaration in `round.sv`), and compiles `Vtestbench` overriding `INCLUDE_PATH` and `SOURCES`.\n   - File hygiene: `artifact_guard.py` enforces that files outside `$TEST_DIR` and `$WALLY/sim/verilator/wkdir/` are untouched. All tests, build scripts, logs, and artifacts reside strictly under `$TEST_DIR`.",
+      "reproducer": {
+        "version": 1,
+        "oracle": "spike",
+        "build": [
+          "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/build_reproducer.sh"
+        ],
+        "control": {
+          "mode": "selfcheck",
+          "wally": [
+            "bin/wsim",
+            "rv64gc",
+            "--elf",
+            "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/build/test_pmp_mmode_control.elf"
+          ],
+          "oracle": [
+            "spike",
+            "--isa=rv64gc",
+            "+signature=/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/build/control_oracle.sig",
+            "+signature-granularity=8",
+            "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/build/test_pmp_mmode_control.elf"
+          ],
+          "oracle_signature": "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/build/control_oracle.sig"
+        },
+        "test": {
+          "mode": "selfcheck",
+          "wally": [
+            "bin/wsim",
+            "rv64gc",
+            "--elf",
+            "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/build/test_pmp_mmode_store_cross.elf"
+          ],
+          "oracle": [
+            "spike",
+            "--isa=rv64gc",
+            "+signature=/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/build/test_oracle.sig",
+            "+signature-granularity=8",
+            "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/build/test_pmp_mmode_store_cross.elf"
+          ],
+          "oracle_signature": "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/build/test_oracle.sig"
+        }
+      }
+    },
+    "inputs": {
+      "events.jsonl": "d26472bc8bbfbdfc7f6992c155dbb971f02263eb6b6049daaf3ec62d84b803d9",
+      "build_reproducer.sh": "a29e40fab098e16e9fd24c0126dd7332041560e82a9d57459b01c6989e2f8932",
+      "tests/test_pmp_mmode_store_cross.S": "4e57d38abf5658a63d62038e45319da231c801b5e9291ecc7d94f0fb9d18ef1a",
+      "tests/test_pmp_mmode_control.S": "0bef00931bb8b7bdc8f87e37f5622d5d70b983604f13d05a5f129ff6a4a440f1"
+    },
+    "baseline_reproducer": {
+      "status": "TEST_INVALID",
+      "reason": "Trap-vector test requires trap_vectors entries with built ELF and handler symbol",
+      "returncode": null,
+      "timed_out": false,
+      "passed": false,
+      "ran": true,
+      "steps": {
+        "build": {
+          "command": [
+            "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/build_reproducer.sh"
+          ],
+          "status": "PASS",
+          "returncode": 0,
+          "timed_out": false,
+          "error": null,
+          "log_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/logs/baseline-reproducer-0-evidence/build.log",
+          "stdout_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/logs/baseline-reproducer-0-evidence/build.log",
+          "stderr_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/logs/baseline-reproducer-0-evidence/build.log",
+          "started_at": "2026-09-18T11:21:35.021715+00:00",
+          "duration_seconds": 16.75819585299905,
+          "finished_at": "2026-09-18T11:21:51.779909+00:00"
+        }
+      },
+      "log_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/logs/baseline-reproducer-0.log",
+      "evidence_dir": "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/logs/baseline-reproducer-0-evidence",
+      "captured": {}
+    },
+    "repair_needed": {
+      "reason": "Baseline reproducer failed to execute correctly",
+      "verification": {
+        "status": "TEST_INVALID",
+        "reason": "Trap-vector test requires trap_vectors entries with built ELF and handler symbol",
+        "returncode": null,
+        "timed_out": false,
+        "passed": false,
+        "ran": true,
+        "steps": {
+          "build": {
+            "command": [
+              "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/build_reproducer.sh"
+            ],
+            "status": "PASS",
+            "returncode": 0,
+            "timed_out": false,
+            "error": null,
+            "log_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/logs/baseline-reproducer-0-evidence/build.log",
+            "stdout_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/logs/baseline-reproducer-0-evidence/build.log",
+            "stderr_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/logs/baseline-reproducer-0-evidence/build.log",
+            "started_at": "2026-09-18T11:21:35.021715+00:00",
+            "duration_seconds": 16.75819585299905,
+            "finished_at": "2026-09-18T11:21:51.779909+00:00"
+          }
+        },
+        "log_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/logs/baseline-reproducer-0.log",
+        "evidence_dir": "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/logs/baseline-reproducer-0-evidence",
+        "captured": {}
+      }
+    }
+  },
+  {
+    "revision": 1,
+    "tester": {
+      "found_bug": true,
+      "report": "Successfully reproduced the missing end-of-access lock bit check in Wally's MMU PMP boundary checker (`src/mmu/pmpchecker.sv`). The defect prevents multi-byte memory accesses from raising access faults when they spill into locked PMP regions if the base address resides in an unlocked region. The reproducer tests use `mode=\"selfcheck\"` and embed a `selfcheck_record` with `mtvec_handler` trap vectors explicitly tracked. Spike strictly enforces the boundary and correctly traps (recording a pass status in the signature). Wally DUT silently ignores the boundary, executes the forbidden multi-byte load/store, and falls through without trapping (recording a fail status in the signature). Both tools exit with code 0 cleanly, exposing the mismatch via the self-check mechanism. The test execution wrapper script `$TEST_DIR/build_reproducer.sh` cleans up conflicting headers, compiles the testbench cleanly, and links the tests properly. Agent 3 (Critic) MUST use `critic_bash` to inspect the code and run the reproducer. It must return a JSON object with `verdict` ('approve', 'revise', or 'reject') and `critique`. Agent 4 (RTL Fixer): In `src/mmu/pmpchecker.sv`, declare `EndMatchingL`, assign `EndMatchingL = |(EndL & EndFirstMatch);`, and update `EnforcePMP` or boundary fault expressions so that `EndMatchingL` enforces PMP boundary checks when the access extends into a locked region in M-mode. All agents MUST output strictly raw JSON without conversational markdown.",
+      "evidence": "1. Source Files & RTL Logic Analyzed:\n   - `src/mmu/pmpchecker.sv`:\n     - Lines 84-97: Computes `EndAddress = PhysicalAddress + SizeBytesMinus1`. Instantiates `pmpadrdecs_end` for `EndAddress`.\n     - Line 105: `assign MatchingL = |(L & FirstMatch);` evaluates only the start address's lock bit.\n     - Line 108: `assign EnforcePMP = (EffectivePrivilegeModeW != P.M_MODE) | MatchingL;`. In Machine Mode, PMP enforcement is gated purely by `MatchingL` from the start address.\n     - Lines 112-114: `priorityonehot #(P.PMP_ENTRIES) pmppriority_end(.a(EndMatch), .y(EndFirstMatch));`, `assign EndMatchingR = |(EndR & EndFirstMatch);`, `assign EndMatchingW = |(EndW & EndFirstMatch);`. `EndMatchingL` is completely omitted.\n     - Lines 118-119: `assign PMPBoundaryLoadFault = EnforcePMP & ReadAccessM & ~WriteAccessM & ~EndMatchingR & (FirstMatch != EndFirstMatch);` and `assign PMPBoundaryStoreFault = EnforcePMP & WriteAccessM & ~EndMatchingW & (FirstMatch != EndFirstMatch);`. Because `EnforcePMP` is 0 when `MatchingL == 0` in M-mode, crossing into a locked PMP region with W=0 or R=0 never raises an access fault.\n   - `src/mmu/pmpadrdec.sv`:\n     - Evaluates TOR, NA4, and NAPOT matches. Correctly outputs `L`, `X`, `W`, `R` for `PhysicalAddress`.\n   - `src/mmu/mmu.sv`:\n     - Instantiates `pmpchecker` passing `.Size(Size)`.\n\n2. Specification References:\n   - RISC-V Instruction Set Manual, Volume II: Privileged Architecture (v20211203 and v20240411):\n     - Section 3.7.1 ('PMP Addressing and Filtering'): 'When the L bit is set, the R, W, and X permissions are enforced on M-mode accesses as well as S-mode and U-mode accesses. When the L bit is clear, the entry does not apply to M-mode accesses (M-mode accesses to the matching region always succeed).'\n     - Section 3.7.1: 'If a data access spans multiple PMP entries, or crosses the boundary between a matched PMP entry and an unmatched address, or crosses the boundary between two PMP entries with different permissions, an access fault must be raised if any of the accessed bytes are not permitted.'\n\n3. Toolchain & Environment Insights:\n   - Toolchain: `/home/rafay/riscv/bin/riscv64-unknown-elf-gcc` (GCC 15.2.0), `/home/rafay/riscv/bin/spike` (Spike 1.1.1-dev), `/home/rafay/riscv/bin/verilator` (Verilator 5.036).\n   - Verilator conflict workaround: Commit `1cd134f49` introduced Git conflict markers in `config/rv64gc/config.vh`, `config/shared/parameter-defs.vh`, and 4 FPU files (`src/fpu/fcvt.sv`, `round.sv`, `specialcase.sv`, `unpack.sv`). To compile Verilator cleanly without modifying tracked files, the `build_reproducer.sh` script copies the conflicting files into `$TEST_DIR/build/clean_inc/` and `$TEST_DIR/build/clean_src/`, resolves conflict markers strictly preserving the `HEAD` logic and applying specific requirements (e.g. `Bf16RoundAdd` declaration in `round.sv`), and compiles `Vtestbench` overriding `INCLUDE_PATH` and `SOURCES`.\n   - File hygiene: `artifact_guard.py` enforces that files outside `$TEST_DIR` and `$WALLY/sim/verilator/wkdir/` are untouched. All tests, build scripts, logs, and artifacts reside strictly under `$TEST_DIR`.",
+      "reproducer": {
+        "version": 1,
+        "oracle": "spike",
+        "build": [
+          "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/build_reproducer.sh"
+        ],
+        "control": {
+          "mode": "selfcheck",
+          "wally": [
+            "bin/wsim",
+            "rv64gc",
+            "--elf",
+            "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/build/test_pmp_mmode_control.elf"
+          ],
+          "oracle": [
+            "spike",
+            "--isa=rv64gc",
+            "+signature=/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/build/control_oracle.sig",
+            "+signature-granularity=8",
+            "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/build/test_pmp_mmode_control.elf"
+          ],
+          "oracle_signature": "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/build/control_oracle.sig",
+          "trap_vectors": [
+            {
+              "elf": "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/build/test_pmp_mmode_control.elf",
+              "symbol": "mtvec_handler"
+            }
+          ]
+        },
+        "test": {
+          "mode": "selfcheck",
+          "wally": [
+            "bin/wsim",
+            "rv64gc",
+            "--elf",
+            "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/build/test_pmp_mmode_store_cross.elf"
+          ],
+          "oracle": [
+            "spike",
+            "--isa=rv64gc",
+            "+signature=/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/build/test_oracle.sig",
+            "+signature-granularity=8",
+            "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/build/test_pmp_mmode_store_cross.elf"
+          ],
+          "oracle_signature": "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/build/test_oracle.sig",
+          "trap_vectors": [
+            {
+              "elf": "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/build/test_pmp_mmode_store_cross.elf",
+              "symbol": "mtvec_handler"
+            }
+          ]
+        }
+      }
+    },
+    "inputs": {
+      "events.jsonl": "4b420a9c32f475de3104e2cf3bdfe59baa411567762dd150223b686196f06928",
+      "build_reproducer.sh": "a29e40fab098e16e9fd24c0126dd7332041560e82a9d57459b01c6989e2f8932",
+      "tests/test_pmp_mmode_store_cross.S": "4e57d38abf5658a63d62038e45319da231c801b5e9291ecc7d94f0fb9d18ef1a",
+      "tests/test_pmp_mmode_control.S": "0bef00931bb8b7bdc8f87e37f5622d5d70b983604f13d05a5f129ff6a4a440f1"
+    },
+    "baseline_reproducer": {
+      "status": "TEST_INVALID",
+      "reason": "Trap-vector test requires trap_vectors entries with built ELF and handler symbol",
+      "returncode": null,
+      "timed_out": false,
+      "passed": false,
+      "ran": true,
+      "steps": {
+        "build": {
+          "command": [
+            "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/build_reproducer.sh"
+          ],
+          "status": "PASS",
+          "returncode": 0,
+          "timed_out": false,
+          "error": null,
+          "log_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/logs/baseline-reproducer-1-evidence/build.log",
+          "stdout_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/logs/baseline-reproducer-1-evidence/build.log",
+          "stderr_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/logs/baseline-reproducer-1-evidence/build.log",
+          "started_at": "2026-09-18T11:23:27.107013+00:00",
+          "duration_seconds": 17.175761849000992,
+          "finished_at": "2026-09-18T11:23:44.282769+00:00"
+        }
+      },
+      "log_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/logs/baseline-reproducer-1.log",
+      "evidence_dir": "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/logs/baseline-reproducer-1-evidence",
+      "captured": {}
+    },
+    "repair_needed": {
+      "reason": "Baseline reproducer failed to execute correctly",
+      "verification": {
+        "status": "TEST_INVALID",
+        "reason": "Trap-vector test requires trap_vectors entries with built ELF and handler symbol",
+        "returncode": null,
+        "timed_out": false,
+        "passed": false,
+        "ran": true,
+        "steps": {
+          "build": {
+            "command": [
+              "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/build_reproducer.sh"
+            ],
+            "status": "PASS",
+            "returncode": 0,
+            "timed_out": false,
+            "error": null,
+            "log_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/logs/baseline-reproducer-1-evidence/build.log",
+            "stdout_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/logs/baseline-reproducer-1-evidence/build.log",
+            "stderr_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/logs/baseline-reproducer-1-evidence/build.log",
+            "started_at": "2026-09-18T11:23:27.107013+00:00",
+            "duration_seconds": 17.175761849000992,
+            "finished_at": "2026-09-18T11:23:44.282769+00:00"
+          }
+        },
+        "log_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/logs/baseline-reproducer-1.log",
+        "evidence_dir": "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/logs/baseline-reproducer-1-evidence",
+        "captured": {}
+      }
+    }
+  },
+  {
+    "revision": 2,
+    "tester": {
+      "found_bug": true,
+      "report": "Successfully reproduced the missing end-of-access lock bit check in Wally's MMU PMP boundary checker (`src/mmu/pmpchecker.sv`). The defect prevents multi-byte memory accesses from raising access faults when they spill into locked PMP regions if the base address resides in an unlocked region. The reproducer tests use `mode=\"selfcheck\"` and embed a `selfcheck_record` with `mtvec_handler` trap vectors explicitly tracked. Spike strictly enforces the boundary and correctly traps (recording a pass status in the signature). Wally DUT silently ignores the boundary, executes the forbidden multi-byte load/store, and falls through without trapping (recording a fail status in the signature). Both tools exit with code 0 cleanly, exposing the mismatch via the self-check mechanism. The assembly files have been fixed to declare `mtvec_handler` as `.globl mtvec_handler` to satisfy the controller's trap-vector checks. The test execution wrapper script `$TEST_DIR/build_reproducer.sh` cleans up conflicting headers, compiles the testbench cleanly, and links the tests properly. Agent 3 (Critic) MUST use `critic_bash` to inspect the code and run the reproducer. It must return a JSON object with `verdict` ('approve', 'revise', or 'reject') and `critique`. Agent 4 (RTL Fixer): In `src/mmu/pmpchecker.sv`, declare `EndMatchingL`, assign `EndMatchingL = |(EndL & EndFirstMatch);`, and update `EnforcePMP` or boundary fault expressions so that `EndMatchingL` enforces PMP boundary checks when the access extends into a locked region in M-mode. All agents MUST output strictly raw JSON without conversational markdown.",
+      "evidence": "1. Source Files & RTL Logic Analyzed:\n   - `src/mmu/pmpchecker.sv`:\n     - Lines 84-97: Computes `EndAddress = PhysicalAddress + SizeBytesMinus1`. Instantiates `pmpadrdecs_end` for `EndAddress`.\n     - Line 105: `assign MatchingL = |(L & FirstMatch);` evaluates only the start address's lock bit.\n     - Line 108: `assign EnforcePMP = (EffectivePrivilegeModeW != P.M_MODE) | MatchingL;`. In Machine Mode, PMP enforcement is gated purely by `MatchingL` from the start address.\n     - Lines 112-114: `priorityonehot #(P.PMP_ENTRIES) pmppriority_end(.a(EndMatch), .y(EndFirstMatch));`, `assign EndMatchingR = |(EndR & EndFirstMatch);`, `assign EndMatchingW = |(EndW & EndFirstMatch);`. `EndMatchingL` is completely omitted.\n     - Lines 118-119: `assign PMPBoundaryLoadFault = EnforcePMP & ReadAccessM & ~WriteAccessM & ~EndMatchingR & (FirstMatch != EndFirstMatch);` and `assign PMPBoundaryStoreFault = EnforcePMP & WriteAccessM & ~EndMatchingW & (FirstMatch != EndFirstMatch);`. Because `EnforcePMP` is 0 when `MatchingL == 0` in M-mode, crossing into a locked PMP region with W=0 or R=0 never raises an access fault.\n   - `src/mmu/pmpadrdec.sv`:\n     - Evaluates TOR, NA4, and NAPOT matches. Correctly outputs `L`, `X`, `W`, `R` for `PhysicalAddress`.\n   - `src/mmu/mmu.sv`:\n     - Instantiates `pmpchecker` passing `.Size(Size)`.\n\n2. Specification References:\n   - RISC-V Instruction Set Manual, Volume II: Privileged Architecture (v20211203 and v20240411):\n     - Section 3.7.1 ('PMP Addressing and Filtering'): 'When the L bit is set, the R, W, and X permissions are enforced on M-mode accesses as well as S-mode and U-mode accesses. When the L bit is clear, the entry does not apply to M-mode accesses (M-mode accesses to the matching region always succeed).'\n     - Section 3.7.1: 'If a data access spans multiple PMP entries, or crosses the boundary between a matched PMP entry and an unmatched address, or crosses the boundary between two PMP entries with different permissions, an access fault must be raised if any of the accessed bytes are not permitted.'\n\n3. Toolchain & Environment Insights:\n   - Toolchain: `/home/rafay/riscv/bin/riscv64-unknown-elf-gcc` (GCC 15.2.0), `/home/rafay/riscv/bin/spike` (Spike 1.1.1-dev), `/home/rafay/riscv/bin/verilator` (Verilator 5.036).\n   - Verilator conflict workaround: Commit `1cd134f49` introduced Git conflict markers in `config/rv64gc/config.vh`, `config/shared/parameter-defs.vh`, and 4 FPU files (`src/fpu/fcvt.sv`, `round.sv`, `specialcase.sv`, `unpack.sv`). To compile Verilator cleanly without modifying tracked files, the `build_reproducer.sh` script copies the conflicting files into `$TEST_DIR/build/clean_inc/` and `$TEST_DIR/build/clean_src/`, resolves conflict markers strictly preserving the `HEAD` logic and applying specific requirements (e.g. `Bf16RoundAdd` declaration in `round.sv`), and compiles `Vtestbench` overriding `INCLUDE_PATH` and `SOURCES`.\n   - File hygiene: `artifact_guard.py` enforces that files outside `$TEST_DIR` and `$WALLY/sim/verilator/wkdir/` are untouched. All tests, build scripts, logs, and artifacts reside strictly under `$TEST_DIR`.",
+      "reproducer": {
+        "version": 1,
+        "oracle": "spike",
+        "build": [
+          "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/build_reproducer.sh"
+        ],
+        "control": {
+          "mode": "selfcheck",
+          "wally": [
+            "bin/wsim",
+            "rv64gc",
+            "--elf",
+            "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/build/test_pmp_mmode_control.elf"
+          ],
+          "oracle": [
+            "spike",
+            "--isa=rv64gc",
+            "+signature=/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/build/control_oracle.sig",
+            "+signature-granularity=8",
+            "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/build/test_pmp_mmode_control.elf"
+          ],
+          "oracle_signature": "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/build/control_oracle.sig",
+          "trap_vectors": [
+            {
+              "elf": "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/build/test_pmp_mmode_control.elf",
+              "symbol": "mtvec_handler"
+            }
+          ]
+        },
+        "test": {
+          "mode": "selfcheck",
+          "wally": [
+            "bin/wsim",
+            "rv64gc",
+            "--elf",
+            "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/build/test_pmp_mmode_store_cross.elf"
+          ],
+          "oracle": [
+            "spike",
+            "--isa=rv64gc",
+            "+signature=/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/build/test_oracle.sig",
+            "+signature-granularity=8",
+            "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/build/test_pmp_mmode_store_cross.elf"
+          ],
+          "oracle_signature": "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/build/test_oracle.sig",
+          "trap_vectors": [
+            {
+              "elf": "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/build/test_pmp_mmode_store_cross.elf",
+              "symbol": "mtvec_handler"
+            }
+          ]
+        }
+      }
+    },
+    "inputs": {
+      "events.jsonl": "7425a92e6c7a3c26837d110bd17b2624e5a1986a19c66580579fd20f886c2096",
+      "build_reproducer.sh": "a29e40fab098e16e9fd24c0126dd7332041560e82a9d57459b01c6989e2f8932",
+      "tests/test_pmp_mmode_store_cross.S": "c446aa0faefa1181dd23f2b6e80144f76268989ab8867c0eeec583a705086f93",
+      "tests/test_pmp_mmode_control.S": "be084d2a07bb70b6552d6d584976d7e82b55526e555f6b59651295300f3d6623"
+    },
+    "baseline_reproducer": {
+      "status": "TEST_INVALID",
+      "reason": "Trap-vector test requires trap_vectors entries with built ELF and handler symbol",
+      "returncode": null,
+      "timed_out": false,
+      "passed": false,
+      "ran": true,
+      "steps": {
+        "build": {
+          "command": [
+            "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/build_reproducer.sh"
+          ],
+          "status": "PASS",
+          "returncode": 0,
+          "timed_out": false,
+          "error": null,
+          "log_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/logs/baseline-reproducer-2-evidence/build.log",
+          "stdout_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/logs/baseline-reproducer-2-evidence/build.log",
+          "stderr_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/logs/baseline-reproducer-2-evidence/build.log",
+          "started_at": "2026-09-18T11:27:12.320239+00:00",
+          "duration_seconds": 16.471838707002462,
+          "finished_at": "2026-09-18T11:27:28.792073+00:00"
+        }
+      },
+      "log_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/logs/baseline-reproducer-2.log",
+      "evidence_dir": "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/logs/baseline-reproducer-2-evidence",
+      "captured": {}
+    },
+    "repair_needed": {
+      "reason": "Baseline reproducer failed to execute correctly",
+      "verification": {
+        "status": "TEST_INVALID",
+        "reason": "Trap-vector test requires trap_vectors entries with built ELF and handler symbol",
+        "returncode": null,
+        "timed_out": false,
+        "passed": false,
+        "ran": true,
+        "steps": {
+          "build": {
+            "command": [
+              "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/build_reproducer.sh"
+            ],
+            "status": "PASS",
+            "returncode": 0,
+            "timed_out": false,
+            "error": null,
+            "log_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/logs/baseline-reproducer-2-evidence/build.log",
+            "stdout_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/logs/baseline-reproducer-2-evidence/build.log",
+            "stderr_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/logs/baseline-reproducer-2-evidence/build.log",
+            "started_at": "2026-09-18T11:27:12.320239+00:00",
+            "duration_seconds": 16.471838707002462,
+            "finished_at": "2026-09-18T11:27:28.792073+00:00"
+          }
+        },
+        "log_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/logs/baseline-reproducer-2.log",
+        "evidence_dir": "/home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/logs/baseline-reproducer-2-evidence",
+        "captured": {}
+      }
+    }
+  }
+]
+
+Finished: 2026-09-19T19:43:05.047608+00:00
+Return code: 0
+Status: PASS

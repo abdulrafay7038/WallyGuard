@@ -1,0 +1,9 @@
+Started: 2026-09-19T19:36:31.008704+00:00
+Command: bash -o pipefail -c 'ls -la sim/verilator/wkdir/'
+
+ls: cannot access 'sim/verilator/wkdir/': No such file or directory
+
+Finished: 2026-09-19T19:36:31.092278+00:00
+Return code: 2
+Status: COMMAND_FAILED
+ERROR: Command exited with code 2

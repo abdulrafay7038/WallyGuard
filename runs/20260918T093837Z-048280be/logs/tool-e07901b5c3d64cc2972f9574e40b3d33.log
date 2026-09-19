@@ -1,0 +1,160 @@
+Started: 2026-09-18T10:20:03.129113+00:00
+Command: bash -o pipefail -c 'TEST_DIR=/home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be
+WALLY_CLEAN=$TEST_DIR/build/wally_clean
+
+cat << '"'"'EOF'"'"' > $TEST_DIR/build/clean_src/clean_conflict3.py
+import sys
+
+def clean_file(in_path):
+    with open(in_path, '"'"'r'"'"') as f:
+        lines = f.readlines()
+    
+    with open(in_path, '"'"'w'"'"') as f:
+        for line in lines:
+            if line.startswith('"'"'<<<<<<<'"'"') or line.startswith('"'"'======='"'"') or line.startswith('"'"'>>>>>>>'"'"'):
+                continue
+            f.write(line)
+
+for file in sys.argv[1:]:
+    clean_file(file)
+EOF
+
+# Copy back original conflicting files
+rsync -a $WALLY/src/fpu/fcvt.sv $WALLY_CLEAN/src/fpu/fcvt.sv
+rsync -a $WALLY/src/fpu/postproc/round.sv $WALLY_CLEAN/src/fpu/postproc/round.sv
+rsync -a $WALLY/src/fpu/postproc/specialcase.sv $WALLY_CLEAN/src/fpu/postproc/specialcase.sv
+rsync -a $WALLY/src/fpu/unpack.sv $WALLY_CLEAN/src/fpu/unpack.sv
+rsync -a $WALLY/config/rv64gc/config.vh $WALLY_CLEAN/config/rv64gc/config.vh
+rsync -a $WALLY/config/shared/parameter-defs.vh $WALLY_CLEAN/config/shared/parameter-defs.vh
+
+python3 $TEST_DIR/build/clean_src/clean_conflict3.py $WALLY_CLEAN/src/fpu/fcvt.sv $WALLY_CLEAN/src/fpu/postproc/round.sv $WALLY_CLEAN/src/fpu/postproc/specialcase.sv $WALLY_CLEAN/src/fpu/unpack.sv $WALLY_CLEAN/config/rv64gc/config.vh $WALLY_CLEAN/config/shared/parameter-defs.vh
+
+# In round.sv there'"'"'s duplicate `input logic Bf16Dst` now. Let'"'"'s fix that.
+sed -i '"'"'s/input  logic                     Bf16Dst,            \/\/ Zfbfmin: round the fraction to BF16/ /'"'"' $WALLY_CLEAN/src/fpu/postproc/round.sv
+
+make -C $WALLY_CLEAN/sim/verilator clean
+make -C $WALLY_CLEAN/sim/verilator compile WALLY=$WALLY_CLEAN WALLYCONF=rv64gc TESTBENCH=testbench WORKDIR=$TEST_DIR/build/rv64gc_testbench'
+
+make: Entering directory '/home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/wally_clean/sim/verilator'
+rm -rf /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/sim/verilator/wkdir /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/sim/verilator/logs
+make: Leaving directory '/home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/wally_clean/sim/verilator'
+make: Entering directory '/home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/wally_clean/sim/verilator'
+mkdir -p /home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/rv64gc_testbench
+verilator \
+--Mdir /home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/rv64gc_testbench -o Vtestbench \
+--binary --trace \
+--assert --no-trace-top --stats \
+--top-module testbench  --relative-includes \
+"-I/home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/wally_clean/config/shared" "-I/home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/wally_clean/config/rv64gc" "-I/home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/wally_clean/config/deriv/rv64gc" \
+/home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/wally_clean/sim/verilator/wrapper.c \
+ \
+ \
+/home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/wally_clean/src/cvw.sv /home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/wally_clean/testbench/testbench.sv /home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/wally_clean/testbench/common/*.sv /home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/wally_clean/src/*/*.sv /home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/wally_clean/src/*/*/*.sv /home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/wally_clean/addins/verilog-ethernet/*/*.sv /home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/wally_clean/addins/verilog-ethernet/*/*/*/*.sv
+%Error: /home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/wally_clean/src/fpu/postproc/round.sv:32:16: syntax error, unexpected IDENTIFIER, expecting ','
+   32 |     instead of single
+      |                ^~~~~~
+        ... See the manual at https://verilator.org/verilator_doc.html?v=5.036 for more assistance.
+%Error: /home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/wally_clean/src/fpu/postproc/round.sv:35:3: syntax error, unexpected input, expecting IDENTIFIER or do or final or randomize
+   35 |   input  logic [1:0]               PostProcSel,         
+      |   ^~~~~
+%Error: /home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/wally_clean/src/fpu/postproc/round.sv:36:3: syntax error, unexpected input, expecting IDENTIFIER or do or final or randomize
+   36 |   input  logic                     Ms,                  
+      |   ^~~~~
+%Error: /home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/wally_clean/src/fpu/postproc/round.sv:37:3: syntax error, unexpected input, expecting IDENTIFIER or do or final or randomize
+   37 |   input  logic [P.NORMSHIFTSZ-1:0] Mf,                  
+      |   ^~~~~
+%Error: /home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/wally_clean/src/fpu/postproc/round.sv:39:3: syntax error, unexpected input, expecting IDENTIFIER or do or final or randomize
+   39 |   input  logic                     FmaOp,               
+      |   ^~~~~
+%Error: /home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/wally_clean/src/fpu/postproc/round.sv:40:3: syntax error, unexpected input, expecting IDENTIFIER or do or final or randomize
+   40 |   input  logic [P.NE+1:0]          FmaMe,               
+      |   ^~~~~
+%Error: /home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/wally_clean/src/fpu/postproc/round.sv:41:3: syntax error, unexpected input, expecting IDENTIFIER or do or final or randomize
+   41 |   input  logic                     FmaASticky,          
+      |   ^~~~~
+%Error: /home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/wally_clean/src/fpu/postproc/round.sv:43:3: syntax error, unexpected input, expecting IDENTIFIER or do or final or randomize
+   43 |   input  logic                     DivOp,               
+      |   ^~~~~
+%Error: /home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/wally_clean/src/fpu/postproc/round.sv:44:3: syntax error, unexpected input, expecting IDENTIFIER or do or final or randomize
+   44 |   input  logic                     DivSticky,           
+      |   ^~~~~
+%Error: /home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/wally_clean/src/fpu/postproc/round.sv:45:3: syntax error, unexpected input, expecting IDENTIFIER or do or final or randomize
+   45 |   input  logic [P.NE+1:0]          Ue,                  
+      |   ^~~~~
+%Error: /home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/wally_clean/src/fpu/postproc/round.sv:47:3: syntax error, unexpected input, expecting IDENTIFIER or do or final or randomize
+   47 |   input  logic                     CvtOp,               
+      |   ^~~~~
+%Error: /home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/wally_clean/src/fpu/postproc/round.sv:48:3: syntax error, unexpected input, expecting IDENTIFIER or do or final or randomize
+   48 |   input  logic                     ToInt,               
+      |   ^~~~~
+%Error: /home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/wally_clean/src/fpu/postproc/round.sv:49:3: syntax error, unexpected input, expecting IDENTIFIER or do or final or randomize
+   49 |   input  logic                     CvtResSubnormUf,     
+      |   ^~~~~
+%Error: /home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/wally_clean/src/fpu/postproc/round.sv:50:3: syntax error, unexpected input, expecting IDENTIFIER or do or final or randomize
+   50 |   input  logic                     CvtResUf,            
+      |   ^~~~~
+%Error: /home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/wally_clean/src/fpu/postproc/round.sv:51:3: syntax error, unexpected input, expecting IDENTIFIER or do or final or randomize
+   51 |   input  logic [P.NE:0]            CvtCe,               
+      |   ^~~~~
+%Error: /home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/wally_clean/src/fpu/postproc/round.sv:53:3: syntax error, unexpected output, expecting IDENTIFIER or do or final or randomize
+   53 |   output logic [P.NE+1:0]          Me,                  
+      |   ^~~~~~
+%Error: /home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/wally_clean/src/fpu/postproc/round.sv:54:3: syntax error, unexpected output, expecting IDENTIFIER or do or final or randomize
+   54 |   output logic                     UfPlus1,             
+      |   ^~~~~~
+%Error: /home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/wally_clean/src/fpu/postproc/round.sv:55:3: syntax error, unexpected output, expecting IDENTIFIER or do or final or randomize
+   55 |   output logic [P.NE+1:0]          FullRe,              
+      |   ^~~~~~
+%Error: /home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/wally_clean/src/fpu/postproc/round.sv:56:3: syntax error, unexpected output, expecting IDENTIFIER or do or final or randomize
+   56 |   output logic [P.NE-1:0]          Re,                  
+      |   ^~~~~~
+%Error: /home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/wally_clean/src/fpu/postproc/round.sv:57:3: syntax error, unexpected output, expecting IDENTIFIER or do or final or randomize
+   57 |   output logic [P.NF-1:0]          Rf,                  
+      |   ^~~~~~
+%Error: /home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/wally_clean/src/fpu/postproc/round.sv:58:3: syntax error, unexpected output, expecting IDENTIFIER or do or final or randomize
+   58 |   output logic                     Sticky,              
+      |   ^~~~~~
+%Error: /home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/wally_clean/src/fpu/postproc/round.sv:59:3: syntax error, unexpected output, expecting IDENTIFIER or do or final or randomize
+   59 |   output logic                     Plus1,               
+      |   ^~~~~~
+%Error: /home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/wally_clean/src/fpu/postproc/round.sv:60:3: syntax error, unexpected output, expecting IDENTIFIER or do or final or randomize
+   60 |   output logic                     Round, Guard         
+      |   ^~~~~~
+%Error: /home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/wally_clean/src/fpu/postproc/round.sv:61:1: syntax error, unexpected ')', expecting ',' or ';'
+   61 | );
+      | ^
+%Error: /home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/wally_clean/src/fpu/postproc/round.sv:121:3: syntax error, unexpected assign
+  121 |   assign IntRes = ToInt;
+      |   ^~~~~~
+%Error: /home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/wally_clean/src/fpu/postproc/round.sv:201:3: syntax error, unexpected if
+  201 |   if (P.ZFBFMIN_SUPPORTED) begin : bf16round
+      |   ^~
+%Error: /home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/wally_clean/src/fpu/postproc/specialcase.sv:282:53: syntax error, unexpected '=', expecting '('
+  282 |       if(XNaN&~(IntToFp&CvtOp))   PostProcResPreBox = XNaNRes;
+      |                                                     ^
+%Error: /home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/wally_clean/src/fpu/postproc/specialcase.sv:283:53: syntax error, unexpected '=', expecting '('
+  283 |       else if(YNaN&~CvtOp)        PostProcResPreBox = YNaNRes;
+      |                                                     ^
+%Error: /home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/wally_clean/src/fpu/postproc/specialcase.sv:284:53: syntax error, unexpected '=', expecting '('
+  284 |       else if(ZNaN&FmaOp)         PostProcResPreBox = ZNaNRes;
+      |                                                     ^
+%Error: /home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/wally_clean/src/fpu/postproc/specialcase.sv:285:53: syntax error, unexpected '=', expecting '('
+  285 |       else if(Invalid)            PostProcResPreBox = InvalidRes;
+      |                                                     ^
+%Error: /home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/wally_clean/src/fpu/postproc/specialcase.sv:286:53: syntax error, unexpected '=', expecting '('
+  286 |       else if(SelOfRes)           PostProcResPreBox = OfRes;
+      |                                                     ^
+%Error: /home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/wally_clean/src/fpu/postproc/specialcase.sv:287:53: syntax error, unexpected '=', expecting '('
+  287 |       else if(KillRes)            PostProcResPreBox = Bf16Dst ? Bf16UfRes : UfRes;
+      |                                                     ^
+%Error: /home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/wally_clean/src/fpu/postproc/specialcase.sv:288:53: syntax error, unexpected '=', expecting '('
+  288 |       else                        PostProcResPreBox = NormRes;
+      |                                                     ^
+%Error: Exiting due to 33 error(s)
+make: *** [Makefile:53: compile] Error 1
+make: Leaving directory '/home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/wally_clean/sim/verilator'
+
+Finished: 2026-09-18T10:20:04.266229+00:00
+Return code: 2
+Status: COMMAND_FAILED
+ERROR: Command exited with code 2

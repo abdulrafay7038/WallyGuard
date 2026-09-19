@@ -1,0 +1,36 @@
+Started: 2026-09-18T09:51:27.947003+00:00
+Command: bash -o pipefail -c 'ls -la /home/rafay/miniconda3/WallyGuard2/runs/20260917T123710Z-9bc09998/logs'
+
+total 144
+drwxrwxr-x 2 rafay rafay  4096 Sep 17 14:48 .
+drwxrwxr-x 7 rafay rafay  4096 Sep 17 14:52 ..
+-rw-rw-r-- 1 rafay rafay   179 Sep 17 14:01 baseline-reproducer-0.log
+-rw-rw-r-- 1 rafay rafay  1879 Sep 17 14:37 build.log
+-rw-rw-r-- 1 rafay rafay 45816 Sep 17 14:40 build2.log
+-rw-rw-r-- 1 rafay rafay   193 Sep 17 14:48 fix-1-reproducer.log
+-rw-rw-r-- 1 rafay rafay     0 Sep 17 14:48 spike_control.log
+-rw-rw-r-- 1 rafay rafay     0 Sep 17 14:48 spike_giga.log
+-rw-rw-r-- 1 rafay rafay     0 Sep 17 14:48 spike_mega.log
+-rw-rw-r-- 1 rafay rafay   452 Sep 17 13:02 test_check_dut.log
+-rw-rw-r-- 1 rafay rafay   452 Sep 17 13:32 test_check_megapage_dut.log
+-rw-rw-r-- 1 rafay rafay   344 Sep 17 13:56 test_control_aligned_dut.log
+-rw-rw-r-- 1 rafay rafay   344 Sep 17 13:03 test_control_debug_dut.log
+-rw-rw-r-- 1 rafay rafay   452 Sep 17 13:37 test_control_svade_dut.log
+-rw-rw-r-- 1 rafay rafay   344 Sep 17 13:02 test_debug_dut.log
+-rw-rw-r-- 1 rafay rafay   452 Sep 17 13:22 test_find_mepc_dut.log
+-rw-rw-r-- 1 rafay rafay   453 Sep 17 13:19 test_find_trap_dut.log
+-rw-rw-r-- 1 rafay rafay   452 Sep 17 13:56 test_hptw_gigapage_misaligned_dut.log
+-rw-rw-r-- 1 rafay rafay   452 Sep 17 13:56 test_hptw_megapage_misaligned_dut.log
+-rw-rw-r-- 1 rafay rafay   452 Sep 17 13:01 test_hptw_misaligned_superpage_dut.log
+-rw-rw-r-- 1 rafay rafay   452 Sep 17 13:47 test_proper_smode_dut.log
+-rw-rw-r-- 1 rafay rafay   453 Sep 17 13:40 test_svade_debug_dut.log
+-rw-rw-r-- 1 rafay rafay   453 Sep 17 13:43 test_svade_scause_dut.log
+-rw-rw-r-- 1 rafay rafay   452 Sep 17 13:15 test_trap_or_not_dut.log
+-rw-rw-r-- 1 rafay rafay   452 Sep 17 13:09 test_val_dut.log
+-rw-rw-r-- 1 rafay rafay   344 Sep 17 14:48 wally_control.log
+-rw-rw-r-- 1 rafay rafay   344 Sep 17 14:48 wally_giga.log
+-rw-rw-r-- 1 rafay rafay   344 Sep 17 14:48 wally_mega.log
+
+Finished: 2026-09-18T09:51:28.021381+00:00
+Return code: 0
+Status: PASS

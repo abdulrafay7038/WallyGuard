@@ -28,6 +28,22 @@ running named capacity actor retains its initial limit.
 
 ## Reproducer contract
 
+New workspaces are seeded with `reproducer.json`, `build_reproducer.sh`, and
+`tests/selfcheck.h` / `tests/template.S.example`. These are editable run inputs,
+frozen with the rest of the reproducer before verification. The RV64 template
+contains a deliberate assembler error; the Tester must implement the stimulus
+and independent assertions in `control.S` and `test.S` and adapt the ISA/ABI and
+record widths when needed. The header declares the native five-word self-check
+record and its Spike signature aliases. The starter build compiles the ELFs;
+the contract's `bin/wsim` calls handle incremental DUT rebuilding.
+
+The MCP `validate_reproducer` tool reads a contract under `test_dir` and performs
+static checks without building or executing it. It returns all detected
+command/path/metadata errors, allowing repair within the same conversation.
+The same checks run again in the controller before the build. Linked symbol
+alignment and actual oracle/DUT results are still checked after building.
+`PREFLIGHT_READY` does not imply a valid test, a mismatch, or a passing DUT.
+
 A Tester may return a legacy `reproduce_command` for human convenience, but it
 cannot establish a mismatch. A bug claim needs `reproducer` with:
 
@@ -102,6 +118,8 @@ artifacts, then reported as `mcp_server_timeout` if still unhealthy.
 Commands stream full stdout/stderr to files and return only a bounded tail.
 A command taking longer than two seconds returns a job ID; agents poll
 `command_status`, so a long build does not exceed the MCP response deadline.
+An explicit status call waits up to ten seconds for completion using an async
+wait that does not cancel the underlying job on timeout or client cancellation.
 Only one workspace command may run at a time.
 Timeout/cancellation sends TERM then KILL to owned process groups and tracked
 separate-session descendants. Uvicorn and application loggers install a handler
@@ -139,7 +157,7 @@ conflicts and installing the operator's regression assets:
 ```bash
 export PATH=/home/rafay/miniconda3/envs/chia_env/bin:$PATH
 chia job submit --address http://127.0.0.1:8265 \
-  --runtime-env-json '{"working_dir":".","excludes":["cvw/","runs/","wally-worktrees/","confirmed-bugs/","candidate-bugs/",".git/","__pycache__/"],"env_vars":{"WALLY_RUN_REGRESSION":"1","WALLY_DIRECTED_COMMAND":"bin/wsim rv64gc arch64i --sim verilator","WALLY_REGRESSION_COMMAND":"bin/regression-wally","WALLY_REGRESSION_TIMEOUT":"5400","WALLY_REPRODUCER_TIMEOUT":"900","WALLY_LLM_CONCURRENCY":"1"}}' \
+  --runtime-env-json '{"working_dir":".","excludes":["cvw/","runs/","reviews/","wally-worktrees/","confirmed-bugs/","candidate-bugs/",".git/","__pycache__/"],"env_vars":{"WALLY_RUN_REGRESSION":"1","WALLY_DIRECTED_COMMAND":"bin/wsim rv64gc arch64i --sim verilator","WALLY_REGRESSION_COMMAND":"bin/regression-wally","WALLY_REGRESSION_TIMEOUT":"5400","WALLY_REPRODUCER_TIMEOUT":"900","WALLY_LLM_CONCURRENCY":"1"}}' \
   -- python -B loop.py
 ```
 
@@ -154,6 +172,37 @@ workers and excludes hardware checkouts and accumulated evidence.
 No live hardware verification is claimed by the unit/integration suite. Existing
 CVW merge conflicts, missing suite assets, provider authentication and deployed
 worker connectivity remain external prerequisites.
+
+## Performance visibility
+
+Prompt context is selected by role. The Architect gets a bounded tag/target/status
+history index with the archive path. The Tester gets its plan and repair feedback;
+the Critic and Fixer keep the applicable full verification evidence. Context
+selection copies inputs and never truncates current reproducer contracts or
+verification results. Complete historical reports remain in `runs/`.
+
+`attempt.json` records per-agent stage durations (including guards, model and
+tool waits), context byte counts, and the iteration's elapsed time at archival.
+The normal MCP shutdown writes command/poll/preflight counts and aggregate
+command wall time to `controller/agent-*/tool-metrics.json`. A killed actor may
+not produce that file, so these are observability data, not verification gates.
+The reproducer result also records its total elapsed time.
+
+`python -m orchestration.performance runs/<tag>` summarizes these records.
+CLI startup enables the installed Chia profiler after connecting to Ray;
+`WALLY_PROFILE=0` disables it and `WALLY_PROFILE_DIR` chooses its output directory.
+The collector is stopped in a `finally` block. No Chia source, model selection,
+global concurrency, baseline repeat count, or confirmation gate is changed.
+
+Validation of the iteration-efficiency changes: **72 project tests pass**,
+including the existing confirmation-gate tests and new context, preflight,
+poll cancellation, and timing tests. A real GCC/Spike scaffold smoke test
+confirmed that an unfinished template fails compilation, valid control/test
+programs emit passing signatures, an injected expected-value mismatch fails,
+and linked trap handlers satisfy alignment checks. The current archive's
+40-entry history payload shrank from 97,373 to 5,855 bytes (94%) for the
+Architect. This measures prompt size, not end-to-end iteration speed. No new
+provider-backed campaign or full hardware regression was run for this change.
 
 ## Validation of this change
 

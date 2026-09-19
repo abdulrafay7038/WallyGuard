@@ -1,0 +1,15 @@
+Started: 2026-09-18T10:38:44.408382+00:00
+Command: bash -o pipefail -c 'TEST_DIR=/home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be
+cat $TEST_DIR/logs/test_pmp_mmode_store_cross_wally.log'
+
+Usage: elf2hex <width> <depth> <elf_file> [base]
+make: *** [/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/Makefile:8: /home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/test_pmp_mmode_store_cross.elf.memfile] Error 1
+Error: Could not open file /home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/test_pmp_mmode_store_cross.elf.memfile
+- /home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/wally_clean/testbench/testbench.sv:632: Verilog $finish
+- S i m u l a t i o n   R e p o r t: Verilator 5.036 2025-04-27
+- Verilator: $finish at 145ps; walltime 0.028 s; speed 7.885 ns/s
+- Verilator: cpu 0.018 s on 1 threads; alloced 346 MB
+
+Finished: 2026-09-18T10:38:44.495908+00:00
+Return code: 0
+Status: PASS

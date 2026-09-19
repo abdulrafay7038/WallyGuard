@@ -1,0 +1,47 @@
+Started: 2026-09-18T09:59:12.618365+00:00
+Command: bash -o pipefail -c 'head -n 40 /home/rafay/miniconda3/WallyGuard2/runs/20260917T123710Z-9bc09998/tests/test_control_aligned.S'
+
+.section .text.init
+.globl rvtest_entry_point
+rvtest_entry_point:
+    # Setup PMP
+    li t0, -1
+    csrw pmpaddr0, t0
+    li t0, 0xF
+    csrw pmpcfg0, t0
+
+    # Delegate page faults to S-mode (Store page fault = 15)
+    li t0, (1 << 12) | (1 << 13) | (1 << 15)
+    csrw medeleg, t0
+
+    # Enable menvcfg.ADUE (bit 61)
+    li t0, 1
+    slli t0, t0, 61
+    csrs menvcfg, t0
+
+    # Set up stvec
+    la t0, trap_handler
+    csrw stvec, t0
+
+    # Setup Page Tables
+    la t0, root_pt
+    srli t0, t0, 12
+    # satp = Mode=8 (Sv39), ASID=0, PPN=root_pt>>12
+    li t1, 8
+    slli t1, t1, 60
+    or t0, t0, t1
+    csrw satp, t0
+    sfence.vma
+
+    # Map VA 0x80000000 -> root_pt[2]
+    # PPN = 0x80000
+    # PTE = (0x80000 << 10) | 0xEF = 0x200000EF
+    la t0, root_pt
+    li t1, 0x200000EF
+    sd t1, 16(t0) # root_pt[2]
+
+    # Map VA 0x40000000 -> root_pt[1] (Aligned Gigapage)
+
+Finished: 2026-09-18T09:59:12.692985+00:00
+Return code: 0
+Status: PASS

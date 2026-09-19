@@ -1,0 +1,567 @@
+# Makefile for tests for tools/scripts in docs-resources repository.
+# Must be run in top-level directory of docs-resources repository.
+#
+# This work is licensed under the Creative Commons Attribution-ShareAlike 4.0
+# International License. To view a copy of this license, visit
+# http://creativecommons.org/licenses/by-sa/4.0/ or send a letter to
+# Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
+#
+# SPDX-License-Identifier: CC-BY-SA-4.0
+#
+# This Makefile is designed to automate the process of running tests.
+# Running with a preinstalled docker container is strongly recommended.
+# Install by running:
+#   docker pull ghcr.io/riscv/riscv-docs-base-container-image:latest
+
+# Directories all relative to the top-level.
+CONVERTERS_DIR := converters
+TOOLS_DIR := tools
+BUILD_DIR := build
+TESTS_DIR := tests
+NORM_RULE_TESTS_DIR := $(TESTS_DIR)/norm-rule
+PARAMS_TESTS_DIR := $(TESTS_DIR)/params
+TAGS_TESTS_DIR := $(TESTS_DIR)/tags
+TAG_CHANGES_TESTS_DIR := $(TESTS_DIR)/tag-changes
+ADOC2HTML_TESTS_DIR := $(TESTS_DIR)/adoc2html
+SHARED_UTILS_TESTS_DIR := $(TESTS_DIR)/shared_utils
+TEXT_TO_HTML_TESTS_DIR := $(TESTS_DIR)/text_to_html
+NORM_RULE_DEF_DIR := $(NORM_RULE_TESTS_DIR)
+NORM_RULE_EXPECTED_DIR := $(NORM_RULE_TESTS_DIR)/expected
+PARAMS_DEF_DIR := $(PARAMS_TESTS_DIR)
+PARAMS_EXPECTED_DIR := $(PARAMS_TESTS_DIR)/expected
+
+# Scripts being tested.
+TAGS_BACKEND := tags.rb
+CREATE_NORM_RULE_TOOL := $(TOOLS_DIR)/create_normative_rules.py
+CREATE_NORM_RULE_PYTHON := python3 $(CREATE_NORM_RULE_TOOL)
+DETECT_TAG_CHANGES_TOOL := $(TOOLS_DIR)/detect_tag_changes.py
+DETECT_TAG_CHANGES_PYTHON := python3 $(DETECT_TAG_CHANGES_TOOL)
+CREATE_PARAMS_TOOL := $(TOOLS_DIR)/create_params.py
+CREATE_PARAMS_PYTHON := python3 $(CREATE_PARAMS_TOOL)
+CREATE_PARAM_TABLES_TOOL := $(TOOLS_DIR)/create_param_tables.py
+CREATE_PARAM_TABLES_PYTHON := python3 $(CREATE_PARAM_TABLES_TOOL)
+PARAMS_ADOC_SOURCE := $(PARAMS_TESTS_DIR)/test-param-tables.adoc
+PARAM_TABLE_SCHEMA_INPUT := $(TOOLS_DIR)/default_param_table.yaml
+CSR_TABLE_SCHEMA_INPUT := $(TOOLS_DIR)/default_csr_table.yaml
+PARAM_TABLE_VARIANT_FILES := \
+	$(PARAMS_TESTS_DIR)/test-param-table-full-default.yaml \
+	$(PARAMS_TESTS_DIR)/test-param-table-reordered.yaml \
+	$(PARAMS_TESTS_DIR)/test-param-table-minimal.yaml
+CSR_TABLE_VARIANT_FILES := \
+	$(PARAMS_TESTS_DIR)/test-csr-table-full-default.yaml \
+	$(PARAMS_TESTS_DIR)/test-csr-table-reordered.yaml \
+	$(PARAMS_TESTS_DIR)/test-csr-table-minimal.yaml
+EXPORT_PARAMS_TO_UDB_TOOL := $(TOOLS_DIR)/export_params_to_udb.py
+EXPORT_PARAMS_TO_UDB_PYTHON := python3 $(EXPORT_PARAMS_TO_UDB_TOOL)
+
+# Stuff for building test standards document in HTML to have links into it.
+DOCS = test-ch1 test-ch2
+DOCS_HTML := $(addprefix $(BUILD_DIR)/, $(addsuffix .html, $(DOCS)))
+ENV := LANG=C.utf8
+ASCIIDOCTOR_HTML := $(ENV) asciidoctor
+
+# Normative rule test files
+DOC_NORM_TAG_SUFFIX := -norm-tags.json
+TEST_CH1_INPUT_ADOC_FNAME := test-ch1.adoc
+TEST_CH2_INPUT_ADOC_FNAME := test-ch2.adoc
+TEST_CH1_HTML_FNAME := test-ch1.html
+TEST_CH2_HTML_FNAME := test-ch2.html
+TEST_CH1_NORM_TAGS_OUTPUT_FNAME := test-ch1$(DOC_NORM_TAG_SUFFIX)
+TEST_CH2_NORM_TAGS_OUTPUT_FNAME := test-ch2$(DOC_NORM_TAG_SUFFIX)
+NORM_RULE_JSON_OUTPUT_FNAME := test-norm-rules.json
+NORM_RULE_HTML_OUTPUT_FNAME := test-norm-rules.html
+NORM_RULE_TAGS_NO_RULES_OUTPUT_FNAME := test-norm-rules_tags_no_rules.json
+PARAMS_JSON_OUTPUT_FNAME := test-params.json
+PARAMS_HTML_OUTPUT_FNAME := test-params.html
+
+# Tag extraction test files
+DUPLICATE_TEST_ADOC_INPUT_FNAME := duplicate.adoc
+DUPLICATE_NORM_TAGS_OUTPUT_FNAME := duplicate-tags.json
+
+# Tag change detection test files
+TAG_CHANGES_TEST_REFERENCE := reference.json
+TAG_CHANGES_TEST_CURRENT := current.json
+TAG_CHANGES_TEST_REFERENCE_PATH := $(TAG_CHANGES_TESTS_DIR)/$(TAG_CHANGES_TEST_REFERENCE)
+TAG_CHANGES_TEST_CURRENT_PATH := $(TAG_CHANGES_TESTS_DIR)/$(TAG_CHANGES_TEST_CURRENT)
+
+# Built output files
+BUILT_TEST_CH1_HTML_FNAME := $(BUILD_DIR)/$(TEST_CH1_HTML_FNAME)
+BUILT_TEST_CH2_HTML_FNAME := $(BUILD_DIR)/$(TEST_CH2_HTML_FNAME)
+BUILT_TEST_CH1_NORM_TAGS_FNAME := $(BUILD_DIR)/$(TEST_CH1_NORM_TAGS_OUTPUT_FNAME)
+BUILT_TEST_CH2_NORM_TAGS_FNAME := $(BUILD_DIR)/$(TEST_CH2_NORM_TAGS_OUTPUT_FNAME)
+BUILT_DUPLICATE_NORM_TAGS_FNAME := $(BUILD_DIR)/$(DUPLICATE_NORM_TAGS_OUTPUT_FNAME)
+BUILT_NORM_RULES_JSON := $(BUILD_DIR)/$(NORM_RULE_JSON_OUTPUT_FNAME)
+BUILT_NORM_RULES_HTML := $(BUILD_DIR)/$(NORM_RULE_HTML_OUTPUT_FNAME)
+BUILT_NORM_RULES_TAGS_NO_RULES := $(BUILD_DIR)/$(NORM_RULE_TAGS_NO_RULES_OUTPUT_FNAME)
+BUILT_PARAMS_JSON := $(BUILD_DIR)/$(PARAMS_JSON_OUTPUT_FNAME)
+BUILT_PARAMS_HTML := $(BUILD_DIR)/$(PARAMS_HTML_OUTPUT_FNAME)
+BUILT_PARAM_ADOC_DIR := $(BUILD_DIR)/test-param-tables
+BUILT_PARAM_ADOC_STAMP := $(BUILD_DIR)/test-param-adoc.done
+BUILT_PARAMS_ADOC := $(BUILD_DIR)/test-param-tables.adoc
+BUILT_PARAM_TABLE_VARIANTS_DIR := $(BUILD_DIR)/test-param-table-variants
+BUILT_PARAM_TABLE_VARIANTS_STAMP := $(BUILD_DIR)/test-param-table-variants.done
+BUILT_CSR_TABLE_VARIANTS_DIR := $(BUILD_DIR)/test-csr-table-variants
+BUILT_CSR_TABLE_VARIANTS_STAMP := $(BUILD_DIR)/test-csr-table-variants.done
+BUILT_EXPORT_PARAMS_TO_UDB_DIR := $(BUILD_DIR)/test-export-params-to-udb
+BUILT_EXPORT_PARAMS_TO_UDB_STAMP := $(BUILD_DIR)/test-export-params-to-udb.done
+
+# Combine separate fnames into lists.
+BUILT_TEST_HTML_FNAMES := $(BUILT_TEST_CH1_HTML_FNAME) $(BUILT_TEST_CH2_HTML_FNAME)
+BUILT_TEST_NORM_TAGS_FNAMES := $(BUILT_TEST_CH2_NORM_TAGS_FNAME) $(BUILT_TEST_CH1_NORM_TAGS_FNAME)
+
+# Copies of expected output files.
+# Use make target "update-expected" to update from build dir contents.
+EXPECTED_CH1_NORM_TAGS := $(NORM_RULE_EXPECTED_DIR)/$(TEST_CH1_NORM_TAGS_OUTPUT_FNAME)
+EXPECTED_CH2_NORM_TAGS := $(NORM_RULE_EXPECTED_DIR)/$(TEST_CH2_NORM_TAGS_OUTPUT_FNAME)
+EXPECTED_NORM_RULES_JSON := $(NORM_RULE_EXPECTED_DIR)/$(NORM_RULE_JSON_OUTPUT_FNAME)
+EXPECTED_NORM_RULES_HTML := $(NORM_RULE_EXPECTED_DIR)/$(NORM_RULE_HTML_OUTPUT_FNAME)
+EXPECTED_PARAMS_JSON := $(PARAMS_EXPECTED_DIR)/$(PARAMS_JSON_OUTPUT_FNAME)
+EXPECTED_PARAMS_HTML := $(PARAMS_EXPECTED_DIR)/$(PARAMS_HTML_OUTPUT_FNAME)
+EXPECTED_PARAMS_ADOC := $(PARAMS_EXPECTED_DIR)/test-param-tables.adoc
+EXPECTED_PARAM_ADOC_DIR := $(PARAMS_EXPECTED_DIR)/test-param-tables
+EXPECTED_PARAM_TABLE_VARIANTS_DIR := $(PARAMS_EXPECTED_DIR)/test-param-table-variants
+EXPECTED_CSR_TABLE_VARIANTS_DIR := $(PARAMS_EXPECTED_DIR)/test-csr-table-variants
+EXPECTED_EXPORT_PARAMS_TO_UDB_DIR := $(PARAMS_EXPECTED_DIR)/test-export-params-to-udb
+
+# Normative rule definition input YAML files.
+GOOD_NORM_RULE_DEF_FILES := $(NORM_RULE_DEF_DIR)/test-ch1.yaml $(NORM_RULE_DEF_DIR)/test-ch2.yaml
+BAD_NORM_RULE_DEF_FILES := $(NORM_RULE_DEF_DIR)/missing_tag_refs.yaml
+PARAM_DEF_TEST_FILES := $(PARAMS_TESTS_DIR)/test-ch1.yaml $(PARAMS_TESTS_DIR)/test-ch2.yaml
+ADOC2HTML_TEST_SCRIPT := $(ADOC2HTML_TESTS_DIR)/test_adoc_to_html.py
+SHARED_UTILS_TEST_SCRIPT := $(SHARED_UTILS_TESTS_DIR)/test_shared_utils.py
+ADOC_TO_HTML_UNIT_TEST_SCRIPT := $(TEXT_TO_HTML_TESTS_DIR)/test_adoc_to_html_unit.py
+DEF_TEXT_TO_HTML_UNIT_TEST_SCRIPT := $(TEXT_TO_HTML_TESTS_DIR)/test_def_text_to_html_unit.py
+TAG_TEXT_TO_HTML_UNIT_TEST_SCRIPT := $(TEXT_TO_HTML_TESTS_DIR)/test_tag_text_to_html_unit.py
+
+# Add -t to each normative tag input filename and add prefix of "/" to make into absolute pathname.
+NORM_TAG_FILE_ARGS := $(foreach relative_pname,$(BUILT_TEST_NORM_TAGS_FNAMES),-t /$(relative_pname))
+
+# Add -d to each normative rule definition filename
+GOOD_NORM_RULE_DEF_ARGS := $(foreach relative_pname,$(GOOD_NORM_RULE_DEF_FILES),-d $(relative_pname))
+BAD_NORM_RULE_DEF_ARGS := $(foreach relative_pname,$(BAD_NORM_RULE_DEF_FILES),-d $(relative_pname))
+
+# Add --param-def to each parameter definition filename
+PARAM_DEF_TEST_ARGS := $(foreach relative_pname,$(PARAM_DEF_TEST_FILES),--param-def $(relative_pname))
+
+# Provide mapping from a stds doc norm tags JSON file to a URL that one can link to. Used to create links into stds doc.
+NORM_RULE_DOC2URL_ARGS := $(foreach doc_name,$(DOCS),-tag2url /$(BUILD_DIR)/$(doc_name)$(DOC_NORM_TAG_SUFFIX) $(doc_name).html)
+
+# Docker stuff
+DOCKER_BIN ?= docker
+SKIP_DOCKER ?= $(shell if command -v ${DOCKER_BIN}  >/dev/null 2>&1 ; then echo false; else echo true; fi)
+DOCKER_IMG := ghcr.io/riscv/riscv-docs-base-container-image:latest
+ifneq ($(SKIP_DOCKER),true)
+    DOCKER_IS_PODMAN = \
+        $(shell ! ${DOCKER_BIN}  -v | grep podman >/dev/null ; echo $$?)
+    ifeq "$(DOCKER_IS_PODMAN)" "1"
+        # Modify the SELinux label for the host directory to indicate
+        # that it can be shared with multiple containers. This is apparently
+        # only required for Podman, though it is also supported by Docker.
+        DOCKER_VOL_SUFFIX = :z
+        DOCKER_EXTRA_VOL_SUFFIX = ,z
+    else
+        DOCKER_IS_ROOTLESS = \
+            $(shell ! ${DOCKER_BIN} info -f '{{println .SecurityOptions}}' | grep rootless >/dev/null ; echo $$?)
+        ifneq "$(DOCKER_IS_ROOTLESS)" "1"
+            # Rooted Docker needs this flag so that the files it creates are
+            # owned by the current user instead of root. Rootless docker does not
+            # require it, and Podman doesn't either since it is always rootless.
+            DOCKER_USER_ARG := --user $(shell id -u)
+        endif
+    endif
+
+    DOCKER_CMD = \
+        ${DOCKER_BIN} run --rm \
+            -v ${PWD}/$@.workdir:/build${DOCKER_VOL_SUFFIX} \
+            -v ${PWD}/${CONVERTERS_DIR}:/${CONVERTERS_DIR}:ro${DOCKER_EXTRA_VOL_SUFFIX} \
+            -v ${PWD}/$(TOOLS_DIR):/$(TOOLS_DIR):ro${DOCKER_EXTRA_VOL_SUFFIX} \
+            -v ${PWD}/$(TESTS_DIR):/$(TESTS_DIR):ro${DOCKER_EXTRA_VOL_SUFFIX} \
+            -w /build \
+            $(DOCKER_USER_ARG) \
+            ${DOCKER_IMG} \
+            /bin/sh -c
+    DOCKER_QUOTE := "
+else
+    DOCKER_CMD = \
+        cd $@.workdir &&
+endif
+
+WORKDIR_SETUP = \
+    rm -rf $@.workdir && \
+    mkdir -p $@.workdir && \
+		mkdir -p $@.workdir/$(BUILD_DIR) && \
+    ln -sfn ../../converters ../../tools ../../tests $@.workdir/
+
+WORKDIR_TEARDOWN = \
+    mv $@.workdir/$@ $@ && \
+    rm -rf $@.workdir
+
+ASCIIDOCTOR_TAGS := asciidoctor --backend tags --require=./$(CONVERTERS_DIR)/$(TAGS_BACKEND)
+
+OPTIONS := --trace \
+           -D build \
+           --failure-level=WARN
+
+
+
+# Default target
+.PHONY: all
+all: test
+
+
+
+# Build tests and compare against expected
+.PHONY: test
+test: build-tests compare-tests test-tag-changes test-adoc2html test-shared-utils test-text-to-html
+
+# Build tests
+.PHONY: build-tests build-test-tags build-test-norm-rules-json build-test-norm-rules-html
+.PHONY: build-test-tags-without-rules build-test-params-json build-test-params-html
+.PHONY: build-test-param-adoc build-test-param-table-variants
+.PHONY: build-test-csr-table-variants build-test-export-params-to-udb
+build-tests: build-test-tags build-test-norm-rules-json build-test-norm-rules-html \
+build-test-tags-without-rules build-test-params-json build-test-params-html build-test-param-adoc \
+build-test-param-table-variants build-test-csr-table-variants \
+build-test-export-params-to-udb
+build-test-tags: $(BUILT_TEST_NORM_TAGS_FNAMES) $(BUILT_DUPLICATE_NORM_TAGS_FNAME)
+build-test-norm-rules-json: $(BUILT_NORM_RULES_JSON)
+build-test-norm-rules-html: $(BUILT_NORM_RULES_HTML)
+build-test-tags-without-rules: $(BUILT_NORM_RULES_TAGS_NO_RULES)
+build-test-params-json: $(BUILT_PARAMS_JSON)
+build-test-params-html: $(BUILT_PARAMS_HTML)
+build-test-param-adoc: $(BUILT_PARAM_ADOC_STAMP)
+build-test-param-table-variants: $(BUILT_PARAM_TABLE_VARIANTS_STAMP)
+build-test-csr-table-variants: $(BUILT_CSR_TABLE_VARIANTS_STAMP)
+build-test-export-params-to-udb: $(BUILT_EXPORT_PARAMS_TO_UDB_STAMP)
+
+# Compare tests against expected
+.PHONY: compare-tests
+compare-tests: compare-test-tags compare-test-norm-rules-json compare-test-norm-rules-html \
+compare-test-params-json compare-test-params-html compare-test-params-adoc \
+compare-test-param-adoc-files \
+compare-test-param-table-variants compare-test-csr-table-variants compare-test-export-params-to-udb
+
+.PHONY: compare-test-tags
+compare-test-tags: compare-test-ch1-tags compare-test-ch2-tags
+
+.PHONY: compare-test-ch1-tags
+compare-test-ch1-tags: $(EXPECTED_CH1_NORM_TAGS) $(BUILT_TEST_CH1_NORM_TAGS_FNAME)
+	@echo "CHECKING TEST-CH1 BUILT TAGS AGAINST EXPECTED TAGS"
+	diff $(EXPECTED_CH1_NORM_TAGS) $(BUILT_TEST_CH1_NORM_TAGS_FNAME) && echo "diff PASSED" || (echo "diff FAILED"; exit 1)
+
+.PHONY: compare-test-ch2-tags
+compare-test-ch2-tags: $(EXPECTED_CH2_NORM_TAGS) $(BUILT_TEST_CH2_NORM_TAGS_FNAME)
+	@echo "CHECKING TEST-CH2 BUILT TAGS AGAINST EXPECTED TAGS"
+	diff $(EXPECTED_CH2_NORM_TAGS) $(BUILT_TEST_CH2_NORM_TAGS_FNAME) && echo "diff PASSED" || (echo "diff FAILED"; exit 1)
+
+.PHONY: compare-test-norm-rules-json
+compare-test-norm-rules-json: $(EXPECTED_NORM_RULES_JSON) $(BUILT_NORM_RULES_JSON)
+	@echo "CHECKING JSON BUILT NORM RULES AGAINST EXPECTED NORM RULES"
+	diff $(EXPECTED_NORM_RULES_JSON) $(BUILT_NORM_RULES_JSON) && echo "diff PASSED" || (echo "diff FAILED"; exit 1)
+
+.PHONY: compare-test-norm-rules-html
+compare-test-norm-rules-html: $(EXPECTED_NORM_RULES_HTML) $(BUILT_NORM_RULES_HTML)
+	@echo "CHECKING HTML BUILT NORM RULES AGAINST EXPECTED NORM RULES"
+	diff $(EXPECTED_NORM_RULES_HTML) $(BUILT_NORM_RULES_HTML) && echo "diff PASSED" || (echo "diff FAILED"; exit 1)
+
+.PHONY: compare-test-params-json
+compare-test-params-json: $(EXPECTED_PARAMS_JSON) $(BUILT_PARAMS_JSON)
+	@echo "CHECKING JSON BUILT PARAMS AGAINST EXPECTED PARAMS"
+	diff $(EXPECTED_PARAMS_JSON) $(BUILT_PARAMS_JSON) && echo "diff PASSED" || (echo "diff FAILED"; exit 1)
+
+.PHONY: compare-test-params-html
+compare-test-params-html: $(EXPECTED_PARAMS_HTML) $(BUILT_PARAMS_HTML)
+	@echo "CHECKING HTML BUILT PARAMS AGAINST EXPECTED PARAMS"
+	diff $(EXPECTED_PARAMS_HTML) $(BUILT_PARAMS_HTML) && echo "diff PASSED" || (echo "diff FAILED"; exit 1)
+
+.PHONY: compare-test-params-adoc
+compare-test-params-adoc: $(EXPECTED_PARAMS_ADOC) $(BUILT_PARAMS_ADOC)
+	@echo "CHECKING PARAMS ADOC AGAINST EXPECTED"
+	diff $(EXPECTED_PARAMS_ADOC) $(BUILT_PARAMS_ADOC) && echo "diff PASSED" || (echo "diff FAILED"; exit 1)
+
+.PHONY: compare-test-param-adoc-files
+compare-test-param-adoc-files: $(EXPECTED_PARAM_ADOC_DIR) $(BUILT_PARAM_ADOC_DIR)
+	@echo "CHECKING GENERATED PARAM ADOC FILES AGAINST EXPECTED"
+	diff -r $(EXPECTED_PARAM_ADOC_DIR) $(BUILT_PARAM_ADOC_DIR) && echo "diff PASSED" || (echo "diff FAILED"; exit 1)
+
+.PHONY: compare-test-param-table-variants
+compare-test-param-table-variants: $(EXPECTED_PARAM_TABLE_VARIANTS_DIR) $(BUILT_PARAM_TABLE_VARIANTS_DIR)
+	@echo "CHECKING PARAM TABLE VARIANT OUTPUTS AGAINST EXPECTED"
+	diff -r $(EXPECTED_PARAM_TABLE_VARIANTS_DIR) $(BUILT_PARAM_TABLE_VARIANTS_DIR) && echo "diff PASSED" || (echo "diff FAILED"; exit 1)
+
+.PHONY: compare-test-csr-table-variants
+compare-test-csr-table-variants: $(EXPECTED_CSR_TABLE_VARIANTS_DIR) $(BUILT_CSR_TABLE_VARIANTS_DIR)
+	@echo "CHECKING CSR TABLE VARIANT OUTPUTS AGAINST EXPECTED"
+	diff -r $(EXPECTED_CSR_TABLE_VARIANTS_DIR) $(BUILT_CSR_TABLE_VARIANTS_DIR) && echo "diff PASSED" || (echo "diff FAILED"; exit 1)
+
+.PHONY: compare-test-export-params-to-udb
+compare-test-export-params-to-udb: $(EXPECTED_EXPORT_PARAMS_TO_UDB_DIR) $(BUILT_EXPORT_PARAMS_TO_UDB_DIR)
+	@echo "CHECKING GENERATED EXPORT PARAMS TO UDB FILES AGAINST EXPECTED"
+	diff -r $(EXPECTED_EXPORT_PARAMS_TO_UDB_DIR) $(BUILT_EXPORT_PARAMS_TO_UDB_DIR) && echo "diff PASSED" || (echo "diff FAILED"; exit 1)
+#
+# Test tag change detection
+#
+.PHONY: test-tag-changes test-tag-changes-basic test-tag-changes-verbose test-tag-changes-no-changes test-tag-changes-additions-only test-tag-changes-whitespace-only test-tag-changes-formatting-only test-tag-changes-macros test-tag-changes-update test-tag-changes-strict-additions test-tag-changes-strict-formatting test-tag-changes-strict-whitespace test-tag-changes-strict-macros test-tag-changes-strict-update
+test-tag-changes: test-tag-changes-basic test-tag-changes-verbose test-tag-changes-no-changes test-tag-changes-additions-only test-tag-changes-whitespace-only test-tag-changes-formatting-only test-tag-changes-macros test-tag-changes-update test-tag-changes-strict-additions test-tag-changes-strict-formatting test-tag-changes-strict-whitespace test-tag-changes-strict-macros test-tag-changes-strict-update
+
+test-tag-changes-basic: $(TAG_CHANGES_TEST_REFERENCE_PATH) $(TAG_CHANGES_TEST_CURRENT_PATH)
+	@echo "TESTING TAG CHANGE DETECTION - BASIC OUTPUT (with modifications/deletions)"
+	$(DETECT_TAG_CHANGES_PYTHON) $(TAG_CHANGES_TEST_REFERENCE_PATH) $(TAG_CHANGES_TEST_CURRENT_PATH) && echo "test-tag-changes-basic FAILED (expected exit 1 for modifications/deletions)" || echo "test-tag-changes-basic PASSED"
+
+test-tag-changes-verbose: $(TAG_CHANGES_TEST_REFERENCE_PATH) $(TAG_CHANGES_TEST_CURRENT_PATH)
+	@echo "TESTING TAG CHANGE DETECTION - WITH VERBOSE OUTPUT (with modifications/deletions)"
+	$(DETECT_TAG_CHANGES_PYTHON) --verbose $(TAG_CHANGES_TEST_REFERENCE_PATH) $(TAG_CHANGES_TEST_CURRENT_PATH) && echo "test-tag-changes-verbose FAILED (expected exit 1 for modifications/deletions)" || echo "test-tag-changes-verbose PASSED"
+
+test-tag-changes-no-changes: $(TAG_CHANGES_TEST_REFERENCE_PATH)
+	@echo "TESTING TAG CHANGE DETECTION - NO CHANGES (expect exit 0)"
+	$(DETECT_TAG_CHANGES_PYTHON) $(TAG_CHANGES_TEST_REFERENCE_PATH) $(TAG_CHANGES_TEST_REFERENCE_PATH) && echo "test-tag-changes-no-changes PASSED" || echo "test-tag-changes-no-changes FAILED (no changes should return exit 0)"
+
+test-tag-changes-additions-only: $(TAG_CHANGES_TEST_REFERENCE_PATH)
+	@echo "TESTING TAG CHANGE DETECTION - ADDITIONS ONLY (expect exit 0)"
+	$(DETECT_TAG_CHANGES_PYTHON) $(TAG_CHANGES_TEST_REFERENCE_PATH) $(TAG_CHANGES_TESTS_DIR)/additions-only.json && echo "test-tag-changes-additions-only PASSED" || echo "test-tag-changes-additions-only FAILED (additions only should return exit 0)"
+
+test-tag-changes-whitespace-only: $(TAG_CHANGES_TEST_REFERENCE_PATH)
+	@echo "TESTING TAG CHANGE DETECTION - WHITESPACE ONLY (expect exit 0)"
+	$(DETECT_TAG_CHANGES_PYTHON) $(TAG_CHANGES_TEST_REFERENCE_PATH) $(TAG_CHANGES_TESTS_DIR)/whitespace-only.json && echo "test-tag-changes-whitespace-only PASSED" || echo "test-tag-changes-whitespace-only FAILED (whitespace-only changes should return exit 0)"
+
+test-tag-changes-formatting-only: $(TAG_CHANGES_TEST_REFERENCE_PATH)
+	@echo "TESTING TAG CHANGE DETECTION - FORMATTING ONLY (expect exit 0)"
+	$(DETECT_TAG_CHANGES_PYTHON) $(TAG_CHANGES_TEST_REFERENCE_PATH) $(TAG_CHANGES_TESTS_DIR)/formatting-only.json && echo "test-tag-changes-formatting-only PASSED" || echo "test-tag-changes-formatting-only FAILED (formatting-only changes should return exit 0)"
+
+# RISC-V macro migration (csr:/ext:/insn:), binary renotation (11b -> 0b11) and
+# en dash (-- -> {endash}) are markup-only: they must normalize to equal text
+# and report no change.
+test-tag-changes-macros: $(TAG_CHANGES_TESTS_DIR)/macros-plain.json $(TAG_CHANGES_TESTS_DIR)/macros-markup.json
+	@echo "TESTING TAG CHANGE DETECTION - RISC-V MACROS (expect exit 0)"
+	$(DETECT_TAG_CHANGES_PYTHON) $(TAG_CHANGES_TESTS_DIR)/macros-plain.json $(TAG_CHANGES_TESTS_DIR)/macros-markup.json && echo "test-tag-changes-macros PASSED" || echo "test-tag-changes-macros FAILED (macro-only changes should return exit 0)"
+
+test-tag-changes-update: $(TAG_CHANGES_TEST_REFERENCE_PATH)
+	@echo "TESTING TAG CHANGE DETECTION - UPDATE FILE"
+	@cp -f $(TAG_CHANGES_TEST_REFERENCE_PATH) $(BUILD_DIR)/test-reference.json
+	@$(DETECT_TAG_CHANGES_PYTHON) $(BUILD_DIR)/test-reference.json $(TAG_CHANGES_TESTS_DIR)/additions-only.json --update-reference
+	@python3 -c 'import json; data = json.load(open("$(BUILD_DIR)/test-reference.json")); exit(0 if "norm:added-only-tag" in data["tags"] else 1)' || (echo "test-tag-changes-update FAILED (tag not added)"; exit 1)
+	@$(DETECT_TAG_CHANGES_PYTHON) $(BUILD_DIR)/test-reference.json $(TAG_CHANGES_TESTS_DIR)/additions-only.json > /dev/null 2>&1 && echo "test-tag-changes-update PASSED" || (echo "test-tag-changes-update FAILED (differences detected after update)"; exit 1)
+
+# Strict-mode tests: --strict makes additions and any non-whitespace prose
+# difference fail. This is the mode CI should use to verify that a
+# committed reference file exactly mirrors the build output.
+
+test-tag-changes-strict-additions: $(TAG_CHANGES_TEST_REFERENCE_PATH)
+	@echo "TESTING TAG CHANGE DETECTION - STRICT, ADDITIONS ONLY (expect exit 1)"
+	$(DETECT_TAG_CHANGES_PYTHON) --strict $(TAG_CHANGES_TEST_REFERENCE_PATH) $(TAG_CHANGES_TESTS_DIR)/additions-only.json && echo "test-tag-changes-strict-additions FAILED (strict should fail on additions)" || echo "test-tag-changes-strict-additions PASSED"
+
+test-tag-changes-strict-formatting: $(TAG_CHANGES_TEST_REFERENCE_PATH)
+	@echo "TESTING TAG CHANGE DETECTION - STRICT, FORMATTING ONLY (expect exit 1)"
+	$(DETECT_TAG_CHANGES_PYTHON) --strict $(TAG_CHANGES_TEST_REFERENCE_PATH) $(TAG_CHANGES_TESTS_DIR)/formatting-only.json && echo "test-tag-changes-strict-formatting FAILED (strict should fail on formatting-only changes)" || echo "test-tag-changes-strict-formatting PASSED"
+
+# Strict mode compares prose byte-for-byte, so the macro forms must NOT be
+# normalized away: this is a freshness gate, not a review signal.
+test-tag-changes-strict-macros: $(TAG_CHANGES_TESTS_DIR)/macros-plain.json $(TAG_CHANGES_TESTS_DIR)/macros-markup.json
+	@echo "TESTING TAG CHANGE DETECTION - STRICT, RISC-V MACROS (expect exit 1)"
+	$(DETECT_TAG_CHANGES_PYTHON) --strict $(TAG_CHANGES_TESTS_DIR)/macros-plain.json $(TAG_CHANGES_TESTS_DIR)/macros-markup.json && echo "test-tag-changes-strict-macros FAILED (strict should fail on macro-only changes)" || echo "test-tag-changes-strict-macros PASSED"
+
+test-tag-changes-strict-whitespace: $(TAG_CHANGES_TEST_REFERENCE_PATH)
+	@echo "TESTING TAG CHANGE DETECTION - STRICT, WHITESPACE ONLY (expect exit 0)"
+	$(DETECT_TAG_CHANGES_PYTHON) --strict $(TAG_CHANGES_TEST_REFERENCE_PATH) $(TAG_CHANGES_TESTS_DIR)/whitespace-only.json && echo "test-tag-changes-strict-whitespace PASSED" || echo "test-tag-changes-strict-whitespace FAILED (strict should still tolerate whitespace-only changes)"
+
+# Test Adoc2HTML converter behavior in isolation.
+.PHONY: test-adoc2html
+test-adoc2html: $(ADOC2HTML_TEST_SCRIPT) $(TOOLS_DIR)/adoc_to_html.py
+	@echo "TESTING ADOC2HTML CONVERSION"
+	python3 $(ADOC2HTML_TEST_SCRIPT) && echo "test-adoc2html PASSED" || (echo "test-adoc2html FAILED"; exit 1)
+
+# Test shared_utils helpers in isolation.
+.PHONY: test-shared-utils
+test-shared-utils: $(SHARED_UTILS_TEST_SCRIPT) $(TOOLS_DIR)/shared_utils.py
+	@echo "TESTING SHARED_UTILS HELPERS"
+	python3 $(SHARED_UTILS_TEST_SCRIPT) && echo "test-shared-utils PASSED" || (echo "test-shared-utils FAILED"; exit 1)
+
+# Test converter helpers in isolation.
+.PHONY: test-text-to-html
+test-text-to-html: test-adoc-to-html-unit test-def-text-to-html-unit test-tag-text-to-html-unit
+
+.PHONY: test-adoc-to-html-unit
+test-adoc-to-html-unit: $(ADOC_TO_HTML_UNIT_TEST_SCRIPT) $(TOOLS_DIR)/adoc_to_html.py
+	@echo "TESTING ADOC_TO_HTML UNIT HELPERS"
+	python3 $(ADOC_TO_HTML_UNIT_TEST_SCRIPT) && echo "test-adoc-to-html-unit PASSED" || (echo "test-adoc-to-html-unit FAILED"; exit 1)
+
+.PHONY: test-def-text-to-html-unit
+test-def-text-to-html-unit: $(DEF_TEXT_TO_HTML_UNIT_TEST_SCRIPT) $(TOOLS_DIR)/def_text_to_html.py $(TOOLS_DIR)/adoc_to_html.py
+	@echo "TESTING DEF_TEXT_TO_HTML UNIT HELPERS"
+	python3 $(DEF_TEXT_TO_HTML_UNIT_TEST_SCRIPT) && echo "test-def-text-to-html-unit PASSED" || (echo "test-def-text-to-html-unit FAILED"; exit 1)
+
+.PHONY: test-tag-text-to-html-unit
+test-tag-text-to-html-unit: $(TAG_TEXT_TO_HTML_UNIT_TEST_SCRIPT) $(TOOLS_DIR)/tag_text_to_html.py $(TOOLS_DIR)/def_text_to_html.py $(TOOLS_DIR)/adoc_to_html.py
+	@echo "TESTING TAG_TEXT_TO_HTML UNIT HELPERS"
+	python3 $(TAG_TEXT_TO_HTML_UNIT_TEST_SCRIPT) && echo "test-tag-text-to-html-unit PASSED" || (echo "test-tag-text-to-html-unit FAILED"; exit 1)
+
+#
+# Update expected files from built files
+#
+
+.PHONY: update-expected
+update-expected: update-test-tags update-test-norm-rules-json update-test-norm-rules-html update-test-params-json update-test-params-html update-test-params-adoc update-test-param-adoc-files update-test-param-table-variants update-test-csr-table-variants update-test-export-params-to-udb
+# Update expected UDB YAMLs from built UDB YAMLs
+.PHONY: update-test-export-params-to-udb
+update-test-export-params-to-udb: build-test-export-params-to-udb
+	rm -rf $(PARAMS_EXPECTED_DIR)/test-export-params-to-udb
+	cp -r $(BUILD_DIR)/test-export-params-to-udb $(PARAMS_EXPECTED_DIR)/test-export-params-to-udb
+
+.PHONY: update-test-tags
+update-test-tags: update-test-ch1-tags update-test-ch2-tags
+
+.PHONY: update-test-ch1-tags
+update-test-ch1-tags: $(BUILT_TEST_CH1_NORM_TAGS_FNAME)
+	cp -f $(BUILT_TEST_CH1_NORM_TAGS_FNAME) $(EXPECTED_CH1_NORM_TAGS)
+
+.PHONY: update-test-ch2-tags
+update-test-ch2-tags: $(BUILT_TEST_CH2_NORM_TAGS_FNAME)
+	cp -f $(BUILT_TEST_CH2_NORM_TAGS_FNAME) $(EXPECTED_CH2_NORM_TAGS)
+
+.PHONY: update-test-norm-rules-json
+update-test-norm-rules-json: $(BUILT_NORM_RULES_JSON)
+	cp -f $(BUILT_NORM_RULES_JSON) $(EXPECTED_NORM_RULES_JSON)
+
+.PHONY: update-test-norm-rules-html
+update-test-norm-rules-html: $(BUILT_NORM_RULES_HTML)
+	cp -f $(BUILT_NORM_RULES_HTML) $(EXPECTED_NORM_RULES_HTML)
+
+.PHONY: update-test-params-json
+update-test-params-json: $(BUILT_PARAMS_JSON)
+	mkdir -p $(PARAMS_EXPECTED_DIR)
+	cp -f $(BUILT_PARAMS_JSON) $(EXPECTED_PARAMS_JSON)
+
+.PHONY: update-test-params-html
+update-test-params-html: $(BUILT_PARAMS_HTML)
+	mkdir -p $(PARAMS_EXPECTED_DIR)
+	cp -f $(BUILT_PARAMS_HTML) $(EXPECTED_PARAMS_HTML)
+
+.PHONY: update-test-params-adoc
+update-test-params-adoc: $(BUILT_PARAMS_ADOC)
+	mkdir -p $(PARAMS_EXPECTED_DIR)
+	cp -f $(BUILT_PARAMS_ADOC) $(EXPECTED_PARAMS_ADOC)
+
+.PHONY: update-test-param-adoc-files
+update-test-param-adoc-files: $(BUILT_PARAM_ADOC_DIR)
+	rm -rf $(EXPECTED_PARAM_ADOC_DIR)
+	cp -r $(BUILT_PARAM_ADOC_DIR) $(EXPECTED_PARAM_ADOC_DIR)
+
+.PHONY: update-test-param-table-variants
+update-test-param-table-variants: $(BUILT_PARAM_TABLE_VARIANTS_DIR)
+	rm -rf $(EXPECTED_PARAM_TABLE_VARIANTS_DIR)
+	cp -r $(BUILT_PARAM_TABLE_VARIANTS_DIR) $(EXPECTED_PARAM_TABLE_VARIANTS_DIR)
+
+.PHONY: update-test-csr-table-variants
+update-test-csr-table-variants: $(BUILT_CSR_TABLE_VARIANTS_DIR)
+	rm -rf $(EXPECTED_CSR_TABLE_VARIANTS_DIR)
+	cp -r $(BUILT_CSR_TABLE_VARIANTS_DIR) $(EXPECTED_CSR_TABLE_VARIANTS_DIR)
+
+# Build normative tags with ch1 adoc input
+$(BUILT_TEST_CH1_NORM_TAGS_FNAME): $(NORM_RULE_TESTS_DIR)/$(TEST_CH1_INPUT_ADOC_FNAME) $(CONVERTERS_DIR)/$(TAGS_BACKEND)
+	$(WORKDIR_SETUP)
+	$(DOCKER_CMD) $(DOCKER_QUOTE) $(ASCIIDOCTOR_TAGS) $(OPTIONS) -a tags-match-prefix='norm:' -a tags-output-suffix='-norm-tags.json' $< $(DOCKER_QUOTE)
+	$(WORKDIR_TEARDOWN)
+
+# Build normative tags with ch2 adoc input
+$(BUILT_TEST_CH2_NORM_TAGS_FNAME): $(NORM_RULE_TESTS_DIR)/$(TEST_CH2_INPUT_ADOC_FNAME) $(CONVERTERS_DIR)/$(TAGS_BACKEND)
+	$(WORKDIR_SETUP)
+	$(DOCKER_CMD) $(DOCKER_QUOTE) $(ASCIIDOCTOR_TAGS) $(OPTIONS) -a tags-match-prefix='norm:' -a tags-output-suffix='-norm-tags.json' $< $(DOCKER_QUOTE)
+	$(WORKDIR_TEARDOWN)
+
+# Build normative tags with duplicate adoc input
+# Asciidoctor should exit with a non-zero status and then we just "touch" the output file so it exists and make is happy.
+$(BUILT_DUPLICATE_NORM_TAGS_FNAME): $(TAGS_TESTS_DIR)/$(DUPLICATE_TEST_ADOC_INPUT_FNAME) $(CONVERTERS_DIR)/$(TAGS_BACKEND)
+	$(WORKDIR_SETUP)
+	$(DOCKER_CMD) $(DOCKER_QUOTE) $(ASCIIDOCTOR_TAGS) $(OPTIONS) -a tags-match-prefix='duplicate:' -a tags-output-suffix='-duplicate-tags.json' $< || touch $(BUILT_DUPLICATE_NORM_TAGS_FNAME) $(DOCKER_QUOTE)
+	$(WORKDIR_TEARDOWN)
+
+# Build normative rules with JSON output format
+$(BUILT_NORM_RULES_JSON): $(BUILT_TEST_NORM_TAGS_FNAMES) $(GOOD_NORM_RULE_DEF_FILES)
+	$(WORKDIR_SETUP)
+	cp -f $(BUILT_TEST_NORM_TAGS_FNAMES) $@.workdir
+	$(DOCKER_CMD) $(DOCKER_QUOTE) $(CREATE_NORM_RULE_TOOL) -j $(NORM_TAG_FILE_ARGS) $(GOOD_NORM_RULE_DEF_ARGS) $(NORM_RULE_DOC2URL_ARGS) $@ $(DOCKER_QUOTE)
+	$(WORKDIR_TEARDOWN)
+
+# Build params JSON output from generated normative rules JSON and parameter definitions.
+$(BUILT_PARAMS_JSON): $(BUILT_NORM_RULES_JSON) $(PARAM_DEF_TEST_FILES) $(CREATE_PARAMS_TOOL)
+	$(WORKDIR_SETUP)
+	cp -f $(BUILT_NORM_RULES_JSON) $@.workdir/$(BUILD_DIR)
+	$(DOCKER_CMD) $(DOCKER_QUOTE) $(CREATE_PARAMS_PYTHON) --norm-rules $(BUILT_NORM_RULES_JSON) $(PARAM_DEF_TEST_ARGS) --output $(BUILT_PARAMS_JSON) $(DOCKER_QUOTE)
+	$(WORKDIR_TEARDOWN)
+
+# Build params HTML output from generated normative rules JSON and parameter definitions.
+$(BUILT_PARAMS_HTML): $(BUILT_NORM_RULES_JSON) $(PARAM_DEF_TEST_FILES) $(CREATE_PARAMS_TOOL)
+	$(WORKDIR_SETUP)
+	cp -f $(BUILT_NORM_RULES_JSON) $@.workdir/$(BUILD_DIR)
+	$(DOCKER_CMD) $(DOCKER_QUOTE) $(CREATE_PARAMS_PYTHON) --html --norm-rules $(BUILT_NORM_RULES_JSON) $(PARAM_DEF_TEST_ARGS) --output $(BUILT_PARAMS_HTML) $(DOCKER_QUOTE)
+	$(WORKDIR_TEARDOWN)
+
+# Build parameter AsciiDoc row fragments from generated params JSON.
+$(BUILT_PARAM_ADOC_STAMP): $(BUILD_DIR)/$(PARAMS_JSON_OUTPUT_FNAME) $(CREATE_PARAM_TABLES_TOOL) $(PARAMS_ADOC_SOURCE) $(PARAM_TABLE_SCHEMA_INPUT) $(CSR_TABLE_SCHEMA_INPUT)
+	$(WORKDIR_SETUP)
+	cp -f $(BUILD_DIR)/$(PARAMS_JSON_OUTPUT_FNAME) $@.workdir/$(BUILD_DIR)
+	cp -f $(PARAMS_ADOC_SOURCE) $@.workdir/$(BUILT_PARAMS_ADOC)
+	$(DOCKER_CMD) $(DOCKER_QUOTE) $(CREATE_PARAM_TABLES_PYTHON) --input $(BUILD_DIR)/$(PARAMS_JSON_OUTPUT_FNAME) --param-table $(PARAM_TABLE_SCHEMA_INPUT) --csr-table $(CSR_TABLE_SCHEMA_INPUT) --output-dir $(BUILT_PARAM_ADOC_DIR) && touch $(BUILT_PARAM_ADOC_STAMP) $(DOCKER_QUOTE)
+	rm -rf $(BUILT_PARAM_ADOC_DIR)
+	mv $@.workdir/$(BUILT_PARAM_ADOC_DIR) $(BUILT_PARAM_ADOC_DIR)
+	mv $@.workdir/$(BUILT_PARAMS_ADOC) $(BUILT_PARAMS_ADOC)
+	$(WORKDIR_TEARDOWN)
+
+$(BUILT_PARAM_TABLE_VARIANTS_STAMP): $(BUILD_DIR)/$(PARAMS_JSON_OUTPUT_FNAME) $(CREATE_PARAM_TABLES_TOOL) $(PARAM_TABLE_VARIANT_FILES)
+	$(WORKDIR_SETUP)
+	cp -f $(BUILD_DIR)/$(PARAMS_JSON_OUTPUT_FNAME) $@.workdir/$(BUILD_DIR)
+	$(DOCKER_CMD) $(DOCKER_QUOTE) set -e; rm -rf $(BUILT_PARAM_TABLE_VARIANTS_DIR); mkdir -p $(BUILT_PARAM_TABLE_VARIANTS_DIR); $(foreach f,$(PARAM_TABLE_VARIANT_FILES),python3 $(CREATE_PARAM_TABLES_TOOL) --input $(BUILD_DIR)/$(PARAMS_JSON_OUTPUT_FNAME) --param-table $(f) --output-dir $(BUILT_PARAM_TABLE_VARIANTS_DIR)/$(basename $(notdir $(f))); ) touch $(BUILT_PARAM_TABLE_VARIANTS_STAMP) $(DOCKER_QUOTE)
+	rm -rf $(BUILT_PARAM_TABLE_VARIANTS_DIR)
+	mv $@.workdir/$(BUILT_PARAM_TABLE_VARIANTS_DIR) $(BUILT_PARAM_TABLE_VARIANTS_DIR)
+	$(WORKDIR_TEARDOWN)
+
+$(BUILT_CSR_TABLE_VARIANTS_STAMP): $(BUILD_DIR)/$(PARAMS_JSON_OUTPUT_FNAME) $(CREATE_PARAM_TABLES_TOOL) $(CSR_TABLE_VARIANT_FILES)
+	$(WORKDIR_SETUP)
+	cp -f $(BUILD_DIR)/$(PARAMS_JSON_OUTPUT_FNAME) $@.workdir/$(BUILD_DIR)
+	$(DOCKER_CMD) $(DOCKER_QUOTE) set -e; rm -rf $(BUILT_CSR_TABLE_VARIANTS_DIR); mkdir -p $(BUILT_CSR_TABLE_VARIANTS_DIR); $(foreach f,$(CSR_TABLE_VARIANT_FILES),python3 $(CREATE_PARAM_TABLES_TOOL) --input $(BUILD_DIR)/$(PARAMS_JSON_OUTPUT_FNAME) --csr-table $(f) --output-dir $(BUILT_CSR_TABLE_VARIANTS_DIR)/$(basename $(notdir $(f))); ) touch $(BUILT_CSR_TABLE_VARIANTS_STAMP) $(DOCKER_QUOTE)
+	rm -rf $(BUILT_CSR_TABLE_VARIANTS_DIR)
+	mv $@.workdir/$(BUILT_CSR_TABLE_VARIANTS_DIR) $(BUILT_CSR_TABLE_VARIANTS_DIR)
+	$(WORKDIR_TEARDOWN)
+
+# Build normative rules with HTML output format
+$(BUILT_NORM_RULES_HTML): $(BUILT_TEST_NORM_TAGS_FNAMES) $(GOOD_NORM_RULE_DEF_FILES) $(BUILT_TEST_HTML_FNAMES)
+	$(WORKDIR_SETUP)
+	cp -f $(BUILT_TEST_NORM_TAGS_FNAMES) $@.workdir
+	$(DOCKER_CMD) $(DOCKER_QUOTE) $(CREATE_NORM_RULE_TOOL) --html $(NORM_TAG_FILE_ARGS) $(GOOD_NORM_RULE_DEF_ARGS) $(NORM_RULE_DOC2URL_ARGS) $@ $(DOCKER_QUOTE)
+	$(WORKDIR_TEARDOWN)
+
+# This is the HTML file that represents the standards doc. THe norm rule HTML links into this HTML.
+$(BUILT_TEST_CH1_HTML_FNAME) : $(NORM_RULE_TESTS_DIR)/$(TEST_CH1_INPUT_ADOC_FNAME)
+	$(WORKDIR_SETUP)
+	$(DOCKER_CMD) $(DOCKER_QUOTE) $(ASCIIDOCTOR_HTML) -o $@ $< $(DOCKER_QUOTE)
+	$(WORKDIR_TEARDOWN)
+
+# This is the HTML file that represents the standards doc. THe norm rule HTML links into this HTML.
+$(BUILT_TEST_CH2_HTML_FNAME) : $(NORM_RULE_TESTS_DIR)/$(TEST_CH2_INPUT_ADOC_FNAME)
+	$(WORKDIR_SETUP)
+	$(DOCKER_CMD) $(DOCKER_QUOTE) $(ASCIIDOCTOR_HTML) -o $@ $< $(DOCKER_QUOTE)
+	$(WORKDIR_TEARDOWN)
+
+# Build normative rules with different YAML that should create an error due to tags without norm rules referencing them.
+# Should exit with a non-zero status and then we just "touch" the output file so it exists and make is happy.
+$(BUILT_NORM_RULES_TAGS_NO_RULES): $(BUILT_TEST_CH1_NORM_TAGS_FNAME) $(BAD_NORM_RULE_DEF_FILES)
+	$(WORKDIR_SETUP)
+	cp -f $(BUILT_TEST_CH1_NORM_TAGS_FNAME) $@.workdir
+	$(DOCKER_CMD) $(DOCKER_QUOTE) $(CREATE_NORM_RULE_TOOL) $(NORM_TAG_FILE_ARGS) $(BAD_NORM_RULE_DEF_ARGS) $(NORM_RULE_DOC2URL_ARGS) $(BUILD_DIR)/bogus || touch $(BUILT_NORM_RULES_TAGS_NO_RULES) $(DOCKER_QUOTE)
+	$(WORKDIR_TEARDOWN)
+
+$(BUILT_EXPORT_PARAMS_TO_UDB_STAMP): $(BUILT_PARAMS_JSON) $(EXPORT_PARAMS_TO_UDB_TOOL)
+	$(WORKDIR_SETUP)
+	cp -f $(BUILT_PARAMS_JSON) $@.workdir/$(BUILD_DIR)
+	$(DOCKER_CMD) $(DOCKER_QUOTE) $(EXPORT_PARAMS_TO_UDB_PYTHON) --input $(BUILT_PARAMS_JSON) --output-dir $(BUILT_EXPORT_PARAMS_TO_UDB_DIR) && touch $(BUILT_EXPORT_PARAMS_TO_UDB_STAMP) $(DOCKER_QUOTE)
+	mv $@.workdir/$(BUILT_EXPORT_PARAMS_TO_UDB_DIR) $(BUILT_EXPORT_PARAMS_TO_UDB_DIR)
+	$(WORKDIR_TEARDOWN)
+
+# Update docker image to latest
+docker-pull-latest:
+	${DOCKER_BIN} pull ${DOCKER_IMG}
+
+clean:
+	@echo "Cleaning up generated files..."
+	rm -rf $(BUILD_DIR)
+	@echo "Cleanup completed."

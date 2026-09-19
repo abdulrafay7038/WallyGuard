@@ -1,0 +1,83 @@
+Started: 2026-09-18T09:59:24.158877+00:00
+Command: bash -o pipefail -c 'cat << '"'"'EOF'"'"' > /home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/tests/test_pmp_mmode.S
+.section .text.init
+.globl rvtest_entry_point
+rvtest_entry_point:
+    # Set up trap handler
+    la t0, mtvec_handler
+    csrw mtvec, t0
+
+    # We want a buffer aligned to 8 bytes in RAM
+    la s0, test_buf
+
+    # PMP0: TOR [0, s0+4) -> L=0, A=TOR (01), X=1, W=1, R=1 -> 0x0F
+    addi t0, s0, 4
+    srli t0, t0, 2
+    csrw pmpaddr0, t0
+
+    # PMP1: TOR [s0+4, s0+16) -> L=1, A=TOR (01), X=1, W=0, R=1 -> 0x8D
+    addi t0, s0, 16
+    srli t0, t0, 2
+    csrw pmpaddr1, t0
+
+    # PMP2: TOR [s0+16, -1) -> L=0, A=TOR (01), X=1, W=1, R=1 -> 0x0F
+    li t0, -1
+    csrw pmpaddr2, t0
+
+    # Configure PMP
+    # pmpcfg0 byte 0: 0x0F (PMP0)
+    # pmpcfg0 byte 1: 0x8D (PMP1)
+    # pmpcfg0 byte 2: 0x0F (PMP2)
+    li t0, 0x000F8D0F
+    csrw pmpcfg0, t0
+
+    # Now execute an 8-byte store at s0
+    # Bytes s0..s0+3 are in PMP0 (unlocked, allowed)
+    # Bytes s0+4..s0+7 are in PMP1 (LOCKED, W=0)
+    li t1, 0x123456789abcdef0
+    sd t1, 0(s0)
+
+    # If we reach here without trapping, Wally bug is present (no trap occurred)
+    # Fail
+    j fail
+
+.align 2
+mtvec_handler:
+    # Verify mcause is Store Access Fault (cause 7)
+    csrr t2, mcause
+    li t3, 7
+    bne t2, t3, fail
+
+    # Success!
+pass:
+    la t0, tohost
+    li t1, 1
+    sw t1, 0(t0)
+    .option norvc
+1:  j 1b
+
+.align 2
+fail:
+    csrw mtvec, x0
+    jr x0
+
+.section .data
+.align 4
+test_buf:
+    .dword 0x0
+    .dword 0x0
+    .dword 0x0
+    .dword 0x0
+
+.align 6
+.globl tohost
+tohost: .dword 0
+.globl fromhost
+fromhost: .dword 0
+EOF
+'
+
+
+Finished: 2026-09-18T09:59:24.236188+00:00
+Return code: 0
+Status: PASS

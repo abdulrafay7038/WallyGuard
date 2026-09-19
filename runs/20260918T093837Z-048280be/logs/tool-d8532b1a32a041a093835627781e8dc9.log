@@ -1,0 +1,132 @@
+Started: 2026-09-18T09:47:13.483274+00:00
+Command: bash -o pipefail -c 'git show 19ab24ec4'
+
+commit 19ab24ec43d99ddf46a0fce571619051ed59503d
+Author: David Harris <David_Harris@hmc.edu>
+Date:   Wed Sep 16 09:52:16 2026 -0700
+
+    Gate mstateen0.CTR with a new SMCTR_SUPPORTED parameter
+    
+    Bit 54 of mstateen0 controls access to the control transfer records added by
+    Smctr.  It was hardwired to zero; gate it like the other state bits so it becomes
+    writable if Smctr is ever implemented.  SMCTR_SUPPORTED is zero in every config.
+    
+    Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
+
+diff --git a/config/rv32e/config.vh b/config/rv32e/config.vh
+index 48141d7df..c8b390f89 100644
+--- a/config/rv32e/config.vh
++++ b/config/rv32e/config.vh
+@@ -97,6 +97,7 @@ localparam logic SSTC_SUPPORTED = 0; // Supervisor-mode timer interrupts
+ localparam logic SMSTATEEN_SUPPORTED = 0; // Machine-level state enable registers
+ localparam logic SSSTATEEN_SUPPORTED = 0; // Supervisor-level state enable registers
+ localparam logic SMP1P13_SUPPORTED = 0; // Privileged Spec 1.13 state controlled by mstateen0.P1P13
++localparam logic SMCTR_SUPPORTED = 0; // Control transfer records
+ localparam logic SSCSRIND_SUPPORTED = 0; // Indirect CSR access (siselect/sireg*)
+ localparam logic SSAIA_SUPPORTED = 0; // Advanced Interrupt Architecture
+ localparam logic SDTRIG_SUPPORTED = 0; // Debug triggers (scontext)
+diff --git a/config/rv32gc/config.vh b/config/rv32gc/config.vh
+index 4af1c0d28..18067ab0b 100644
+--- a/config/rv32gc/config.vh
++++ b/config/rv32gc/config.vh
+@@ -97,6 +97,7 @@ localparam logic SSTC_SUPPORTED = 1; // Supervisor-mode timer interrupts
+ localparam logic SMSTATEEN_SUPPORTED = 1; // Machine-level state enable registers
+ localparam logic SSSTATEEN_SUPPORTED = 1; // Supervisor-level state enable registers
+ localparam logic SMP1P13_SUPPORTED = 0; // Privileged Spec 1.13 state controlled by mstateen0.P1P13
++localparam logic SMCTR_SUPPORTED = 0; // Control transfer records
+ localparam logic SSCSRIND_SUPPORTED = 0; // Indirect CSR access (siselect/sireg*)
+ localparam logic SSAIA_SUPPORTED = 0; // Advanced Interrupt Architecture
+ localparam logic SDTRIG_SUPPORTED = 0; // Debug triggers (scontext)
+diff --git a/config/rv32i/config.vh b/config/rv32i/config.vh
+index 8953d38d7..b8d9db442 100644
+--- a/config/rv32i/config.vh
++++ b/config/rv32i/config.vh
+@@ -97,6 +97,7 @@ localparam logic SSTC_SUPPORTED = 0; // Supervisor-mode timer interrupts
+ localparam logic SMSTATEEN_SUPPORTED = 0; // Machine-level state enable registers
+ localparam logic SSSTATEEN_SUPPORTED = 0; // Supervisor-level state enable registers
+ localparam logic SMP1P13_SUPPORTED = 0; // Privileged Spec 1.13 state controlled by mstateen0.P1P13
++localparam logic SMCTR_SUPPORTED = 0; // Control transfer records
+ localparam logic SSCSRIND_SUPPORTED = 0; // Indirect CSR access (siselect/sireg*)
+ localparam logic SSAIA_SUPPORTED = 0; // Advanced Interrupt Architecture
+ localparam logic SDTRIG_SUPPORTED = 0; // Debug triggers (scontext)
+diff --git a/config/rv32imc/config.vh b/config/rv32imc/config.vh
+index ac59f713e..d576179d9 100644
+--- a/config/rv32imc/config.vh
++++ b/config/rv32imc/config.vh
+@@ -97,6 +97,7 @@ localparam logic SSTC_SUPPORTED = 0; // Supervisor-mode timer interrupts
+ localparam logic SMSTATEEN_SUPPORTED = 0; // Machine-level state enable registers
+ localparam logic SSSTATEEN_SUPPORTED = 0; // Supervisor-level state enable registers
+ localparam logic SMP1P13_SUPPORTED = 0; // Privileged Spec 1.13 state controlled by mstateen0.P1P13
++localparam logic SMCTR_SUPPORTED = 0; // Control transfer records
+ localparam logic SSCSRIND_SUPPORTED = 0; // Indirect CSR access (siselect/sireg*)
+ localparam logic SSAIA_SUPPORTED = 0; // Advanced Interrupt Architecture
+ localparam logic SDTRIG_SUPPORTED = 0; // Debug triggers (scontext)
+diff --git a/config/rv64gc/config.vh b/config/rv64gc/config.vh
+index 34f78b8e6..4dd772c0d 100644
+--- a/config/rv64gc/config.vh
++++ b/config/rv64gc/config.vh
+@@ -97,6 +97,7 @@ localparam logic SSTC_SUPPORTED = 1; // Supervisor-mode timer interrupts
+ localparam logic SMSTATEEN_SUPPORTED = 1; // Machine-level state enable registers
+ localparam logic SSSTATEEN_SUPPORTED = 1; // Supervisor-level state enable registers
+ localparam logic SMP1P13_SUPPORTED = 0; // Privileged Spec 1.13 state controlled by mstateen0.P1P13
++localparam logic SMCTR_SUPPORTED = 0; // Control transfer records
+ localparam logic SSCSRIND_SUPPORTED = 0; // Indirect CSR access (siselect/sireg*)
+ localparam logic SSAIA_SUPPORTED = 0; // Advanced Interrupt Architecture
+ localparam logic SDTRIG_SUPPORTED = 0; // Debug triggers (scontext)
+diff --git a/config/rv64i/config.vh b/config/rv64i/config.vh
+index 09b66cff1..5a81d54bd 100644
+--- a/config/rv64i/config.vh
++++ b/config/rv64i/config.vh
+@@ -97,6 +97,7 @@ localparam logic SSTC_SUPPORTED = 0; // Supervisor-mode timer interrupts
+ localparam logic SMSTATEEN_SUPPORTED = 0; // Machine-level state enable registers
+ localparam logic SSSTATEEN_SUPPORTED = 0; // Supervisor-level state enable registers
+ localparam logic SMP1P13_SUPPORTED = 0; // Privileged Spec 1.13 state controlled by mstateen0.P1P13
++localparam logic SMCTR_SUPPORTED = 0; // Control transfer records
+ localparam logic SSCSRIND_SUPPORTED = 0; // Indirect CSR access (siselect/sireg*)
+ localparam logic SSAIA_SUPPORTED = 0; // Advanced Interrupt Architecture
+ localparam logic SDTRIG_SUPPORTED = 0; // Debug triggers (scontext)
+diff --git a/config/shared/parameter-defs.vh b/config/shared/parameter-defs.vh
+index c1ba9dd1f..a91cb4f1d 100644
+--- a/config/shared/parameter-defs.vh
++++ b/config/shared/parameter-defs.vh
+@@ -21,6 +21,7 @@ localparam cvw_t P = '{
+   SMSTATEEN_SUPPORTED :  SMSTATEEN_SUPPORTED,
+   SSSTATEEN_SUPPORTED :  SSSTATEEN_SUPPORTED,
+   SMP1P13_SUPPORTED :    SMP1P13_SUPPORTED,
++  SMCTR_SUPPORTED :      SMCTR_SUPPORTED,
+   SSCSRIND_SUPPORTED :   SSCSRIND_SUPPORTED,
+   SSAIA_SUPPORTED :      SSAIA_SUPPORTED,
+   SDTRIG_SUPPORTED :     SDTRIG_SUPPORTED,
+diff --git a/src/cvw.sv b/src/cvw.sv
+index 48cfa966a..d9b7ebdb6 100644
+--- a/src/cvw.sv
++++ b/src/cvw.sv
+@@ -56,6 +56,7 @@ typedef struct packed {
+   logic         SMSTATEEN_SUPPORTED;
+   logic         SSSTATEEN_SUPPORTED;
+   logic         SMP1P13_SUPPORTED;
++  logic         SMCTR_SUPPORTED;
+   logic         SSCSRIND_SUPPORTED;
+   logic         SSAIA_SUPPORTED;
+   logic         SDTRIG_SUPPORTED;
+diff --git a/src/privileged/csrm.sv b/src/privileged/csrm.sv
+index f119f6b23..a9d9f831a 100644
+--- a/src/privileged/csrm.sv
++++ b/src/privileged/csrm.sv
+@@ -254,10 +254,10 @@ module csrm  import cvw::*;  #(parameter cvw_t P) (
+       MSTATEEN0_PreWriteValM[57] & P.SDTRIG_SUPPORTED,   // CONTEXT: access to scontext
+       MSTATEEN0_PreWriteValM[56] & P.SMP1P13_SUPPORTED,  // P1P13: access to hedelegh
+       MSTATEEN0_PreWriteValM[55] & P.SSQOSID_SUPPORTED,  // SRMCFG: access to srmcfg
+-      1'b0,                                              // 54: CTR, Smctr not supported
++      MSTATEEN0_PreWriteValM[54] & P.SMCTR_SUPPORTED,    // CTR: access to control transfer records
+       51'b0,                                             // 53:3 reserved
+       MSTATEEN0_PreWriteValM[2] & P.ZCMT_SUPPORTED,      // JVT: access to jvt
+-      MSTATEEN0_PreWriteValM[1] & P.ZFINX_SUPPORTED,     // FCSR: access to fcsr when floating point uses x registers; read-only zero when misa.F = 1, which holds because F and Zfinx are mutually exclusive
++      MSTATEEN0_PreWriteValM[1] & P.ZFINX_SUPPORTED,     // FCSR: access to fcsr when floating point uses x registers
+       1'b0                                               // C: Wally has no custom state
+     };
+     if (P.XLEN == 64) begin
+
+Finished: 2026-09-18T09:47:13.675790+00:00
+Return code: 0
+Status: PASS
