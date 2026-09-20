@@ -118,9 +118,14 @@ artifacts, then reported as `mcp_server_timeout` if still unhealthy.
 Commands stream full stdout/stderr to files and return only a bounded tail.
 A command taking longer than two seconds returns a job ID; agents poll
 `command_status`, so a long build does not exceed the MCP response deadline.
-An explicit status call waits up to ten seconds for completion using an async
+An explicit status call waits up to 30 seconds for completion using an async
 wait that does not cancel the underlying job on timeout or client cancellation.
 Only one workspace command may run at a time.
+Tester shell commands start in the run directory, so relative helper-script
+writes remain test artifacts. Other roles start at the checkout root. `$WALLY`
+always points to the checkout and `$WALLY_TEST_DIR` to the run directory; working
+directory changes do not persist between tool calls. Source guards still reject
+unauthorized checkout edits.
 Timeout/cancellation sends TERM then KILL to owned process groups and tracked
 separate-session descendants. Uvicorn and application loggers install a handler
 once and disable propagation, avoiding local handler/root duplication. Historical duplication in Ray job-log

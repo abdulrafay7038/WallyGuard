@@ -87,14 +87,27 @@ Historical patches may predate these gates; inspect their associated run records
 Each new run includes a native self-check harness, a build script, and a
 `reproducer.json` contract. The Tester adapts the RV64 starter to the target and
 calls `validate_reproducer` to catch contract mistakes during its conversation.
+Tester shell commands start in the run directory; relative helper scripts stay
+with the test artifacts. Use `$WALLY` for repository paths and `$WALLY_TEST_DIR`
+for run artifacts. Other roles continue to start at the checkout root.
 The assembly example deliberately fails compilation until real assertions are
 added. The controller repeats preflight and independently executes the tests;
 an agent tool's `PREFLIGHT_READY` is never evidence of a hardware bug.
 
-Command status calls wait up to ten seconds for completion instead of making the
-model repeatedly poll. The Architect receives a compact index of the last 40
-attempts; other agents receive their current assignment and relevant verification
-feedback. Full history and evidence remain available on disk. Unresolved merge
+Command status calls wait up to 30 seconds for completion instead of making the
+model repeatedly poll. Shell tools default to a 120-second deadline; agents can
+request a longer `timeout_seconds` for builds, capped by `WALLY_REGRESSION_TIMEOUT`.
+Controller Spike runs have a separate 60-second deadline, configurable with
+`WALLY_ORACLE_TIMEOUT`, without shortening the build or Wally simulation deadline.
+
+The Architect receives a compact index of the last 40 attempts including observed
+failure reasons and baseline revisions, plus brief recent agent notes explicitly
+marked unverified. The Tester also receives recent failure reasons. It saves its
+contract to `reproducer.json` and returns `reproducer_file="reproducer.json"`, so
+it need not regenerate a large contract in its answer. The controller reads that
+file and applies the same validation and evidence gates. Legacy inline contracts
+remain accepted. File checks prune generated build/log trees before traversal.
+Full history and evidence remain available on disk. Unresolved merge
 conflicts block a campaign before agents start.
 
 Every run records stage durations and prompt-context sizes in `attempt.json`.
@@ -188,6 +201,8 @@ From the WallyGuard repository root, activate the installed toolchain:
 ```bash
 export WALLY_PATH="$(pwd)/cvw"
 source "$WALLY_PATH/setup.sh"
+export WALLY_SPIKE="$HOME/riscv/bin/spike"
+"$WALLY_SPIKE" --help 2>&1 | head -n 3
 git -C "$WALLY_PATH" status --short
 command -v spike verilator uv
 ```
@@ -296,9 +311,10 @@ import json
 import os
 
 keys = (
-    "WALLY_PATH", "WALLY_RUN_REGRESSION", "WALLY_DIRECTED_COMMAND",
+    "WALLY_PATH", "WALLY_SPIKE", "WALLY_RUN_REGRESSION", "WALLY_DIRECTED_COMMAND",
     "WALLY_REGRESSION_COMMAND", "WALLY_REGRESSION_TIMEOUT",
-    "WALLY_REPRODUCER_TIMEOUT", "WALLY_AGENT_TIMEOUT", "WALLY_BASELINE_RUNS",
+    "WALLY_REPRODUCER_TIMEOUT", "WALLY_ORACLE_TIMEOUT", "WALLY_COMMAND_TIMEOUT",
+    "WALLY_AGENT_TIMEOUT", "WALLY_BASELINE_RUNS",
     "WALLY_LLM_CONCURRENCY", "WALLY_ISA_DOCS", "GOOGLE_CLOUD_PROJECT",
     "WALLY_PROFILE", "WALLY_PROFILE_DIR",
     "CHIA_ARCHITECT_MODEL", "CHIA_TESTER_MODEL", "CHIA_CRITIC_MODEL",
@@ -334,10 +350,13 @@ Environment settings are read when `loop.py` is imported.
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `WALLY_PATH` | `/home/rafay/miniconda3/WallyGuard2/cvw` | Original CVW checkout on the simulation host; override for other installations. |
+| `WALLY_SPIKE` | Toolchain discovery | Absolute RISC-V Spike path on the simulation host. Otherwise searches `$RISCV/bin`, `~/riscv/bin`, `/opt/riscv/bin`, then PATH. Identity is checked before agents run. `/usr/bin/spike` can be an unrelated secrets CLI. |
 | `WALLY_RUN_REGRESSION` | `0` (disabled) | Set to `1` to enable baseline and patched full regression, as in the full-loop example above. |
 | `WALLY_DIRECTED_COMMAND` | Empty | Operator-selected related tests; required for full confirmation. |
 | `WALLY_REGRESSION_COMMAND` | `bin/regression-wally` | Operator-selected full regression command. |
 | `WALLY_REPRODUCER_TIMEOUT` | `900` | Deadline in seconds for each reproducer build/simulator command. |
+| `WALLY_ORACLE_TIMEOUT` | `60` | Controller Spike deadline, capped by the reproducer timeout. Increase for deliberately long test programs. |
+| `WALLY_COMMAND_TIMEOUT` | `120` | Default agent shell-command deadline. A tool call can request a longer `timeout_seconds`, up to the regression timeout. |
 | `WALLY_REGRESSION_TIMEOUT` | `5400` | Deadline in seconds for each directed/full regression command. |
 | `WALLY_AGENT_TIMEOUT` | `14400` | Deadline in seconds for an LLM call. |
 | `WALLY_BASELINE_RUNS` | `2` | Baseline repetitions; values below two are raised to two. |

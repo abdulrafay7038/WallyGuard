@@ -1,0 +1,68 @@
+Started: 2026-09-20T02:13:33.675108+00:00
+Command: bash -o pipefail -c 'sed -n '"'"'30,90p'"'"' /home/rafay/miniconda3/WallyGuard2/ORCHESTRATION.md'
+
+
+New workspaces are seeded with `reproducer.json`, `build_reproducer.sh`, and
+`tests/selfcheck.h` / `tests/template.S.example`. These are editable run inputs,
+frozen with the rest of the reproducer before verification. The RV64 template
+contains a deliberate assembler error; the Tester must implement the stimulus
+and independent assertions in `control.S` and `test.S` and adapt the ISA/ABI and
+record widths when needed. The header declares the native five-word self-check
+record and its Spike signature aliases. The starter build compiles the ELFs;
+the contract's `bin/wsim` calls handle incremental DUT rebuilding.
+
+The MCP `validate_reproducer` tool reads a contract under `test_dir` and performs
+static checks without building or executing it. It returns all detected
+command/path/metadata errors, allowing repair within the same conversation.
+The same checks run again in the controller before the build. Linked symbol
+alignment and actual oracle/DUT results are still checked after building.
+`PREFLIGHT_READY` does not imply a valid test, a mismatch, or a passing DUT.
+
+A Tester may return a legacy `reproduce_command` for human convenience, but it
+cannot establish a mismatch. A bug claim needs `reproducer` with:
+
+- `version: 1`, `oracle: "spike"`;
+- `build`: an argument list for the saved build script or build tool;
+- `control` and `test`: independent positive-control and candidate executions;
+- `trap_vectors`: `{ "elf": "build/test.elf", "symbol": "handler" }` entries
+  for generated direct-mode trap handlers.
+
+Each control/test specifies `wally` and `oracle` argument lists. The controller
+requires the current checkout's `bin/wsim` and the configured installed Spike,
+respectively, directly executing the same ELF under `test_dir/build`. Specify
+`--elf` explicitly for Wally. Shell control flow, inline interpreter code and
+exit-code masking are rejected at this boundary. Legitimate shell code remains
+permitted inside a saved build harness.
+
+Two deterministic comparison modes are supported:
+
+1. Default signature mode: provide distinct `wally_signature` and
+   `oracle_signature` paths under `build/` or `logs/`, relative to `test_dir`,
+   plus nonempty `wally_complete` and `oracle_complete` log markers. Both tools
+   must finish successfully. The controller deletes stale signatures, validates
+   nonempty hexadecimal contents and compares complete signatures itself.
+2. `mode: "selfcheck"`: use CVW's native `CheckSelfCheck` support. The ELF must
+   define `selfcheck_record`, `tohost`, and `begin_signature` aliasing the five-word
+   self-check record (with a covering `end_signature`). Provide `oracle_signature`
+   and Spike `+signature=<absolute path>` / `+signature-granularity=<XLEN/8>`.
+   The controller checks Spike's freshly emitted self-check record has status 1;
+   Wally must emit its native successful self-check message or an explicit
+   expected/actual value mismatch. Generic aborts, entry-count errors and
+   unfinished self-checks are not mismatch evidence. This mode does not require
+   a Wally signature-output extension or changes to CVW's testbench.
+
+For either mode the control must match. Every run archives its ELF and emitted
+signatures with SHA256 hashes, so later builds cannot overwrite prior evidence. The baseline is repeated at least twice
+(`WALLY_BASELINE_RUNS`, default 2), with matching failure fingerprints. Linked
+trap-handler addresses are checked with RISC-V `nm`; handlers must be 4-byte
+aligned. Metadata is required when generated source references mtvec/stvec, and
+simple `la`/`csrw` patterns are checked against the declared symbols. Use the
+reusable `TRAP_VECTOR_TEMPLATE` in `orchestration/test_preflight.py`. This check
+cannot prove the correctness of arbitrary computed vector addresses or program
+privilege logic; inconclusive cases must remain unconfirmed.
+
+`DUT_WATCHDOG_FAILURE` recognizes Verilator's watchdog even when `$finish` returns
+
+Finished: 2026-09-20T02:13:33.757782+00:00
+Return code: 0
+Status: PASS

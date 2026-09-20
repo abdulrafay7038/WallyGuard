@@ -1,0 +1,29 @@
+Started: 2026-09-20T05:57:56.187810+00:00
+Command: bash -o pipefail -c 'python3 -c '"'"'
+import json
+
+with open("/home/rafay/miniconda3/WallyGuard2/runs/20260920T041307Z-f2caada9/reproducer.json", "r") as f:
+    data = json.load(f)
+
+for k in ["control", "test"]:
+    elf_path = data[k]["oracle"][5]
+    sig_path = data[k]["oracle"][1]
+    sig_gran = data[k]["oracle"][2]
+    data[k]["oracle"] = [
+        "/home/rafay/riscv/bin/spike",
+        "-m0x80000000:0x100000",
+        "--pc=0x80000000",
+        "--isa=rv64gc",
+        elf_path,
+        sig_path,
+        sig_gran
+    ]
+
+with open("/home/rafay/miniconda3/WallyGuard2/runs/20260920T041307Z-f2caada9/reproducer.json", "w") as f:
+    json.dump(data, f, indent=2)
+'"'"''
+
+
+Finished: 2026-09-20T05:57:56.364162+00:00
+Return code: 0
+Status: PASS

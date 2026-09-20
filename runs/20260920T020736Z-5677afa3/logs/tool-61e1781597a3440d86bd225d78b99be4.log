@@ -1,0 +1,9 @@
+Started: 2026-09-20T03:48:50.091465+00:00
+Command: bash -o pipefail -c '/opt/riscv/bin/riscv64-unknown-elf-objdump -d /home/rafay/miniconda3/WallyGuard2/runs/20260920T002030Z-7cc4bf4c/build/control.elf'
+
+bash: line 1: /opt/riscv/bin/riscv64-unknown-elf-objdump: No such file or directory
+
+Finished: 2026-09-20T03:48:50.153210+00:00
+Return code: 127
+Status: COMMAND_FAILED
+ERROR: Command exited with code 127

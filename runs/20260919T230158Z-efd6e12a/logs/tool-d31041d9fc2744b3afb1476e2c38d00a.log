@@ -1,0 +1,65 @@
+Started: 2026-09-20T00:10:08.604831+00:00
+Command: bash -o pipefail -c 'cat /home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/tests/control.S'
+
+#include "selfcheck.h"
+.section .text.init
+.option norvc
+.globl rvtest_entry_point
+rvtest_entry_point:
+    la t0, trap_handler
+    csrw mtvec, t0
+
+    // PMP setup to allow S/U mode memory access
+    li t0, -1
+    csrw pmpaddr0, t0
+    li t0, 0x1f
+    csrw pmpcfg0, t0
+
+    // Set mstateen0.ENVCFG (bit 62) to 1
+    li t0, 1
+    slli t0, t0, 62
+    csrs 0x30C, t0
+
+    // Set senvcfg.CBZE (bit 7) to 1
+    li t0, 0x80
+    csrs 0x10A, t0
+
+    // Setup mstatus.MPP = 1 (S-mode), MPIE=0
+    li t0, 0x800  // MPP=1
+    csrs mstatus, t0
+    // clear MPIE, MIE
+    li t0, 0x88
+    csrc mstatus, t0
+
+    // Setup mepc
+    la t0, smode_entry
+    csrw mepc, t0
+
+    mret
+
+smode_entry:
+    la a0, scratch_space
+    cbo.zero (a0)
+
+    // We expect to get here!
+    j wg_pass
+
+.balign 4
+trap_handler:
+    // We DO NOT expect a trap
+    csrr a3, mcause
+    li a2, 0
+    li a0, 1
+    li a1, 0
+    j wg_fail
+
+.section .data
+.balign 64
+scratch_space:
+    .zero 64
+
+WG_FINISH
+
+Finished: 2026-09-20T00:10:08.676167+00:00
+Return code: 0
+Status: PASS

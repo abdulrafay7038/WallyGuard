@@ -1,0 +1,16 @@
+Started: 2026-09-20T02:17:05.334765+00:00
+Command: bash -o pipefail -c 'grep -rn "ZACAS" src/'
+
+src/ieu/controller.sv:219:    assign CASPairSizeD     = P.ZACAS_SUPPORTED & (Funct3D == (P.XLEN == 64 ? 3'b100 : 3'b011));
+src/ieu/controller.sv:220:    assign CASFunctD        = P.ZACAS_SUPPORTED & (InstrD[31:27] == 5'b00101) &
+src/ieu/controller.sv:260:    assign CASFunctD = P.ZACAS_SUPPORTED & (InstrD[31:27] == 5'b00101); // don't bother to check the size
+src/ieu/controller.sv:261:    assign CASPairSizeD = P.ZACAS_SUPPORTED & (Funct3D == (P.XLEN == 64 ? 3'b100 : 3'b011));
+src/ieu/regfile.sv:31:module regfile #(parameter XLEN, E_SUPPORTED, ZACAS_SUPPORTED) (
+src/ieu/regfile.sv:42:  if (ZACAS_SUPPORTED) begin : pairedrf
+src/ieu/datapath.sv:139:  regfile #(P.XLEN, P.E_SUPPORTED, P.ZACAS_SUPPORTED) regf(clk, reset, RegWrite, RegWrite & AMOCASPairW & ~DebugMode,
+src/lsu/lsu.sv:441:  if (P.ZACAS_SUPPORTED) begin : caspair
+src/cvw.sv:89:  logic         ZACAS_SUPPORTED;
+
+Finished: 2026-09-20T02:17:05.400992+00:00
+Return code: 0
+Status: PASS

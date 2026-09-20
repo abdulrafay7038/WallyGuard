@@ -1,0 +1,43 @@
+Started: 2026-09-20T02:18:02.390718+00:00
+Command: bash -o pipefail -c 'sed -n '"'"'510,545p'"'"' testbench/testbench.sv'
+
+        i = 0;
+        testadr = ($unsigned(begin_signature_addr))/(P.XLEN/8);
+        while ($unsigned(i) < $unsigned(5'd5)) begin
+          $fdisplayh(outputFilePointer, DCacheFlushFSM.ShadowRAM[testadr+i]);
+          i = i + 1;
+        end
+        $fclose(outputFilePointer);
+        $display("Embench Benchmark: created output file: %s", outputfile);
+      end else if (TEST == "coverage64gc") begin
+        $display("%s ran. Coverage tests don't get checked", tests[test]);
+      end else if (ElfFile != "none") begin
+        `ifdef USE_TREK_DV
+          $display("Breker test is done.");
+        `elsif FCOV
+          $display("Functional coverage test complete.");
+        `else
+          if (selfcheck_record_addr != 0) CheckSelfCheck(ElfFile, selfcheck_record_addr, errors);
+          else $display("Single Elf file tests are not signatured verified.");
+        `endif
+`ifdef QUESTA
+        $stop;  // if this is changed to $finish for Questa, wally-batch.do does not go to the next step to run coverage, and wally.do terminates without allowing GUI debug
+`else
+        $finish;
+`endif
+      end else begin
+        // self-checking tests record their own result; for other tests, read .signature.output file and compare to check for errors
+        // clear signature to prevent contamination from previous tests
+        if (!begin_signature_addr)
+          $display("begin_signature addr not found in %s", ProgramLabelMapFile);
+        else if (TEST != "embench") begin
+          if (selfcheck_record_addr != 0) CheckSelfCheck(tests[test], selfcheck_record_addr, errors);
+          else CheckSignature(pathname, tests[test], riscofTest, begin_signature_addr, errors);
+          if(errors > 0) totalerrors = totalerrors + 1;
+        end
+      end
+      test = test + 1;
+
+Finished: 2026-09-20T02:18:02.454354+00:00
+Return code: 0
+Status: PASS

@@ -1,0 +1,11 @@
+Started: 2026-09-20T06:01:59.597982+00:00
+Command: bash -o pipefail -c 'bash /home/rafay/miniconda3/WallyGuard2/runs/20260920T041307Z-f2caada9/build_reproducer.sh
+/home/rafay/riscv/bin/spike -m0x80000000:0x100000 --pc=0x80000000 --isa=rv64gc /home/rafay/miniconda3/WallyGuard2/runs/20260920T041307Z-f2caada9/build/control.elf +signature=/home/rafay/miniconda3/WallyGuard2/runs/20260920T041307Z-f2caada9/build/control.sig +signature-granularity=8
+ls -al /home/rafay/miniconda3/WallyGuard2/runs/20260920T041307Z-f2caada9/build/control.sig'
+
+ls: cannot access '/home/rafay/miniconda3/WallyGuard2/runs/20260920T041307Z-f2caada9/build/control.sig': No such file or directory
+
+Finished: 2026-09-20T06:01:59.997022+00:00
+Return code: 2
+Status: COMMAND_FAILED
+ERROR: Command exited with code 2

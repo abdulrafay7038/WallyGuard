@@ -1,0 +1,8 @@
+Started: 2026-09-20T04:16:19.060336+00:00
+Command: bash -o pipefail -c 'jq '"'"'.test_revisions[0].tester.reproducer'"'"' /home/rafay/miniconda3/WallyGuard2/runs/20260917T123710Z-9bc09998/attempt.json'
+
+null
+
+Finished: 2026-09-20T04:16:19.274496+00:00
+Return code: 0
+Status: PASS

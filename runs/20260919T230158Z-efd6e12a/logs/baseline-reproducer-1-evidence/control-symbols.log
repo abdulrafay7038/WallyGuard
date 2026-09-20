@@ -1,0 +1,21 @@
+Started: 2026-09-19T23:54:51.285067+00:00
+Command: /usr/bin/riscv64-unknown-elf-nm -n /home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/build/control.elf
+
+0000000080000000 T rvtest_entry_point
+0000000080000054 t smode_entry
+0000000080000064 t trap_handler
+0000000080001000 d scratch_space
+0000000080001040 d wg_pass
+0000000080001054 d wg_fail
+000000008000107c d wg_complete
+000000008000108c d wg_halt
+00000000800010c0 D begin_signature
+00000000800010c0 D selfcheck_record
+00000000800010e8 D end_signature
+0000000080001100 D tohost
+0000000080001108 D fromhost
+0000000080001110 D _end
+
+Finished: 2026-09-19T23:54:51.336770+00:00
+Return code: 0
+Status: PASS

@@ -1,0 +1,79 @@
+Started: 2026-09-20T00:59:19.042751+00:00
+Command: bash -o pipefail -c 'riscv64-unknown-elf-objdump -d /home/rafay/miniconda3/WallyGuard2/runs/20260920T002030Z-7cc4bf4c/build/control.elf'
+
+
+/home/rafay/miniconda3/WallyGuard2/runs/20260920T002030Z-7cc4bf4c/build/control.elf:     file format elf64-littleriscv
+
+
+Disassembly of section .text.init:
+
+0000000080000000 <_start>:
+    80000000:	00000297          	auipc	t0,0x0
+    80000004:	07028293          	addi	t0,t0,112 # 80000070 <trap_handler>
+    80000008:	30529073          	csrw	mtvec,t0
+    8000000c:	fff00293          	li	t0,-1
+    80000010:	3b029073          	csrw	pmpaddr0,t0
+    80000014:	01f00293          	li	t0,31
+    80000018:	3a029073          	csrw	pmpcfg0,t0
+    8000001c:	00100293          	li	t0,1
+    80000020:	03e29293          	slli	t0,t0,0x3e
+    80000024:	30c2a073          	csrs	mstateen0,t0
+    80000028:	08000293          	li	t0,128
+    8000002c:	30a2a073          	csrs	0x30a,t0
+    80000030:	10a2a073          	csrs	0x10a,t0
+    80000034:	000022b7          	lui	t0,0x2
+    80000038:	8002829b          	addiw	t0,t0,-2048 # 1800 <_start-0x7fffe800>
+    8000003c:	3002b073          	csrc	mstatus,t0
+    80000040:	000012b7          	lui	t0,0x1
+    80000044:	8002829b          	addiw	t0,t0,-2048 # 800 <_start-0x7ffff800>
+    80000048:	3002a073          	csrs	mstatus,t0
+    8000004c:	00000297          	auipc	t0,0x0
+    80000050:	01028293          	addi	t0,t0,16 # 8000005c <smode_entry>
+    80000054:	34129073          	csrw	mepc,t0
+    80000058:	30200073          	mret
+
+000000008000005c <smode_entry>:
+    8000005c:	10a02373          	csrr	t1,0x10a
+    80000060:	00000517          	auipc	a0,0x0
+    80000064:	12050513          	addi	a0,a0,288 # 80000180 <scratch_buf>
+    80000068:	0045200f          	cbo.zero	(a0)
+    8000006c:	0180006f          	j	80000084 <wg_pass>
+
+0000000080000070 <trap_handler>:
+    80000070:	00100513          	li	a0,1
+    80000074:	00000593          	li	a1,0
+    80000078:	00000613          	li	a2,0
+    8000007c:	342026f3          	csrr	a3,mcause
+    80000080:	0180006f          	j	80000098 <wg_fail>
+
+0000000080000084 <wg_pass>:
+    80000084:	00000297          	auipc	t0,0x0
+    80000088:	07c28293          	addi	t0,t0,124 # 80000100 <begin_signature>
+    8000008c:	00100313          	li	t1,1
+    80000090:	0062b023          	sd	t1,0(t0)
+    80000094:	02c0006f          	j	800000c0 <wg_complete>
+
+0000000080000098 <wg_fail>:
+    80000098:	00000297          	auipc	t0,0x0
+    8000009c:	06828293          	addi	t0,t0,104 # 80000100 <begin_signature>
+    800000a0:	00200313          	li	t1,2
+    800000a4:	0062b023          	sd	t1,0(t0)
+    800000a8:	00a2b423          	sd	a0,8(t0)
+    800000ac:	00b2b823          	sd	a1,16(t0)
+    800000b0:	00c2bc23          	sd	a2,24(t0)
+    800000b4:	02d2b023          	sd	a3,32(t0)
+    800000b8:	00151313          	slli	t1,a0,0x1
+    800000bc:	00136313          	ori	t1,t1,1
+
+00000000800000c0 <wg_complete>:
+    800000c0:	0330000f          	fence	rw,rw
+    800000c4:	00000297          	auipc	t0,0x0
+    800000c8:	07c28293          	addi	t0,t0,124 # 80000140 <tohost>
+    800000cc:	0062a023          	sw	t1,0(t0)
+
+00000000800000d0 <wg_halt>:
+    800000d0:	0000006f          	j	800000d0 <wg_halt>
+
+Finished: 2026-09-20T00:59:19.105484+00:00
+Return code: 0
+Status: PASS

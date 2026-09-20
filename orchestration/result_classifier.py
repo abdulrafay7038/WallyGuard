@@ -65,6 +65,11 @@ def artifact_argv(value: Any, scratch: Path, test_dir: Path | None = None) -> li
     args = shlex.split(value) if isinstance(value, str) else value
     if not isinstance(args, list) or not args or any(not isinstance(a, str) or not a for a in args):
         raise ValueError('Command must be a nonempty argument vector')
+    program = Path(args[0]).name
+    if (program in {'bash', 'sh', 'python', 'python3'} or program.startswith('python3.')) and (
+            len(args) < 2 or args[1].startswith('-')):
+        raise ValueError('Inline code is forbidden; save edits to test files first, then use '
+                         '["bash", "ABSOLUTE_TEST_DIR/build_reproducer.sh"]')
     for arg in args:
         if any(x in arg for x in ('||', '&&', ';', '\n', '\r', '`', '$(', '|', '>','<')):
             raise ValueError('Shell control flow/redirection is forbidden at the verifier boundary')

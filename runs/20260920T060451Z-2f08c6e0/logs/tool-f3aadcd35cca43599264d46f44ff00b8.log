@@ -1,0 +1,67 @@
+Started: 2026-09-20T06:09:28.968651+00:00
+Command: bash -o pipefail -c 'cat /home/rafay/miniconda3/WallyGuard2/runs/20260920T041307Z-f2caada9/reproducer.json'
+
+{
+  "version": 1,
+  "oracle": "spike",
+  "build": [
+    "bash",
+    "/home/rafay/miniconda3/WallyGuard2/runs/20260920T041307Z-f2caada9/build_reproducer.sh"
+  ],
+  "control": {
+    "mode": "selfcheck",
+    "wally": [
+      "/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/bin/wsim",
+      "rv64gc",
+      "--sim",
+      "verilator",
+      "--elf",
+      "/home/rafay/miniconda3/WallyGuard2/runs/20260920T041307Z-f2caada9/build/control.elf"
+    ],
+    "oracle": [
+      "/home/rafay/riscv/bin/spike",
+      "-m0x80000000:0x100000",
+      "--pc=0x80000000",
+      "--isa=rv64gc",
+      "+signature=/home/rafay/miniconda3/WallyGuard2/runs/20260920T041307Z-f2caada9/build/control.sig",
+      "+signature-granularity=8",
+      "/home/rafay/miniconda3/WallyGuard2/runs/20260920T041307Z-f2caada9/build/control.elf"
+    ],
+    "oracle_signature": "/home/rafay/miniconda3/WallyGuard2/runs/20260920T041307Z-f2caada9/build/control.sig"
+  },
+  "test": {
+    "mode": "selfcheck",
+    "wally": [
+      "/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/bin/wsim",
+      "rv64gc",
+      "--sim",
+      "verilator",
+      "--elf",
+      "/home/rafay/miniconda3/WallyGuard2/runs/20260920T041307Z-f2caada9/build/test.elf"
+    ],
+    "oracle": [
+      "/home/rafay/riscv/bin/spike",
+      "-m0x80000000:0x100000",
+      "--pc=0x80000000",
+      "--isa=rv64gc",
+      "+signature=/home/rafay/miniconda3/WallyGuard2/runs/20260920T041307Z-f2caada9/build/test.sig",
+      "+signature-granularity=8",
+      "/home/rafay/miniconda3/WallyGuard2/runs/20260920T041307Z-f2caada9/build/test.elf"
+    ],
+    "oracle_signature": "/home/rafay/miniconda3/WallyGuard2/runs/20260920T041307Z-f2caada9/build/test.sig"
+  },
+  "trap_vectors": [
+    {
+      "elf": "/home/rafay/miniconda3/WallyGuard2/runs/20260920T041307Z-f2caada9/build/test.elf",
+      "symbol": "trap_handler"
+    },
+    {
+      "elf": "/home/rafay/miniconda3/WallyGuard2/runs/20260920T041307Z-f2caada9/build/control.elf",
+      "symbol": "trap_handler"
+    }
+  ]
+}
+
+Finished: 2026-09-20T06:09:29.033335+00:00
+Return code: 0
+Status: PASS

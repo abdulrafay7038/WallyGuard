@@ -5,6 +5,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import uuid
+from .input_files import input_files
 
 
 class ArtifactViolation(RuntimeError):
@@ -27,9 +28,8 @@ def source_files(root: Path) -> set[str]:
 
 
 def test_files(tests: Path) -> set[str]:
-    return {str(p.relative_to(tests)) for p in tests.rglob('*') if p.is_file()
-            and not set(p.relative_to(tests).parts) & {'build', 'logs', '__pycache__'}
-            and not str(p.relative_to(tests)).startswith(('controller/guards/', 'controller/agent-'))}
+    return {str(p.relative_to(tests)) for p in input_files(
+        tests, {'build', 'logs', '__pycache__'}, ('controller/guards/', 'controller/agent-'))}
 
 
 def snapshot(scratch: str, test_dir: str, stage: str) -> str:

@@ -1,0 +1,33 @@
+Started: 2026-09-20T05:53:55.980364+00:00
+Command: bash -o pipefail -c 'sed -n '"'"'470,495p'"'"' testbench/testbench.sv'
+
+        if (debugfile != "none") begin
+          debugger_filename = {"../../", debugfile};
+        end
+      end else if (debugTest) begin
+        elffilename = {pathname, tests[test], ".elf"};
+        memfilename = {pathname, tests[test], ".elf.memfile"};
+        ProgramAddrMapFile = {pathname, tests[test], ".elf.objdump.addr"};
+        ProgramLabelMapFile = {pathname, tests[test], ".elf.objdump.lab"};
+        debugger_filename = {tvpaths[debugger_tests[0].atoi()], debugger_tests[test], ".tv"};
+      end else begin
+        elffilename = {pathname, tests[test], ".elf"};
+        memfilename = {pathname, tests[test], ".elf.memfile"};
+        ProgramAddrMapFile = {pathname, tests[test], ".elf.objdump.addr"};
+        ProgramLabelMapFile = {pathname, tests[test], ".elf.objdump.lab"};
+      end
+      // declare memory labels that interest us, the updateProgramAddrLabelArray task will find
+      // the addr of each label and fill the array. To expand, add more elements to this array
+      // and initialize them to zero (also initialize them to zero at the start of the next test)
+      updateProgramAddrLabelArray(ProgramAddrMapFile, ProgramLabelMapFile, memfilename, WALLY_DIR, ProgramAddrLabelArray);
+      // Open UART log file if enabled (buildroot defaults to on, override with +UART_LOG=1)
+      if (UART_LOG) begin
+        uartoutfilename = UART_LOG_FILE;
+        uartoutfile = $fopen(uartoutfilename, "w");
+      end else
+        uartoutfile = 0;
+    end
+
+Finished: 2026-09-20T05:53:56.072198+00:00
+Return code: 0
+Status: PASS

@@ -1,0 +1,9 @@
+Started: 2026-09-20T02:14:37.421527+00:00
+Command: bash -o pipefail -c 'cat config/rv64gc/wally-config.vh'
+
+cat: config/rv64gc/wally-config.vh: No such file or directory
+
+Finished: 2026-09-20T02:14:37.492718+00:00
+Return code: 1
+Status: COMMAND_FAILED
+ERROR: Command exited with code 1

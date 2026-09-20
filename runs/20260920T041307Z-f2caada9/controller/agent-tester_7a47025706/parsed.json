@@ -1,0 +1,66 @@
+{
+  "found_bug": true,
+  "report": "Successfully fixed the reproducer contract to ensure Spike outputs the signature file. In earlier runs, Spike's HTIF failed to generate the 'oracle_signature' file because the '+signature=...' arguments were being placed after the target ELF program in the command array (which caused them to be interpreted as program arguments instead of HTIF options) and 'end_signature' was not properly 16-byte aligned. These have been repaired by reordering the Spike command and modifying 'selfcheck.h' to align 'end_signature'. The test logic strictly follows the requested PMP boundary crossing bug scenario where a multi-byte access originates in an unlocked region and straddles into a locked read-only region in Machine mode, successfully triggering mcause=7 on Spike and bypassing it on Wally.",
+  "evidence": "In M-mode (EffectivePrivilegeModeW == P.M_MODE), `EnforcePMP = (EffectivePrivilegeModeW != P.M_MODE) | MatchingL;`. Since `MatchingL = |(L & FirstMatch)` uses the start address's lock bit, an access starting in an unlocked TOR region evaluates `MatchingL` = 0. Therefore, `EnforcePMP` = 0. `PMPBoundaryStoreFault` and `PMPBoundaryLoadFault` both depend on `EnforcePMP & ...`, so they are forced to 0 regardless of `EndL` (the end address's lock bit) or `EndW` (the end address's write permission). Spike strictly adheres to the RISC-V Privileged Architecture (v20211203/v20240411, Section 3.7.1) and enforces permissions on any byte accessed, trapping if a multi-byte sequence encroaches into a locked, non-writable region.",
+  "reproduce_command": "bash /home/rafay/miniconda3/WallyGuard2/runs/20260920T041307Z-f2caada9/build_reproducer.sh && /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/bin/wsim rv64gc --sim verilator --elf /home/rafay/miniconda3/WallyGuard2/runs/20260920T041307Z-f2caada9/build/test.elf",
+  "reproducer": {
+    "version": 1,
+    "oracle": "spike",
+    "build": [
+      "bash",
+      "/home/rafay/miniconda3/WallyGuard2/runs/20260920T041307Z-f2caada9/build_reproducer.sh"
+    ],
+    "control": {
+      "mode": "selfcheck",
+      "wally": [
+        "/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/bin/wsim",
+        "rv64gc",
+        "--sim",
+        "verilator",
+        "--elf",
+        "/home/rafay/miniconda3/WallyGuard2/runs/20260920T041307Z-f2caada9/build/control.elf"
+      ],
+      "oracle": [
+        "/home/rafay/riscv/bin/spike",
+        "-m0x80000000:0x100000",
+        "--pc=0x80000000",
+        "--isa=rv64gc",
+        "+signature=/home/rafay/miniconda3/WallyGuard2/runs/20260920T041307Z-f2caada9/build/control.sig",
+        "+signature-granularity=8",
+        "/home/rafay/miniconda3/WallyGuard2/runs/20260920T041307Z-f2caada9/build/control.elf"
+      ],
+      "oracle_signature": "/home/rafay/miniconda3/WallyGuard2/runs/20260920T041307Z-f2caada9/build/control.sig"
+    },
+    "test": {
+      "mode": "selfcheck",
+      "wally": [
+        "/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/bin/wsim",
+        "rv64gc",
+        "--sim",
+        "verilator",
+        "--elf",
+        "/home/rafay/miniconda3/WallyGuard2/runs/20260920T041307Z-f2caada9/build/test.elf"
+      ],
+      "oracle": [
+        "/home/rafay/riscv/bin/spike",
+        "-m0x80000000:0x100000",
+        "--pc=0x80000000",
+        "--isa=rv64gc",
+        "+signature=/home/rafay/miniconda3/WallyGuard2/runs/20260920T041307Z-f2caada9/build/test.sig",
+        "+signature-granularity=8",
+        "/home/rafay/miniconda3/WallyGuard2/runs/20260920T041307Z-f2caada9/build/test.elf"
+      ],
+      "oracle_signature": "/home/rafay/miniconda3/WallyGuard2/runs/20260920T041307Z-f2caada9/build/test.sig"
+    },
+    "trap_vectors": [
+      {
+        "elf": "/home/rafay/miniconda3/WallyGuard2/runs/20260920T041307Z-f2caada9/build/test.elf",
+        "symbol": "trap_handler"
+      },
+      {
+        "elf": "/home/rafay/miniconda3/WallyGuard2/runs/20260920T041307Z-f2caada9/build/control.elf",
+        "symbol": "trap_handler"
+      }
+    ]
+  }
+}

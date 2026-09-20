@@ -1,0 +1,7 @@
+Started: 2026-09-20T04:16:28.623173+00:00
+Command: bash -o pipefail -c 'find . -maxdepth 3 -name "*contract*" -o -name "*reproducer*"'
+
+
+Finished: 2026-09-20T04:16:28.722465+00:00
+Return code: 0
+Status: PASS

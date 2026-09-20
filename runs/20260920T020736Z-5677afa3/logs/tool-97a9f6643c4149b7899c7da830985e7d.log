@@ -1,0 +1,8 @@
+Started: 2026-09-20T03:48:53.361471+00:00
+Command: bash -o pipefail -c 'which riscv64-unknown-elf-objdump || which riscv64-elf-objdump || find / -name "*objdump*" 2>/dev/null'
+
+/usr/bin/riscv64-unknown-elf-objdump
+
+Finished: 2026-09-20T03:48:53.424894+00:00
+Return code: 0
+Status: PASS

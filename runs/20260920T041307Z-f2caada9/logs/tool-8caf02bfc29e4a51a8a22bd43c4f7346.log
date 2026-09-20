@@ -1,0 +1,19 @@
+Started: 2026-09-20T04:16:35.721372+00:00
+Command: bash -o pipefail -c 'ls -la /home/rafay/miniconda3/WallyGuard2/runs/20260919T193248Z-eb60e108'
+
+total 88
+drwxrwxr-x  6 rafay rafay  4096 Sep 19 23:01 .
+drwxrwxr-x 70 rafay rafay  4096 Sep 20 04:15 ..
+-rw-rw-r--  1 rafay rafay 44081 Sep 19 23:01 attempt.json
+drwxrwxr-x  2 rafay rafay  4096 Sep 19 22:41 build
+-rwxrwxr-x  1 rafay rafay   648 Sep 19 22:04 build_reproducer.sh
+drwxrwxr-x 10 rafay rafay  4096 Sep 19 23:01 controller
+-rw-------  1 rafay rafay  1694 Sep 19 23:01 events.jsonl
+drwxrwxr-x  5 rafay rafay 12288 Sep 19 23:01 logs
+-rw-rw-r--  1 rafay rafay     0 Sep 19 23:01 proposed.patch
+-rw-rw-r--  1 rafay rafay  1882 Sep 19 22:05 reproducer.json
+drwxrwxr-x  2 rafay rafay  4096 Sep 19 20:33 tests
+
+Finished: 2026-09-20T04:16:35.790176+00:00
+Return code: 0
+Status: PASS

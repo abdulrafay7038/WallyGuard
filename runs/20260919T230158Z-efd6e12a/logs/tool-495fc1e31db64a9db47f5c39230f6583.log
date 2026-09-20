@@ -1,0 +1,18 @@
+Started: 2026-09-19T23:04:26.060542+00:00
+Command: bash -o pipefail -c 'git grep -n "CASReadD" src/
+'
+
+src/ieu/controller.sv:83:  output logic        CASReadD,                // amocas is reading its compare operand through the rs2 port
+src/ieu/controller.sv:476:  assign CASReadD   = AMOCASD & ~CASCapturedD & ~CASHazardD; // operands are ready, so borrow the port
+src/ieu/controller.sv:477:  assign CASStallD  = CASReadD | CASHazardD;
+src/ieu/controller.sv:480:    else if (CASReadD)   CASCapturedD <= 1'b1; // compare operand captured; release the stall
+src/ieu/datapath.sv:37:  input  logic              CASReadD,                // amocas is borrowing the rs2 port to read its compare operand
+src/ieu/datapath.sv:137:  assign A2D = CASReadD ? InstrD[11:7] : Rs2D;
+src/ieu/datapath.sv:149:  flopenr #(P.XLEN*2) ComparePairEReg(clk, reset, CASReadD, {R2PD[P.XLEN*2-1:P.XLEN], R2D}, ComparePairE);
+src/ieu/ieu.sv:120:  logic       CASReadD;                                      // amocas borrows the rs2 port for a cycle
+src/ieu/ieu.sv:126:    .StructuralStallD, .LoadStallD, .StoreStallD, .Rs1D, .Rs2D,  .Rs2E, .CASReadD, .AMOCASPairM, .AMOCASPairW, .VectorD,
+src/ieu/ieu.sv:138:    .clk, .reset, .ImmSrcD, .InstrD, .Rs1D, .Rs2D, .Rs2E, .CASReadD, .AMOCASPairW, .ComparePairM, .SwapHighM, .StallE, .FlushE, .ForwardAE, .ForwardBE, .W64E, .UW64E, .SubArithE,
+
+Finished: 2026-09-19T23:04:26.123792+00:00
+Return code: 0
+Status: PASS

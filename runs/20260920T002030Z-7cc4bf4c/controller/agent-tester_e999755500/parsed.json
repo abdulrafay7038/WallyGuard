@@ -1,0 +1,60 @@
+{
+  "found_bug": true,
+  "report": "Constructed a differential reproducer to test the missing `mstateen0[62]` (ENVCFG) gating on S-mode `senvcfg` accesses. The tests configure PMP, set `menvcfg.CBZE`, drop to S-mode, and perform a `csrr` from `0x10A` (`senvcfg`). In the positive control (`control.S`), M-mode enables `mstateen0[62]=1`, allowing S-mode access. In the test (`test.S`), M-mode clears `mstateen0[62]=0`. According to the RISC-V State Enable (Smstateen) extension, S-mode attempts to access `senvcfg` while `mstateen0[62]==0` must raise an Illegal Instruction exception (mcause=2). Spike properly raises this exception, which is caught and mapped to a PASS (`tohost=1`) by the trap handler. Wally incorrectly permits the access without trapping, resulting in test fallthrough and a FAIL (`tohost=3`).",
+  "reproducer": {
+    "version": 1,
+    "oracle": "spike",
+    "build": [
+      "/home/rafay/miniconda3/WallyGuard2/runs/20260920T002030Z-7cc4bf4c/build_reproducer.sh"
+    ],
+    "control": {
+      "mode": "selfcheck",
+      "wally": [
+        "/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/bin/wsim",
+        "rv64gc",
+        "--sim",
+        "verilator",
+        "--elf",
+        "/home/rafay/miniconda3/WallyGuard2/runs/20260920T002030Z-7cc4bf4c/build/control.elf"
+      ],
+      "oracle": [
+        "/usr/bin/spike",
+        "--isa=rv64gc_smstateen_zicboz",
+        "+signature=/home/rafay/miniconda3/WallyGuard2/runs/20260920T002030Z-7cc4bf4c/logs/control-spike.sig",
+        "+signature-granularity=8",
+        "/home/rafay/miniconda3/WallyGuard2/runs/20260920T002030Z-7cc4bf4c/build/control.elf"
+      ],
+      "oracle_signature": "logs/control-spike.sig"
+    },
+    "test": {
+      "mode": "selfcheck",
+      "wally": [
+        "/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/bin/wsim",
+        "rv64gc",
+        "--sim",
+        "verilator",
+        "--elf",
+        "/home/rafay/miniconda3/WallyGuard2/runs/20260920T002030Z-7cc4bf4c/build/test.elf"
+      ],
+      "oracle": [
+        "/usr/bin/spike",
+        "--isa=rv64gc_smstateen_zicboz",
+        "+signature=/home/rafay/miniconda3/WallyGuard2/runs/20260920T002030Z-7cc4bf4c/logs/test-spike.sig",
+        "+signature-granularity=8",
+        "/home/rafay/miniconda3/WallyGuard2/runs/20260920T002030Z-7cc4bf4c/build/test.elf"
+      ],
+      "oracle_signature": "logs/test-spike.sig"
+    },
+    "trap_vectors": [
+      {
+        "elf": "build/control.elf",
+        "symbol": "trap_handler"
+      },
+      {
+        "elf": "build/test.elf",
+        "symbol": "trap_handler"
+      }
+    ]
+  },
+  "evidence": "RTL lacks an M-mode State Enable check during Privilege Mode < M accesses to the `senvcfg` CSR (0x10A), allowing unauthorized environments to improperly read/write configurations. The provided assembly successfully catches the failure by observing the absence of expected trap routing to `mtvec`."
+}

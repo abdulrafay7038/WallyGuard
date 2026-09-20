@@ -1,0 +1,7 @@
+Started: 2026-09-20T05:48:56.186589+00:00
+Command: bash -o pipefail -c 'timeout 10s "$WALLY_SPIKE" --isa=rv64gc /home/rafay/miniconda3/WallyGuard2/runs/20260919T193248Z-eb60e108/build/control.elf'
+
+
+Finished: 2026-09-20T05:48:56.471567+00:00
+Return code: 0
+Status: PASS

@@ -1,0 +1,16 @@
+Started: 2026-09-20T05:48:44.578900+00:00
+Command: bash -o pipefail -c 'cat /home/rafay/miniconda3/WallyGuard2/runs/20260919T193248Z-eb60e108/logs/baseline-reproducer-0-evidence/control-oracle.log'
+
+Started: 2026-09-19T22:17:00.100194+00:00
+Command: /usr/bin/spike --isa=rv64gc +signature=/home/rafay/miniconda3/WallyGuard2/runs/20260919T193248Z-eb60e108/logs/control.sig +signature-granularity=8 /home/rafay/miniconda3/WallyGuard2/runs/20260919T193248Z-eb60e108/build/control.elf
+
+{"time":"2026-09-19T22:17:00.113955135Z","level":"WARN","msg":"Lock","msg":"Failed to lock memory","err":"cannot allocate memory"}
+
+Finished: 2026-09-19T22:32:00.187904+00:00
+Return code: -15
+Status: TIMEOUT
+ERROR: Timeout after 900 seconds
+
+Finished: 2026-09-20T05:48:44.641419+00:00
+Return code: 0
+Status: PASS

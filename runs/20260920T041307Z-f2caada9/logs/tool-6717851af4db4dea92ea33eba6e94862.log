@@ -1,0 +1,8 @@
+Started: 2026-09-20T05:53:08.133104+00:00
+Command: bash -o pipefail -c 'echo $PATH'
+
+/home/rafay/riscv/bin:/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/bin:/cad/mentor/QUESTA/bin:/cad/synopsys/SYN/bin:/cad/synopsys/VCS/bin:/cad/synopsys/SPYGLASS_HOME/bin:/home/rafay/miniconda3/WallyGuard2/cvw/bin:/home/rafay/miniconda3/envs/chia_env/bin:/home/rafay/miniconda3/condabin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/home/rafay/riscv/bin
+
+Finished: 2026-09-20T05:53:08.190564+00:00
+Return code: 0
+Status: PASS

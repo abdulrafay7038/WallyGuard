@@ -1,0 +1,78 @@
+{
+  "status": "TEST_INVALID",
+  "reason": "Positive/control test failed",
+  "returncode": null,
+  "timed_out": false,
+  "passed": false,
+  "ran": true,
+  "control": {
+    "status": "HOST_COMMAND_TIMEOUT",
+    "reason": "Python host command deadline expired",
+    "returncode": -15,
+    "timed_out": true,
+    "passed": false,
+    "ran": true
+  },
+  "steps": {
+    "build": {
+      "command": [
+        "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/build_reproducer.sh"
+      ],
+      "status": "PASS",
+      "returncode": 0,
+      "timed_out": false,
+      "error": null,
+      "log_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/logs/baseline-reproducer-1-evidence/build.log",
+      "stdout_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/logs/baseline-reproducer-1-evidence/build.log",
+      "stderr_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/logs/baseline-reproducer-1-evidence/build.log",
+      "started_at": "2026-09-19T23:54:50.826270+00:00",
+      "duration_seconds": 0.2016117530001793,
+      "finished_at": "2026-09-19T23:54:51.027878+00:00"
+    },
+    "control-symbols": {
+      "command": [
+        "/usr/bin/riscv64-unknown-elf-nm",
+        "-n",
+        "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/build/control.elf"
+      ],
+      "status": "PASS",
+      "returncode": 0,
+      "timed_out": false,
+      "error": null,
+      "log_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/logs/baseline-reproducer-1-evidence/control-symbols.log",
+      "stdout_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/logs/baseline-reproducer-1-evidence/control-symbols.log",
+      "stderr_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/logs/baseline-reproducer-1-evidence/control-symbols.log",
+      "started_at": "2026-09-19T23:54:51.285067+00:00",
+      "duration_seconds": 0.051705448000575416,
+      "finished_at": "2026-09-19T23:54:51.336770+00:00"
+    },
+    "control-oracle": {
+      "command": [
+        "/usr/bin/spike",
+        "--isa=rv64gc_smstateen_zicboz",
+        "+signature=/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/logs/control-spike.sig",
+        "+signature-granularity=8",
+        "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/build/control.elf"
+      ],
+      "status": "TIMEOUT",
+      "returncode": -15,
+      "timed_out": true,
+      "error": "Timeout after 900 seconds",
+      "log_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/logs/baseline-reproducer-1-evidence/control-oracle.log",
+      "stdout_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/logs/baseline-reproducer-1-evidence/control-oracle.log",
+      "stderr_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/logs/baseline-reproducer-1-evidence/control-oracle.log",
+      "started_at": "2026-09-19T23:54:51.337333+00:00",
+      "duration_seconds": 900.0935368669961,
+      "finished_at": "2026-09-20T00:09:51.430874+00:00"
+    }
+  },
+  "log_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/logs/baseline-reproducer-1.log",
+  "evidence_dir": "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/logs/baseline-reproducer-1-evidence",
+  "captured": {
+    "control.elf": {
+      "path": "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/logs/baseline-reproducer-1-evidence/control.elf",
+      "sha256": "b7c8cec0055020028c2621e815aac2679bc6b14f2a8cc4831f1436f03ccce28d"
+    }
+  },
+  "duration_seconds": 900.7804092609949
+}

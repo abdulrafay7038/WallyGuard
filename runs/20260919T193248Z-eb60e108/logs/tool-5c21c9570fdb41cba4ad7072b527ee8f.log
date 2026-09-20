@@ -1,0 +1,86 @@
+Started: 2026-09-19T22:04:29.576875+00:00
+Command: bash -o pipefail -c 'cat << '"'"'EOF'"'"' > /home/rafay/miniconda3/WallyGuard2/runs/20260919T193248Z-eb60e108/build_reproducer.sh
+#!/bin/bash
+set -ex
+TEST_DIR=/home/rafay/miniconda3/WallyGuard2/runs/20260919T193248Z-eb60e108
+cd $TEST_DIR
+mkdir -p build logs
+
+export PATH=$WALLY/bin:$PATH
+
+riscv64-unknown-elf-gcc -march=rv64gc -mabi=lp64d -mcmodel=medany -static -std=gnu99 -O2 \
+    -nostdlib -nostartfiles -T $WALLY/tests/riscof/spike/env/link.ld \
+    -I$TEST_DIR/tests \
+    $TEST_DIR/tests/test.S -o $TEST_DIR/build/test.elf
+
+riscv64-unknown-elf-gcc -march=rv64gc -mabi=lp64d -mcmodel=medany -static -std=gnu99 -O2 \
+    -nostdlib -nostartfiles -T $WALLY/tests/riscof/spike/env/link.ld \
+    -I$TEST_DIR/tests \
+    $TEST_DIR/tests/control.S -o $TEST_DIR/build/control.elf
+EOF
+chmod +x /home/rafay/miniconda3/WallyGuard2/runs/20260919T193248Z-eb60e108/build_reproducer.sh
+
+cat << '"'"'EOF'"'"' > /home/rafay/miniconda3/WallyGuard2/runs/20260919T193248Z-eb60e108/reproducer.json
+{
+  "version": 1,
+  "oracle": "spike",
+  "build": [
+    "bash",
+    "build_reproducer.sh"
+  ],
+  "control": {
+    "mode": "selfcheck",
+    "wally": [
+      "bin/wsim",
+      "rv64gc",
+      "--sim",
+      "verilator",
+      "--elf",
+      "build/control.elf"
+    ],
+    "oracle": [
+      "spike",
+      "--isa=rv64gc",
+      "+signature=logs/control.sig",
+      "+signature-granularity=8",
+      "build/control.elf"
+    ],
+    "oracle_signature": "logs/control.sig"
+  },
+  "test": {
+    "mode": "selfcheck",
+    "wally": [
+      "bin/wsim",
+      "rv64gc",
+      "--sim",
+      "verilator",
+      "--elf",
+      "build/test.elf"
+    ],
+    "oracle": [
+      "spike",
+      "--isa=rv64gc",
+      "+signature=logs/test.sig",
+      "+signature-granularity=8",
+      "build/test.elf"
+    ],
+    "oracle_signature": "logs/test.sig"
+  },
+  "trap_vectors": [
+    {
+      "elf": "build/test.elf",
+      "symbol": "trap_handler"
+    },
+    {
+      "elf": "build/control.elf",
+      "symbol": "trap_handler"
+    }
+  ]
+}
+EOF
+'
+
+
+Finished: 2026-09-19T22:04:29.758863+00:00
+Return code: 0
+Status: PASS

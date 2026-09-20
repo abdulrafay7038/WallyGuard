@@ -1,0 +1,20 @@
+{
+  "old_walk_median_seconds": 0.19184202299220487,
+  "pruned_walk_median_seconds": 0.0003546799998730421,
+  "same_input_paths": true,
+  "inputs": 9,
+  "run": "runs/20260919T193248Z-eb60e108",
+  "scope": "Input enumeration only; not an end-to-end campaign benchmark.",
+  "response_examples": [
+    {
+      "run": "20260919T230158Z-efd6e12a",
+      "old_json_bytes": 1948,
+      "file_reference_json_bytes": 810
+    },
+    {
+      "run": "20260920T002030Z-7cc4bf4c",
+      "old_json_bytes": 5069,
+      "file_reference_json_bytes": 595
+    }
+  ]
+}

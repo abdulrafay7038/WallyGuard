@@ -1,0 +1,79 @@
+Started: 2026-09-19T23:03:22.793270+00:00
+Command: bash -o pipefail -c 'git grep -n "ReadData" src/lsu/
+'
+
+src/lsu/align.sv:42:  input logic [P.LLEN*2-1:0]      DCacheReadDataWordM, // Instruction from the IROM, I$, or bus. Used to check if the instruction if compressed
+src/lsu/align.sv:57:  output logic [P.LLEN-1:0]       DCacheReadDataWordSpillM, // The final 32 bit instruction after merging the two spilled fetches into 1 instruction
+src/lsu/align.sv:69:  logic [P.LLEN-1:0] ReadDataWordFirstHalfM;
+src/lsu/align.sv:71:  logic [P.LLEN*2-1:0] ReadDataWordSpillAllM;
+src/lsu/align.sv:72:  logic [P.LLEN*2-1:0] ReadDataWordSpillShiftedM;
+src/lsu/align.sv:152:  flopenr #(P.LLEN) SpillDataReg(clk, reset, SpillSaveM, DCacheReadDataWordM[P.LLEN-1:0], ReadDataWordFirstHalfM);
+src/lsu/align.sv:155:  mux2 #(2*P.LLEN) postspillmux(DCacheReadDataWordM, {DCacheReadDataWordM[P.LLEN-1:0], ReadDataWordFirstHalfM}, SelSpillM & ~SelHPTW, ReadDataWordSpillAllM);
+src/lsu/align.sv:161:  assign ReadDataWordSpillShiftedM = ReadDataWordSpillAllM >> ShiftAmount;
+src/lsu/align.sv:162:  assign DCacheReadDataWordSpillM = ReadDataWordSpillShiftedM[P.LLEN-1:0];
+src/lsu/amoalu.sv:32:  input  logic [P.XLEN-1:0] ReadDataM,    // LSU's ReadData
+src/lsu/amoalu.sv:48:  assign a = ReadDataM;
+src/lsu/atomic.sv:35:  input logic [P.XLEN-1:0]    ReadDataM,      // LSU ReadData XLEN because FPU does not issue atomic memory operation from FPU registers
+src/lsu/atomic.sv:54:    amoalu #(P) amoalu(.ReadDataM, .IHWriteDataM, .LSUFunct7M, .LSUFunct3M, .CASMatchM, .AMOResultM);
+src/lsu/dtim.sv:34:  input  logic                 ce,            // Chip Enable.  0: Holds ReadDataWordM
+src/lsu/dtim.sv:39:  output logic [P.LLEN-1:0]    ReadDataWordM  // Read data before subword selection
+src/lsu/dtim.sv:54:    ram(.clk, .ce, .we, .bwe(ByteMaskM), .addr(DTIMAdr[ADDR_WDITH+OFFSET-1:OFFSET]), .dout(ReadDataWordM), .din(WriteDataM));
+src/lsu/lsu.sv:57:  output logic [P.LLEN-1:0]       ReadDataW,                            // Read data to IEU or FPU
+src/lsu/lsu.sv:131:  logic [P.LLEN-1:0]     DTIMReadDataWordM;                      // DTIM read data
+src/lsu/lsu.sv:132:  logic [MLEN-1:0]       DCacheReadDataWordM;                    // D$ read data
+src/lsu/lsu.sv:135:  logic [P.LLEN-1:0]     DCacheReadDataWordSpillM;               // D$ read data
+src/lsu/lsu.sv:136:  logic [P.LLEN-1:0]     ReadDataWordMuxM;                       // DTIM or D$ read data
+src/lsu/lsu.sv:137:  logic [P.LLEN-1:0]     LittleEndianReadDataWordM;              // Endian-swapped read data
+src/lsu/lsu.sv:138:  logic [P.LLEN-1:0]     ReadDataM;                              // Final read data
+src/lsu/lsu.sv:158:  logic [P.LLEN-1:0]     ReadDataHoldM;                          // Captured read data of a performed access awaiting retirement
+src/lsu/lsu.sv:159:  logic [P.LLEN-1:0]     ReadDataSelM;                           // Read data to the W stage (live or held)
+src/lsu/lsu.sv:177:                     .DCacheReadDataWordM, .CacheBusHPWTStall, .SelHPTW,
+src/lsu/lsu.sv:179:                     .IEUAdrSpillE, .IEUAdrSpillM, .IEUAdrxTvalM, .SelSpillE, .DCacheReadDataWordSpillM, .SpillStallM);
+src/lsu/lsu.sv:186:    assign DCacheReadDataWordSpillM = DCacheReadDataWordM;
+src/lsu/lsu.sv:210:      .ReadDataM(ReadDataM[P.XLEN-1:0]), // ReadDataM is LLEN, but HPTW only needs XLEN
+src/lsu/lsu.sv:230:    flopenr #(P.LLEN) ReadDataHoldReg(clk, reset, MemAccessPerformedM & ~MemAccessDoneM, ReadDataM, ReadDataHoldM);
+src/lsu/lsu.sv:245:    assign ReadDataHoldM = '0;
+src/lsu/lsu.sv:322:              .ReadDataWordM(DTIMReadDataWordM[P.LLEN-1:0]), .ByteMaskM(ByteMaskM));
+src/lsu/lsu.sv:324:    assign DTIMReadDataWordM = '0;
+src/lsu/lsu.sv:371:        .CacheBusAdr(DCacheBusAdr), .ReadDataWord(DCacheReadDataWordM),
+src/lsu/lsu.sv:379:        .BeatCount, .SelBusBeat, .CacheReadDataWordM(DCacheReadDataWordM[P.LLEN-1:0]), .WriteDataM(LSUWriteDataM),
+src/lsu/lsu.sv:385:      mux3 #(P.LLEN) UnCachedDataMux(.d0(DCacheReadDataWordSpillM), .d1({LLENPOVERAHBW{FetchBuffer[P.XLEN-1:0]}}),
+src/lsu/lsu.sv:386:                                    .d2({{P.LLEN-P.XLEN{1'b0}}, DTIMReadDataWordM[P.XLEN-1:0]}),
+src/lsu/lsu.sv:387:                                    .s({SelDTIM, ~(CacheableOrFlushCacheM)}), .y(ReadDataWordMuxM));
+src/lsu/lsu.sv:402:      if(P.DTIM_SUPPORTED) mux2 #(P.XLEN) ReadDataMux2(FetchBuffer, DTIMReadDataWordM[P.XLEN-1:0], SelDTIM, ReadDataWordMuxM[P.XLEN-1:0]);
+src/lsu/lsu.sv:403:      else assign ReadDataWordMuxM[P.XLEN-1:0] = FetchBuffer[P.XLEN-1:0];
+src/lsu/lsu.sv:405:      assign {DCacheStallM, DCacheCommittedM, DCacheMiss, DCacheAccess, DCacheReadDataWordM} = '0;
+src/lsu/lsu.sv:409:    assign DCacheReadDataWordM = '0;
+src/lsu/lsu.sv:410:    assign ReadDataWordMuxM = DTIMReadDataWordM;
+src/lsu/lsu.sv:421:    atomic #(P) atomic(.clk, .reset, .StallW, .ReadDataM(ReadDataM[P.XLEN-1:0]), .IHWriteDataM, .PAdrM, .CASMatchM,
+src/lsu/lsu.sv:444:        3'b000:  CASMatchM = ReadDataM[7:0]  == ComparePairM[7:0];   // amocas.b
+src/lsu/lsu.sv:445:        3'b001:  CASMatchM = ReadDataM[15:0] == ComparePairM[15:0];  // amocas.h
+src/lsu/lsu.sv:446:        3'b010:  CASMatchM = ReadDataM[31:0] == ComparePairM[31:0];  // amocas.w
+src/lsu/lsu.sv:447:        3'b011:  CASMatchM = ReadDataM[63:0] == ComparePairM[63:0];  // amocas.d: one register on RV64, a pair on RV32
+src/lsu/lsu.sv:448:        default: CASMatchM = ReadDataM[P.XLEN*2-1:0] == ComparePairM; // amocas.q, a pair on RV64
+src/lsu/lsu.sv:452:      {{(P.LLEN-P.XLEN*2){1'b0}}, CASMatchM ? SwapHighM : ReadDataM[P.XLEN*2-1:P.XLEN], IMAWriteDataM} :
+src/lsu/lsu.sv:463:  subwordread #(P) subwordread(.ReadDataWordMuxM(LittleEndianReadDataWordM), .PAdrM(PAdrM[3:0]), .BigEndianM,
+src/lsu/lsu.sv:464:    .FpLoadStoreM, .WideAccessM(FpLoadStoreM | AMOCASPairM), .Funct3M(LSUFunct3M), .ReadDataM);
+src/lsu/lsu.sv:475:  mux2 #(P.LLEN) readdataselmux(ReadDataM, ReadDataHoldM, MemAccessDoneM, ReadDataSelM);
+src/lsu/lsu.sv:476:  flopen #(P.LLEN) ReadDataMWReg(clk, ~StallW, ReadDataSelM, ReadDataW);
+src/lsu/lsu.sv:486:    endianswap #(P.LLEN) loadswap(.BigEndianM, .a(ReadDataWordMuxM), .y(LittleEndianReadDataWordM));
+src/lsu/lsu.sv:489:    assign LittleEndianReadDataWordM = ReadDataWordMuxM;
+src/lsu/subwordread.sv:32:   input logic [P.LLEN-1:0]  ReadDataWordMuxM,
+src/lsu/subwordread.sv:38:   output logic [P.LLEN-1:0] ReadDataM
+src/lsu/subwordread.sv:54:  if (P.LLEN == 128) mux2 #(64) dblmux(ReadDataWordMuxM[63:0], ReadDataWordMuxM[127:64], PAdrSwapM[3], DblWordM);
+src/lsu/subwordread.sv:55:  else if (P.LLEN == 64) assign DblWordM = ReadDataWordMuxM;
+src/lsu/subwordread.sv:58:  else assign WordM = ReadDataWordMuxM;
+src/lsu/subwordread.sv:65:      3'b000:  ReadDataM = {{(P.LLEN-8){ByteM[7]}}, ByteM};                                                     // lb
+src/lsu/subwordread.sv:66:      3'b001:  ReadDataM = {{P.LLEN-16{HalfwordM[15]|FpLoadStoreM}}, HalfwordM[15:0]};                          // lh/flh
+src/lsu/subwordread.sv:67:      3'b010:  ReadDataM = {{P.LLEN-32{WordM[31]|FpLoadStoreM}}, WordM[31:0]};                                  // lw/flw
+src/lsu/subwordread.sv:68:      3'b011:  if (P.LLEN >= 64) ReadDataM = {{P.LLEN-64{DblWordM[63]|FpLoadStoreM}}, DblWordM[63:0]};          // ld/fld
+src/lsu/subwordread.sv:69:               else ReadDataM = ReadDataWordMuxM;                                                               // shouldn't happen
+src/lsu/subwordread.sv:70:      3'b100:  if (P.LLEN == 128) ReadDataM = WideAccessM ? ReadDataWordMuxM : {{P.LLEN-8{1'b0}}, ByteM[7:0]}; // lbu/flq/amocas.q
+src/lsu/subwordread.sv:71:               else ReadDataM = {{P.LLEN-8{1'b0}}, ByteM[7:0]};                                                 // lbu
+src/lsu/subwordread.sv:72:      3'b101:  ReadDataM = {{P.LLEN-16{1'b0}}, HalfwordM[15:0]};                                                // lhu
+src/lsu/subwordread.sv:73:      3'b110:  ReadDataM = {{P.LLEN-32{1'b0}}, WordM[31:0]};                                                    // lwu
+src/lsu/subwordread.sv:74:      default: ReadDataM = ReadDataWordMuxM;                                                                    // Shouldn't happen
+
+Finished: 2026-09-19T23:03:22.881658+00:00
+Return code: 0
+Status: PASS

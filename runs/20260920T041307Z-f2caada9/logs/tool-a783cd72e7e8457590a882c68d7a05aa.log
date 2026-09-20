@@ -1,0 +1,14 @@
+Started: 2026-09-20T05:53:20.663553+00:00
+Command: bash -o pipefail -c '$WALLY/bin/wsim rv64gc --sim verilator --elf /home/rafay/miniconda3/WallyGuard2/runs/20260919T193248Z-eb60e108/build/test.elf'
+
+Single Elf file tests are not signatured verified.
+- /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/testbench.sv:532: Verilog $finish
+- S i m u l a t i o n   R e p o r t: Verilator 5.036 2025-04-27
+- Verilator: $finish at 4ns; walltime 0.089 s; speed 241.855 ns/s
+- Verilator: cpu 0.018 s on 1 threads; alloced 346 MB
+Config=rv64gc tests=None sim=verilator gui=False args='' params='' define=''
+Running Verilator on rv64gc build_test.elf
+
+Finished: 2026-09-20T05:53:23.826475+00:00
+Return code: 0
+Status: PASS

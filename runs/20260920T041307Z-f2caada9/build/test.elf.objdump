@@ -1,0 +1,138 @@
+
+/home/rafay/miniconda3/WallyGuard2/runs/20260920T041307Z-f2caada9/build/test.elf:     file format elf64-littleriscv
+
+
+Disassembly of section .text.init:
+
+0000000080000000 <rvtest_entry_point>:
+    80000000:	00000297          	auipc	t0,0x0
+    80000004:	06428293          	addi	t0,t0,100 # 80000064 <trap_handler>
+    80000008:	30529073          	csrw	mtvec,t0
+    8000000c:	00001297          	auipc	t0,0x1
+    80000010:	04428293          	addi	t0,t0,68 # 80001050 <test_buf>
+    80000014:	00428313          	addi	t1,t0,4
+    80000018:	00235313          	srli	t1,t1,0x2
+    8000001c:	3b031073          	csrw	pmpaddr0,t1
+    80000020:	01028313          	addi	t1,t0,16
+    80000024:	00235313          	srli	t1,t1,0x2
+    80000028:	3b131073          	csrw	pmpaddr1,t1
+    8000002c:	fff00313          	li	t1,-1
+    80000030:	3b231073          	csrw	pmpaddr2,t1
+    80000034:	000f9337          	lui	t1,0xf9
+    80000038:	d0f3031b          	addiw	t1,t1,-753 # f8d0f <rvtest_entry_point-0x7ff072f1>
+    8000003c:	3a031073          	csrw	pmpcfg0,t1
+    80000040:	0000100f          	fence.i
+    80000044:	00001297          	auipc	t0,0x1
+    80000048:	00c28293          	addi	t0,t0,12 # 80001050 <test_buf>
+    8000004c:	00038337          	lui	t1,0x38
+    80000050:	ab73031b          	addiw	t1,t1,-1353 # 37ab7 <rvtest_entry_point-0x7ffc8549>
+    80000054:	00e31313          	slli	t1,t1,0xe
+    80000058:	eef30313          	addi	t1,t1,-273
+    8000005c:	0062b023          	sd	t1,0(t0)
+    80000060:	0380006f          	j	80000098 <wg_fail>
+
+0000000080000064 <trap_handler>:
+    80000064:	34202373          	csrr	t1,mcause
+    80000068:	00700393          	li	t2,7
+    8000006c:	00731463          	bne	t1,t2,80000074 <unexpected_trap>
+    80000070:	0140006f          	j	80000084 <wg_pass>
+
+0000000080000074 <unexpected_trap>:
+    80000074:	00200513          	li	a0,2
+    80000078:	00700593          	li	a1,7
+    8000007c:	00030613          	mv	a2,t1
+    80000080:	0180006f          	j	80000098 <wg_fail>
+
+0000000080000084 <wg_pass>:
+    80000084:	00001297          	auipc	t0,0x1
+    80000088:	f7c28293          	addi	t0,t0,-132 # 80001000 <begin_signature>
+    8000008c:	00100313          	li	t1,1
+    80000090:	0062b023          	sd	t1,0(t0)
+    80000094:	02c0006f          	j	800000c0 <wg_complete>
+
+0000000080000098 <wg_fail>:
+    80000098:	00001297          	auipc	t0,0x1
+    8000009c:	f6828293          	addi	t0,t0,-152 # 80001000 <begin_signature>
+    800000a0:	00200313          	li	t1,2
+    800000a4:	0062b023          	sd	t1,0(t0)
+    800000a8:	00a2b423          	sd	a0,8(t0)
+    800000ac:	00b2b823          	sd	a1,16(t0)
+    800000b0:	00c2bc23          	sd	a2,24(t0)
+    800000b4:	02d2b023          	sd	a3,32(t0)
+    800000b8:	00151313          	slli	t1,a0,0x1
+    800000bc:	00136313          	ori	t1,t1,1
+
+00000000800000c0 <wg_complete>:
+    800000c0:	0330000f          	fence	rw,rw
+    800000c4:	00001297          	auipc	t0,0x1
+    800000c8:	f7c28293          	addi	t0,t0,-132 # 80001040 <tohost>
+    800000cc:	0062a023          	sw	t1,0(t0)
+
+00000000800000d0 <wg_halt>:
+    800000d0:	0000006f          	j	800000d0 <wg_halt>
+
+Disassembly of section .data:
+
+0000000080001000 <begin_signature>:
+	...
+
+0000000080001028 <end_signature>:
+	...
+
+0000000080001040 <tohost>:
+	...
+
+0000000080001048 <fromhost>:
+	...
+
+0000000080001050 <test_buf>:
+	...
+
+Disassembly of section .riscv.attributes:
+
+0000000000000000 <.riscv.attributes>:
+   0:	7541                	.insn	2, 0x7541
+   2:	0000                	.insn	2, 0x0000
+   4:	7200                	.insn	2, 0x7200
+   6:	7369                	.insn	2, 0x7369
+   8:	01007663          	bgeu	zero,a6,14 <rvtest_entry_point-0x7fffffec>
+   c:	0000006b          	.insn	4, 0x006b
+  10:	7205                	.insn	2, 0x7205
+  12:	3676                	.insn	2, 0x3676
+  14:	6934                	.insn	2, 0x6934
+  16:	7032                	.insn	2, 0x7032
+  18:	5f31                	.insn	2, 0x5f31
+  1a:	326d                	.insn	2, 0x326d
+  1c:	3070                	.insn	2, 0x3070
+  1e:	615f 7032 5f31      	.insn	6, 0x5f317032615f
+  24:	3266                	.insn	2, 0x3266
+  26:	3270                	.insn	2, 0x3270
+  28:	645f 7032 5f32      	.insn	6, 0x5f327032645f
+  2e:	30703263          	.insn	4, 0x30703263
+  32:	7a5f 6369 7273      	.insn	6, 0x727363697a5f
+  38:	7032                	.insn	2, 0x7032
+  3a:	5f30                	.insn	2, 0x5f30
+  3c:	697a                	.insn	2, 0x697a
+  3e:	6566                	.insn	2, 0x6566
+  40:	636e                	.insn	2, 0x636e
+  42:	6965                	.insn	2, 0x6965
+  44:	7032                	.insn	2, 0x7032
+  46:	5f30                	.insn	2, 0x5f30
+  48:	6d7a                	.insn	2, 0x6d7a
+  4a:	756d                	.insn	2, 0x756d
+  4c:	316c                	.insn	2, 0x316c
+  4e:	3070                	.insn	2, 0x3070
+  50:	7a5f 6161 6f6d      	.insn	6, 0x6f6d61617a5f
+  56:	7031                	.insn	2, 0x7031
+  58:	5f30                	.insn	2, 0x5f30
+  5a:	617a                	.insn	2, 0x617a
+  5c:	726c                	.insn	2, 0x726c
+  5e:	70316373          	csrrsi	t1,0x703,2
+  62:	5f30                	.insn	2, 0x5f30
+  64:	637a                	.insn	2, 0x637a
+  66:	3161                	.insn	2, 0x3161
+  68:	3070                	.insn	2, 0x3070
+  6a:	7a5f 6463 7031      	.insn	6, 0x703164637a5f
+  70:	0030                	.insn	2, 0x0030
+  72:	0108                	.insn	2, 0x0108
+  74:	0b0a                	.insn	2, 0x0b0a

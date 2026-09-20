@@ -1,0 +1,20 @@
+Started: 2026-09-20T06:02:10.575215+00:00
+Command: bash -o pipefail -c '/home/rafay/riscv/bin/riscv64-unknown-elf-nm -n /home/rafay/miniconda3/WallyGuard2/runs/20260920T041307Z-f2caada9/build/control.elf'
+
+0000000080000000 T rvtest_entry_point
+0000000080000064 t trap_handler
+0000000080000074 t wg_pass
+0000000080000088 t wg_fail
+00000000800000b0 t wg_complete
+00000000800000c0 t wg_halt
+0000000080001000 D begin_signature
+0000000080001000 D selfcheck_record
+0000000080001040 D end_signature
+0000000080001040 D tohost
+0000000080001048 D fromhost
+0000000080001050 d test_buf
+0000000080001060 D _end
+
+Finished: 2026-09-20T06:02:10.635526+00:00
+Return code: 0
+Status: PASS

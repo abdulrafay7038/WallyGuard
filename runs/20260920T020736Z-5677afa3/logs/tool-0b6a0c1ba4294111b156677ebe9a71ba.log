@@ -1,0 +1,63 @@
+Started: 2026-09-20T02:08:30.395213+00:00
+Command: bash -o pipefail -c 'cat /home/rafay/miniconda3/WallyGuard2/runs/20260920T002030Z-7cc4bf4c/reproducer.json'
+
+{
+  "version": 1,
+  "oracle": "spike",
+  "build": [
+    "bash",
+    "/home/rafay/miniconda3/WallyGuard2/runs/20260920T002030Z-7cc4bf4c/build_reproducer.sh"
+  ],
+  "trap_vectors": [
+    {
+      "elf": "build/control.elf",
+      "symbol": "trap_handler"
+    },
+    {
+      "elf": "build/test.elf",
+      "symbol": "trap_handler"
+    }
+  ],
+  "control": {
+    "mode": "selfcheck",
+    "wally": [
+      "/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/bin/wsim",
+      "rv64gc",
+      "--sim",
+      "verilator",
+      "--elf",
+      "/home/rafay/miniconda3/WallyGuard2/runs/20260920T002030Z-7cc4bf4c/build/control.elf"
+    ],
+    "oracle": [
+      "/usr/bin/spike",
+      "--isa=rv64gc",
+      "+signature=/home/rafay/miniconda3/WallyGuard2/runs/20260920T002030Z-7cc4bf4c/logs/control-spike.sig",
+      "+signature-granularity=8",
+      "/home/rafay/miniconda3/WallyGuard2/runs/20260920T002030Z-7cc4bf4c/build/control.elf"
+    ],
+    "oracle_signature": "logs/control-spike.sig"
+  },
+  "test": {
+    "mode": "selfcheck",
+    "wally": [
+      "/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/bin/wsim",
+      "rv64gc",
+      "--sim",
+      "verilator",
+      "--elf",
+      "/home/rafay/miniconda3/WallyGuard2/runs/20260920T002030Z-7cc4bf4c/build/test.elf"
+    ],
+    "oracle": [
+      "/usr/bin/spike",
+      "--isa=rv64gc",
+      "+signature=/home/rafay/miniconda3/WallyGuard2/runs/20260920T002030Z-7cc4bf4c/logs/test-spike.sig",
+      "+signature-granularity=8",
+      "/home/rafay/miniconda3/WallyGuard2/runs/20260920T002030Z-7cc4bf4c/build/test.elf"
+    ],
+    "oracle_signature": "logs/test-spike.sig"
+  }
+}
+
+Finished: 2026-09-20T02:08:30.455247+00:00
+Return code: 0
+Status: PASS

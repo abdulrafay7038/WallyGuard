@@ -1,0 +1,210 @@
+[
+  {
+    "run": "20260919T193248Z-eb60e108",
+    "status": "test_repair_exhausted",
+    "duration_seconds": 12550.112,
+    "timings": [
+      {
+        "stage": "architect",
+        "status": "completed",
+        "context_bytes": 6418,
+        "duration_seconds": 3441.967
+      },
+      {
+        "stage": "tester",
+        "status": "completed",
+        "context_bytes": 8076,
+        "duration_seconds": 6277.492
+      },
+      {
+        "stage": "tester",
+        "status": "completed",
+        "context_bytes": 15049,
+        "duration_seconds": 531.785
+      },
+      {
+        "stage": "tester",
+        "status": "completed",
+        "context_bytes": 13385,
+        "duration_seconds": 1264.082
+      }
+    ],
+    "baseline_failures": [
+      {
+        "revision": 0,
+        "status": "TEST_INVALID",
+        "reason": "Positive/control test failed",
+        "control": {
+          "status": "HOST_COMMAND_TIMEOUT",
+          "reason": "Python host command deadline expired",
+          "returncode": -15,
+          "timed_out": true,
+          "passed": false,
+          "ran": true
+        }
+      },
+      {
+        "revision": 1,
+        "status": "TEST_INVALID",
+        "reason": "build: Shell control flow/redirection is forbidden at the verifier boundary",
+        "control": null
+      },
+      {
+        "revision": 2,
+        "status": "TEST_INVALID",
+        "reason": "build: Shell control flow/redirection is forbidden at the verifier boundary",
+        "control": null
+      }
+    ],
+    "correct_oracle_recheck": {
+      "executable": "/home/rafay/riscv/bin/spike",
+      "elf": "/home/rafay/miniconda3/WallyGuard2/runs/20260919T193248Z-eb60e108/logs/baseline-reproducer-0-evidence/control.elf",
+      "isa": "--isa=rv64gc",
+      "returncode": 0,
+      "duration_seconds": 0.011,
+      "signature": "0000000000000001\n0000000000000000\n0000000000000000\n0000000000000000\n0000000000000000\n",
+      "stderr": ""
+    }
+  },
+  {
+    "run": "20260919T230158Z-efd6e12a",
+    "status": "test_repair_exhausted",
+    "duration_seconds": 4712.019,
+    "timings": [
+      {
+        "stage": "architect",
+        "status": "completed",
+        "context_bytes": 6629,
+        "duration_seconds": 2072.207
+      },
+      {
+        "stage": "tester",
+        "status": "completed",
+        "context_bytes": 8206,
+        "duration_seconds": 1026.207
+      },
+      {
+        "stage": "tester",
+        "status": "completed",
+        "context_bytes": 11164,
+        "duration_seconds": 72.396
+      },
+      {
+        "stage": "tester",
+        "status": "completed",
+        "context_bytes": 13693,
+        "duration_seconds": 637.61
+      }
+    ],
+    "baseline_failures": [
+      {
+        "revision": 0,
+        "status": "TEST_INVALID",
+        "reason": "build: Shell control flow/redirection is forbidden at the verifier boundary",
+        "control": null
+      },
+      {
+        "revision": 1,
+        "status": "TEST_INVALID",
+        "reason": "Positive/control test failed",
+        "control": {
+          "status": "HOST_COMMAND_TIMEOUT",
+          "reason": "Python host command deadline expired",
+          "returncode": -15,
+          "timed_out": true,
+          "passed": false,
+          "ran": true
+        }
+      },
+      {
+        "revision": 2,
+        "status": "TEST_INVALID",
+        "reason": "build: Shell control flow/redirection is forbidden at the verifier boundary; control: 'oracle_signature'; test: 'oracle_signature'",
+        "control": null
+      }
+    ],
+    "correct_oracle_recheck": {
+      "executable": "/home/rafay/riscv/bin/spike",
+      "elf": "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/logs/baseline-reproducer-1-evidence/control.elf",
+      "isa": "--isa=rv64gc_smstateen_zicboz",
+      "returncode": 1,
+      "duration_seconds": 0.0103,
+      "signature": "0000000000000002\n0000000000000001\n0000000000000000\n0000000000000000\n0000000000000002\n",
+      "stderr": "*** FAILED *** (tohost = 1)\n"
+    }
+  },
+  {
+    "run": "20260920T002030Z-7cc4bf4c",
+    "status": "test_repair_exhausted",
+    "duration_seconds": 6426.006,
+    "timings": [
+      {
+        "stage": "architect",
+        "status": "completed",
+        "context_bytes": 6808,
+        "duration_seconds": 986.37
+      },
+      {
+        "stage": "tester",
+        "status": "completed",
+        "context_bytes": 8446,
+        "duration_seconds": 348.682
+      },
+      {
+        "stage": "tester",
+        "status": "completed",
+        "context_bytes": 14190,
+        "duration_seconds": 3232.36
+      },
+      {
+        "stage": "tester",
+        "status": "completed",
+        "context_bytes": 14545,
+        "duration_seconds": 954.875
+      }
+    ],
+    "baseline_failures": [
+      {
+        "revision": 0,
+        "status": "TEST_INVALID",
+        "reason": "Positive/control test failed",
+        "control": {
+          "status": "HOST_COMMAND_TIMEOUT",
+          "reason": "Python host command deadline expired",
+          "returncode": -15,
+          "timed_out": true,
+          "passed": false,
+          "ran": true
+        }
+      },
+      {
+        "revision": 1,
+        "status": "TEST_INVALID",
+        "reason": "build: Shell control flow/redirection is forbidden at the verifier boundary",
+        "control": null
+      },
+      {
+        "revision": 2,
+        "status": "TEST_INVALID",
+        "reason": "build: Shell control flow/redirection is forbidden at the verifier boundary",
+        "control": null
+      }
+    ],
+    "correct_oracle_recheck": {
+      "executable": "/home/rafay/riscv/bin/spike",
+      "elf": "/home/rafay/miniconda3/WallyGuard2/runs/20260920T002030Z-7cc4bf4c/logs/baseline-reproducer-0-evidence/control.elf",
+      "isa": "--isa=rv64gc_smstateen_zicboz",
+      "returncode": 0,
+      "duration_seconds": 0.0079,
+      "signature": "0000000000000001\n0000000000000000\n0000000000000000\n0000000000000000\n0000000000000000\n",
+      "stderr": ""
+    }
+  },
+  {
+    "run": "20260920T020736Z-5677afa3",
+    "status": "in_progress",
+    "duration_seconds": null,
+    "timings": [],
+    "baseline_failures": []
+  }
+]

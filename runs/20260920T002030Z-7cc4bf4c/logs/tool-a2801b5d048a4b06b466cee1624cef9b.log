@@ -1,0 +1,179 @@
+Started: 2026-09-20T00:58:22.653270+00:00
+Command: bash -o pipefail -c 'cat /home/rafay/miniconda3/WallyGuard2/runs/20260920T002030Z-7cc4bf4c/build_reproducer.sh /home/rafay/miniconda3/WallyGuard2/runs/20260920T002030Z-7cc4bf4c/linker.ld /home/rafay/miniconda3/WallyGuard2/runs/20260920T002030Z-7cc4bf4c/control.S /home/rafay/miniconda3/WallyGuard2/runs/20260920T002030Z-7cc4bf4c/test.S'
+
+#!/bin/bash
+set -ex
+cd /home/rafay/miniconda3/WallyGuard2/runs/20260920T002030Z-7cc4bf4c
+
+mkdir -p build logs
+
+# Create linker script
+cat << 'LDEOF' > linker.ld
+OUTPUT_ARCH( "riscv" )
+ENTRY(_start)
+
+SECTIONS
+{
+  . = 0x80000000;
+  .text.init : { *(.text.init) }
+  .text : { *(.text) }
+  .data : { *(.data) }
+  .bss : { *(.bss) }
+  .tohost : { *(.tohost) }
+  _end = .;
+}
+LDEOF
+
+# Compile tests
+riscv64-unknown-elf-gcc -march=rv64gc_zicboz -mabi=lp64d -nostdlib -nostartfiles -T linker.ld -I tests -o build/control.elf control.S
+riscv64-unknown-elf-gcc -march=rv64gc_zicboz -mabi=lp64d -nostdlib -nostartfiles -T linker.ld -I tests -o build/test.elf test.S
+OUTPUT_ARCH( "riscv" )
+ENTRY(_start)
+
+SECTIONS
+{
+  . = 0x80000000;
+  .text.init : { *(.text.init) }
+  .text : { *(.text) }
+  .data : { *(.data) }
+  .bss : { *(.bss) }
+  .tohost : { *(.tohost) }
+  _end = .;
+}
+#include "selfcheck.h"
+
+.section .text.init
+.option norvc
+.globl _start
+_start:
+    la t0, trap_handler
+    csrw mtvec, t0
+
+    # Configure PMP to allow all accesses (NAPOT)
+    li t0, -1
+    csrw pmpaddr0, t0
+    li t0, 0x1F
+    csrw pmpcfg0, t0
+
+    # Set mstateen0[62] = 1 (enable ENVCFG for lower modes)
+    li t0, 1
+    slli t0, t0, 62
+    csrs 0x30c, t0 # mstateen0
+
+    # Set menvcfg.CBZE = 1 (bit 7)
+    li t0, 128
+    csrs 0x30a, t0 # menvcfg
+
+    # Set senvcfg.CBZE = 1 (bit 7)
+    csrs 0x10a, t0 # senvcfg
+
+    # Switch to S-mode (MPP=1)
+    li t0, 0x1800 # clear MPP
+    csrc mstatus, t0
+    li t0, 0x0800 # set MPP to 1 (S-mode)
+    csrs mstatus, t0
+    la t0, smode_entry
+    csrw mepc, t0
+    mret
+
+smode_entry:
+    # Read senvcfg, no trap should happen
+    csrr t1, 0x10A
+
+    # Execute cbo.zero on scratch_buf
+    la a0, scratch_buf
+    cbo.zero 0(a0)
+
+    # Success, exit with PASS
+    j wg_pass
+
+.balign 4
+trap_handler:
+    # Any trap is a failure in control
+    li a0, 1
+    li a1, 0
+    li a2, 0
+    csrr a3, mcause
+    j wg_fail
+
+WG_FINISH
+
+.section .data
+.balign 64
+scratch_buf:
+    .zero 64
+#include "selfcheck.h"
+
+.section .text.init
+.option norvc
+.globl _start
+_start:
+    la t0, trap_handler
+    csrw mtvec, t0
+
+    # Configure PMP
+    li t0, -1
+    csrw pmpaddr0, t0
+    li t0, 0x1F
+    csrw pmpcfg0, t0
+
+    # Clear mstateen0[62] = 0 (disable ENVCFG for lower modes)
+    li t0, 1
+    slli t0, t0, 62
+    csrc 0x30c, t0 # mstateen0
+
+    # Set menvcfg.CBZE = 1 (bit 7)
+    li t0, 128
+    csrs 0x30a, t0 # menvcfg
+
+    # Switch to S-mode (MPP=1)
+    li t0, 0x1800
+    csrc mstatus, t0
+    li t0, 0x0800
+    csrs mstatus, t0
+    la t0, smode_entry
+    csrw mepc, t0
+    mret
+
+smode_entry:
+faulting_instr:
+    # Access senvcfg, should TRAP because mstateen0[62] is 0!
+    csrr t1, 0x10A
+
+    # If we get here, Wally failed to trap! BUG!
+    li a0, 2
+    li a1, 0
+    li a2, 0
+    li a3, 0
+    j wg_fail
+
+.balign 4
+trap_handler:
+    csrr t0, mcause
+    li t1, 2 # Illegal instruction
+    bne t0, t1, bad_trap
+    
+    csrr t0, mepc
+    la t1, faulting_instr
+    bne t0, t1, bad_trap
+
+    # Expected trap occurred, we pass!
+    j wg_pass
+
+bad_trap:
+    li a0, 1
+    li a1, 0
+    li a2, 0
+    csrr a3, mcause
+    j wg_fail
+
+WG_FINISH
+
+.section .data
+.balign 64
+scratch_buf:
+    .zero 64
+
+Finished: 2026-09-20T00:58:22.721399+00:00
+Return code: 0
+Status: PASS

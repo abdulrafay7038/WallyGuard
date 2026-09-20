@@ -1,0 +1,15 @@
+Started: 2026-09-20T00:21:07.914603+00:00
+Command: bash -o pipefail -c 'python3 -c '"'"'
+import json
+with open("/home/rafay/miniconda3/WallyGuard2/runs/20260917T123710Z-9bc09998/reproducer.json") as f:
+    print(f.read())
+'"'"''
+
+Traceback (most recent call last):
+  File "<string>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '/home/rafay/miniconda3/WallyGuard2/runs/20260917T123710Z-9bc09998/reproducer.json'
+
+Finished: 2026-09-20T00:21:08.087249+00:00
+Return code: 1
+Status: COMMAND_FAILED
+ERROR: Command exited with code 1

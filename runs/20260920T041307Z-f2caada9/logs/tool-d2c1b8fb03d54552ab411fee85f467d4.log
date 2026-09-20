@@ -1,0 +1,8 @@
+Started: 2026-09-20T04:17:28.198780+00:00
+Command: bash -o pipefail -c '/usr/bin/spike --help | head -n 5 ; echo "---"; $WALLY_SPIKE --help | head -n 5'
+
+
+Finished: 2026-09-20T05:47:28.288447+00:00
+Return code: -15
+Status: TIMEOUT
+ERROR: Timeout after 5400 seconds

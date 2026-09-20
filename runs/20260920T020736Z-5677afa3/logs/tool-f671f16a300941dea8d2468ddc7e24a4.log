@@ -1,0 +1,16 @@
+Started: 2026-09-20T02:15:47.177920+00:00
+Command: bash -o pipefail -c 'grep -rn "IMAWriteDataM" src/'
+
+src/lsu/lsu.sv:141:  logic [P.XLEN-1:0]     IMAWriteDataM;                          // IEU, HPTW, or AMO write data
+src/lsu/lsu.sv:423:      .IMAWriteDataM, .SquashSCW, .LSURWM);
+src/lsu/lsu.sv:427:    assign IMAWriteDataM = IHWriteDataM;
+src/lsu/lsu.sv:434:    mux2 #(P.LLEN) datamux({{(P.LLEN-P.XLEN){1'b0}}, IMAWriteDataM},
+src/lsu/lsu.sv:436:  else assign IMAFWriteDataPreM = {{(P.LLEN-P.XLEN){1'b0}}, IMAWriteDataM};
+src/lsu/lsu.sv:452:      {{(P.LLEN-P.XLEN*2){1'b0}}, CASMatchM ? SwapHighM : ReadDataM[P.XLEN*2-1:P.XLEN], IMAWriteDataM} :
+src/lsu/atomic.sv:44:  output logic [P.XLEN-1:0]   IMAWriteDataM,  // IEU, HPTW, or AMO write data
+src/lsu/atomic.sv:55:    mux2 #(P.XLEN) wdmux(IHWriteDataM, AMOResultM, LSUAtomicM[1], IMAWriteDataM);
+src/lsu/atomic.sv:57:    assign IMAWriteDataM = IHWriteDataM;
+
+Finished: 2026-09-20T02:15:47.242235+00:00
+Return code: 0
+Status: PASS

@@ -2,6 +2,23 @@
 from copy import deepcopy
 
 
+def observed_failure(record: dict) -> str:
+    """Carry controller observations forward, without promoting agent claims."""
+    observations = []
+    for revision in record.get('test_revisions', []):
+        result = revision.get('baseline_reproducer', {})
+        if result.get('status') and result['status'] != 'MATCH':
+            control = result.get('control', {})
+            text = ': '.join(str(result.get(k, '')) for k in ('status', 'reason'))
+            if control:
+                text += '; control=' + str(control.get('status', 'unknown'))
+            if text not in observations:
+                observations.append(text)
+    if record.get('error'):
+        observations.append(str(record['error']))
+    return ' | '.join(observations)[-900:]
+
+
 def agent_context(role: str, context: dict) -> dict:
     common = ('tag', 'iteration', 'scratch', 'test_dir', 'base_commit', 'baseline_tree',
               'history_dir', 'original_checkout', 'isa_docs', 'run_regression',
@@ -14,10 +31,21 @@ def agent_context(role: str, context: dict) -> dict:
                       'baseline_regression', 'feedback'),
     }
     result = {key: deepcopy(context[key]) for key in common + per_role[role] if key in context}
-    # History is an index, not a second copy of all prior investigations.
-    # Agents can read the full attempt by tag through history_dir when relevant.
+    # Include concise observations so tooling mistakes do not require another
+    # investigation of the archive. Agent notes remain explicitly unverified.
     if role == 'architect':
         result['history'] = [{key: str(entry.get(key, ''))[:400]
-                              for key in ('tag', 'target', 'status')}
+                              for key in ('tag', 'target', 'status', 'observed_failure', 'source_base')}
                              for entry in context.get('history', [])[-40:]]
+        result['recent_agent_notes_unverified'] = [
+            {'tag': entry.get('tag'), 'notes': str(entry.get('knowledge', ''))[:400],
+             'tester_report': str(entry.get('report', ''))[:600]}
+            for entry in context.get('history', [])[-5:] if entry.get('knowledge') or entry.get('report')]
+    elif role == 'tester':
+        result['recent_failures'] = [
+            {key: str(entry.get(key, ''))[:500] for key in ('tag', 'target', 'observed_failure')}
+            for entry in context.get('history', [])[-5:] if entry.get('observed_failure')]
+        previous = result.get('tester', {})
+        if previous.get('reproducer_file') == 'reproducer.json':
+            previous.pop('reproducer', None)  # Exact current contract is on disk.
     return result

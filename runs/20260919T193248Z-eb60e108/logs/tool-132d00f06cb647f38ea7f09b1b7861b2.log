@@ -1,0 +1,14 @@
+Started: 2026-09-19T22:41:08.571464+00:00
+Command: bash -o pipefail -c 'ls -la /home/rafay/miniconda3/WallyGuard2/runs/20260919T193248Z-eb60e108/tests'
+
+total 24
+drwxrwxr-x 2 rafay rafay 4096 Sep 19 20:33 .
+drwxrwxr-x 6 rafay rafay 4096 Sep 19 22:40 ..
+-rw-rw-r-- 1 rafay rafay  753 Sep 19 20:33 control.S
+-rw-rw-r-- 1 rafay rafay  884 Sep 19 19:34 selfcheck.h
+-rw-rw-r-- 1 rafay rafay  699 Sep 19 19:34 template.S.example
+-rw-rw-r-- 1 rafay rafay  915 Sep 19 20:33 test.S
+
+Finished: 2026-09-19T22:41:08.634441+00:00
+Return code: 0
+Status: PASS

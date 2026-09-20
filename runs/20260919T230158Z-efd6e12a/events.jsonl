@@ -1,0 +1,9 @@
+{"attempt": 0, "event_type": "IN_PROGRESS", "iteration_id": "20260919T230158Z-efd6e12a", "stage": "controller", "status": "IN_PROGRESS", "timestamp": "2026-09-19T23:01:58.546039+00:00"}
+{"attempt": 0, "event_type": "IN_PROGRESS", "iteration_id": "20260919T230158Z-efd6e12a", "stage": "controller", "status": "IN_PROGRESS", "timestamp": "2026-09-19T23:36:30.936989+00:00"}
+{"attempt": 0, "event_type": "IN_PROGRESS", "iteration_id": "20260919T230158Z-efd6e12a", "stage": "controller", "status": "IN_PROGRESS", "timestamp": "2026-09-19T23:53:37.330533+00:00"}
+{"attempt": 0, "event_type": "IN_PROGRESS", "iteration_id": "20260919T230158Z-efd6e12a", "stage": "controller", "status": "IN_PROGRESS", "timestamp": "2026-09-19T23:53:37.813686+00:00"}
+{"attempt": 0, "event_type": "IN_PROGRESS", "iteration_id": "20260919T230158Z-efd6e12a", "stage": "controller", "status": "IN_PROGRESS", "timestamp": "2026-09-19T23:54:50.406097+00:00"}
+{"attempt": 0, "event_type": "IN_PROGRESS", "iteration_id": "20260919T230158Z-efd6e12a", "stage": "controller", "status": "IN_PROGRESS", "timestamp": "2026-09-20T00:09:51.868187+00:00"}
+{"attempt": 0, "event_type": "IN_PROGRESS", "iteration_id": "20260919T230158Z-efd6e12a", "stage": "controller", "status": "IN_PROGRESS", "timestamp": "2026-09-20T00:20:29.660784+00:00"}
+{"attempt": 0, "event_type": "IN_PROGRESS", "iteration_id": "20260919T230158Z-efd6e12a", "stage": "controller", "status": "IN_PROGRESS", "timestamp": "2026-09-20T00:20:30.431661+00:00"}
+{"attempt": 0, "event_type": "TEST_REPAIR_EXHAUSTED", "iteration_id": "20260919T230158Z-efd6e12a", "stage": "controller", "status": "TEST_REPAIR_EXHAUSTED", "timestamp": "2026-09-20T00:20:30.515607+00:00"}

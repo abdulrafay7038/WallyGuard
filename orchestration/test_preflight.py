@@ -1,7 +1,8 @@
 """Controller-owned build, control, oracle and DUT execution contract."""
 import hashlib
 import json
-import os
+from .toolchain import simulation_env, validate_spike
+from .input_files import input_files
 from pathlib import Path
 import re
 import shutil
@@ -14,6 +15,14 @@ TRAP_VECTOR_TEMPLATE = '''# Direct-mode trap entry: low two address bits must be
 wallyguard_trap_entry:
     # Save/handle the trap here; avoid recursive traps.
 '''
+
+
+def saved_contract(test_dir: str) -> dict:
+    path = under('reproducer.json', Path(test_dir).resolve())
+    value = json.loads(path.read_text())
+    if not isinstance(value, dict):
+        raise ValueError('reproducer.json must contain a contract object')
+    return value
 
 
 def under(path: str, root: Path) -> Path:
@@ -64,8 +73,8 @@ def vector_metadata_errors(contract: dict, test_dir: Path) -> list[str]:
     vectors = contract.get('trap_vectors', [])
     writes_vectors = False
     inferred_symbols = set()
-    for source in test_dir.rglob('*'):
-        if source.suffix.lower() not in {'.s', '.c'} or any(p in {'build', 'logs', 'controller', 'critic', 'fixer'} for p in source.relative_to(test_dir).parts):
+    for source in input_files(test_dir, {'build', 'logs', 'controller', 'critic', 'fixer'}):
+        if source.suffix.lower() not in {'.s', '.c'}:
             continue
         assembly = source.read_text(errors='replace')
         if re.search(r'\b(?:mtvec|stvec)\b', assembly):
@@ -83,6 +92,8 @@ def vector_metadata_errors(contract: dict, test_dir: Path) -> list[str]:
 def contract_errors(contract: dict, scratch: Path, test_dir: Path, env: dict) -> list[str]:
     """Cheap shared preflight for the agent tool and authoritative verifier."""
     errors = []
+    if isinstance(contract, dict) and contract.get('contract_load_error'):
+        return ['Cannot read saved reproducer.json: ' + str(contract['contract_load_error'])]
     if not isinstance(contract, dict) or contract.get('version') != 1 or contract.get('oracle') != 'spike':
         return ['Require version=1 controller-run Spike differential contract']
     try:
@@ -114,7 +125,7 @@ def contract_errors(contract: dict, scratch: Path, test_dir: Path, env: dict) ->
             oracle = artifact_argv(spec.get('oracle'), scratch, test_dir)
             if (scratch / wally[0]).resolve() != (scratch / 'bin/wsim').resolve():
                 raise ValueError('DUT command must directly execute this checkout bin/wsim')
-            spike = shutil.which('spike', path=env.get('PATH', ''))
+            spike = env.get('WALLY_SPIKE') or shutil.which('spike', path=env.get('PATH', ''))
             if not spike or (scratch / oracle[0]).resolve() != Path(spike).resolve():
                 raise ValueError('Oracle command must directly execute the configured Spike')
             if '--elf' not in wally or wally.index('--elf') + 1 == len(wally):
@@ -173,7 +184,7 @@ def run_reproducer(scratch: str, test_dir: str, contract: dict, log_path: str,
     root, tests = Path(scratch).resolve(), Path(test_dir).resolve()
     directory = Path(log_path).parent / (Path(log_path).stem + '-evidence')
     directory.mkdir(parents=True, exist_ok=False)
-    env = {**os.environ, 'WALLY': str(root), 'PATH': str(root / 'bin') + os.pathsep + os.environ.get('PATH', '')}
+    env = simulation_env(str(root))
     steps, captured = {}, {}
     def capture(name: str, path: Path) -> None:
         target = directory / name
@@ -190,14 +201,15 @@ def run_reproducer(scratch: str, test_dir: str, contract: dict, log_path: str,
         captured[name] = dict(path=str(target), sha256=checksum)
 
     def execute(name: str, argv) -> dict:
-        result = run_command(artifact_argv(argv, root, tests), directory / f'{name}.log', timeout, env, root)
+        deadline = min(timeout, float(env.get('WALLY_ORACLE_TIMEOUT', '60'))) if name.endswith('-oracle') else timeout
+        result = run_command(artifact_argv(argv, root, tests), directory / f'{name}.log', deadline, env, root)
         steps[name] = result
         return result
     def pair(spec: dict, name: str) -> dict:
         # Agents choose test inputs, not the executable implementing the oracle.
         wally_args = artifact_argv(spec['wally'], root, tests)
         oracle_args = artifact_argv(spec['oracle'], root, tests)
-        expected_spike = shutil.which('spike', path=env['PATH'])
+        expected_spike = env['WALLY_SPIKE']
         if (root / wally_args[0]).resolve() != (root / 'bin/wsim').resolve():
             raise ValueError('DUT command must directly execute this checkout bin/wsim')
         if not expected_spike or (root / oracle_args[0]).resolve() != Path(expected_spike).resolve():
@@ -289,6 +301,7 @@ def run_reproducer(scratch: str, test_dir: str, contract: dict, log_path: str,
         errors = contract_errors(contract, root, tests, env)
         if errors:
             raise ValueError('; '.join(errors))
+        validate_spike(env)
         built = execute('build', contract['build'])
         if built['status'] != 'PASS' or TOOL_ERROR.search(log_markers(Path(built['log_path']))):
             result = classify(built, build_ok=False).dict()

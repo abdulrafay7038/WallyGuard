@@ -1,0 +1,15 @@
+Started: 2026-09-20T00:20:54.085974+00:00
+Command: bash -o pipefail -c 'python3 -c '"'"'
+import json
+with open("/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/attempt.json") as f:
+    d = json.load(f)
+print("keys:", list(d.keys()))
+if "phases" in d:
+    print("phases:", list(d["phases"].keys()))
+'"'"''
+
+keys: ['tag', 'iteration', 'status', 'active', 'started_at', 'timings', 'models', 'run_regression', 'verification_scope', 'scratch', 'base_commit', 'baseline_tree', 'test_dir', 'plan', 'test_revisions', 'tester', 'baseline_reproducer', 'duration_seconds']
+
+Finished: 2026-09-20T00:20:54.266243+00:00
+Return code: 0
+Status: PASS

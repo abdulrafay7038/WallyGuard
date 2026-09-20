@@ -29,12 +29,14 @@ from orchestration.event_log import event, redact
 from orchestration.retry_policy import retry_call, RetryPolicy, AgentCallFailure, MCPFailure, ProviderRateLimited
 from orchestration.stage_runner import with_tool_recovery
 from orchestration.tool_runtime import ManagedBashTool, DiagnosticOpenCodeLLM, LLMCapacity
-from orchestration.result_classifier import Outcome, artifact_argv, FAILURE, TOOL_ERROR
-from orchestration.test_preflight import run_reproducer
+from orchestration.result_classifier import Outcome, FAILURE, TOOL_ERROR
+from orchestration.test_preflight import run_reproducer, saved_contract
 from orchestration.verification_state import confirmation_allowed
 from orchestration.processes import run_command
-from orchestration.context import agent_context
+from orchestration.context import agent_context, observed_failure
 from orchestration.scaffold import seed_harness
+from orchestration.toolchain import simulation_env, validate_spike
+from orchestration.input_files import input_files
 
 WALLY_PATH = os.environ.get("WALLY_PATH", "/home/rafay/miniconda3/WallyGuard2/cvw")
 MAX_ITERATIONS = 200
@@ -128,13 +130,19 @@ You are part of a CORE-V Wally RTL bug-hunting campaign. Use the supplied bash
  tool for ALL repository access and execution: your LLM container is not the
 simulation worker. The tool sets WALLY and PATH to the current worktree.
 Long commands return RUNNING with a job_id; poll command_status until complete.
-command_status waits up to 10 seconds; do not issue repeated immediate polls or
+command_status waits up to 30 seconds; do not issue repeated immediate polls or
 shell sleep commands. Batch related short reads into one run_command call.
+run_command defaults to a 120-second deadline. For a build or simulation that
+needs longer, pass timeout_seconds=900 (up to the configured server limit).
 BUSY means the earlier command is still running: poll it before submitting more.
 Full stdout/stderr are saved at log_path; tool responses contain bounded tails.
-Read README.md, docs/testplans/testplan.md, relevant src/ modules, config/,
-testbench/, bin/ and tests/. Installed Spike, Verilator, GTKWave and RISC-V
+Read assignment-specific source, configuration and test files. Consult README.md
+and docs/testplans/testplan.md when needed; do not repeat a general repository
+tour at each stage. Installed Spike, Verilator, GTKWave and RISC-V
 compiler/toolchain are available on the worker; verify versions and flags.
+Use $WALLY_SPIKE for the RISC-V oracle; do not substitute /usr/bin/spike.
+For exploratory Spike calls use timeout 30s "$WALLY_SPIKE" ... . A timeout is
+an incomplete run: inspect its log before retrying. Never issue broad pkill commands.
 Prefer rg restricted to relevant src/config/tests paths; never recursively scan
 the entire checkout, dependencies, or build trees for a narrow source question.
 Use local ISA documents where available. Cite exact revision/section and RTL
@@ -145,7 +153,10 @@ uninitialized signals and timeouts are not evidence of an RTL bug.
 All generated programs, assertions, testbenches, scripts and oracle data MUST
 live below test_dir. Put generated binaries/build output in test_dir/build and
 logs in test_dir/logs. Write README.md with configuration, ISA/ABI, exact commands,
-seeds, observed and expected results. Commands start at the worktree root.
+seeds, observed and expected results. Tester commands start in test_dir; other
+roles start at the worktree root. $WALLY always names the checkout and
+$WALLY_TEST_DIR names the run directory. Use "$WALLY/src/..." to read RTL.
+Each command starts afresh: a cd does not carry over to the next tool call.
 attempt.json, proposed.patch and untracked-rtl/ are controller-owned; do not edit them.
 controller/ is also controller-owned. Put all backup files under test_dir/fixer,
 never under src/. Keep runtime output under build/ or logs/.
@@ -164,6 +175,11 @@ Return exactly one JSON object with the requested fields.
 """
 
 ARCHITECT_PROMPT = """
+Choose a source-grounded target and hand off promptly. Leave compiling and
+simulation to the Tester; do not spend this planning stage polling simulators.
+Use the supplied history observations and recent notes to avoid rereading old
+attempts. Notes from agents are hypotheses, not verified facts. Aim to select
+one target within 12 grouped source reads; stop broad searches once it is concrete.
 You are Agent 1, Architect. Study Wally and the relevant RISC-V ISA before
 choosing ONE narrow investigation. This is source-grounded planning, not model
 weight training. Inspect actual RTL/control paths, enabled configurations,
@@ -189,6 +205,9 @@ with file paths and spec references for reuse by later rounds.
 """
 
 TESTER_PROMPT = """
+Your shell starts in test_dir, so relative helpers such as fix_json.py are saved
+with the test artifacts. Read repository files through $WALLY and keep helper
+scripts under $WALLY_TEST_DIR. Do not create scripts at the checkout root.
 Start from test_dir/reproducer.json and build_reproducer.sh. A native RV64
 self-check header and template.S.example are under test_dir/tests. Copy/adapt
 the example to control.S and test.S and replace its deliberate .error with real,
@@ -197,12 +216,17 @@ The template is scaffolding, not a test result or an oracle.
 The DUT command MUST directly invoke $WALLY/bin/wsim CONFIG --sim verilator
 --elf ABSOLUTE_ELF_PATH. No wrapper scripts or direct Vtestbench at this boundary.
 Spike must be the installed absolute executable and run that same ELF.
+Keep build=["bash", "ABSOLUTE_TEST_DIR/build_reproducer.sh"]. Write repairs to
+saved files through run_command before submitting. Never put python -c, bash -c,
+inline source generators, or commands that rewrite inputs in the build contract.
 After building/editing, save the complete contract in reproducer.json and call
-validate_reproducer. Correct every reported error before returning the JSON
-contract as reproducer. PREFLIGHT_READY only means the contract is well-formed;
+validate_reproducer. Correct every reported error, then return only
+reproducer_file="reproducer.json" alongside found_bug, report and evidence.
+Do not repeat the contract or source code in your final answer. The controller
+reads that saved file directly. PREFLIGHT_READY only means the contract is well-formed;
 the controller independently verifies the actual result. Include all trap handlers.
 
-A found_bug claim must include a reproducer object, version=1, oracle="spike",
+A found_bug claim must save a reproducer.json object, version=1, oracle="spike",
 build=[executable,args...], control={...}, test={...}, trap_vectors=[...].
 Prefer the supplied mode="selfcheck" contract for each control/test, using native CVW
 CheckSelfCheck: ELF defines selfcheck_record/tohost and begin_signature aliases
@@ -236,7 +260,7 @@ to deterministic reproducers and separate functional mismatches from tools
 failing. Save negative findings too. Do not run the full regression here.
 
 Return found_bug (JSON boolean) and report (string). For found_bug=true also
-return reproducer (the execution contract above) and evidence (string: log paths,
+return reproducer_file="reproducer.json" and evidence (string: log paths,
 mismatch, expected rule, configuration, seed, and test-validity checks). An optional
 reproduce_command may document a saved script for humans; it is never a verifier.
 Builds may regenerate binaries, but must not rewrite source inputs or README.md.
@@ -405,6 +429,14 @@ def rtl_fixer(scratch: str, context: dict) -> dict:
 
 
 @ChiaFunction(resources={"wally_sim": 1}, max_retries=0)
+def read_reproducer(test_dir: str) -> dict:
+    try:
+        return saved_contract(test_dir)
+    except (OSError, ValueError) as exc:
+        return {'contract_load_error': str(exc)}
+
+
+@ChiaFunction(resources={"wally_sim": 1}, max_retries=0)
 def save_lifecycle_events(test_dir: str, entries: list[dict]) -> None:
     for entry in entries:
         fields = dict(entry)
@@ -454,6 +486,11 @@ def make_worktree(wally_path: str, tag: str) -> dict:
         source_head = git(str(base), "rev-parse", "HEAD").strip()
         if git(str(base), 'ls-files', '--unmerged').strip():
             raise WorkspaceUnavailableError('Original checkout has unresolved merge conflicts; resolve them before starting agents')
+        try:
+            spike = validate_spike(simulation_env(str(base)))
+        except ValueError as exc:
+            raise WorkspaceUnavailableError(str(exc)) from exc
+        log('Workspace', f'Validated RISC-V oracle: {spike}')
         if state_path.exists():
             state = json.loads(state_path.read_text(encoding="utf-8"))
             if state["source"] != str(base) or not (scratch / ".git").is_file():
@@ -619,9 +656,8 @@ def test_fingerprint(scratch: str, test_dir: str) -> dict:
     """Freeze scripts/oracle inputs, excluding designated build/log directories."""
     root = Path(scratch) / test_dir
     return {str(path.relative_to(root)): hashlib.sha256(path.read_bytes()).hexdigest()
-            for path in root.rglob("*") if path.is_file()
-            and path.relative_to(root).as_posix() not in {"attempt.json", "attempt.json.tmp", "proposed.patch"}
-            and not set(path.relative_to(root).parts) & {"build", "logs", "critic", "fixer", "__pycache__", "untracked-rtl", "controller"}}
+            for path in input_files(root, {"build", "logs", "critic", "fixer", "__pycache__", "untracked-rtl", "controller"})
+            if path.relative_to(root).as_posix() not in {"attempt.json", "attempt.json.tmp", "proposed.patch", "events.jsonl"}}
 
 
 def fingerprint_changes(before: dict, after: dict) -> dict:
@@ -662,7 +698,7 @@ def verify_command(scratch: str, command, log_path: str, timeout: int = REGRESSI
             result = dict(status='TEST_INVALID', ran=False, passed=False, returncode=None)
         else:
             result = run_command(['bash', '-o', 'pipefail', '-c', wally_shell(scratch, command)],
-                                 path, timeout, cwd=scratch)
+                                 path, timeout, cwd=scratch, env=simulation_env(scratch))
             failed = infrastructure = rtl_failure = False
             with path.open(errors='replace') as stream:
                 for line in stream:
@@ -725,7 +761,9 @@ def save_attempt(wally_path: str, record: dict) -> None:
 def history_entry(record: dict) -> dict:
     return {"tag": record["tag"], "target": record.get("plan", {}).get("target", "planning failed"),
             "status": record["status"], "report": record.get("tester", {}).get("report", ""),
-            "knowledge": record.get("plan", {}).get("knowledge", "")}
+            "knowledge": record.get("plan", {}).get("knowledge", ""),
+            "source_base": record.get('base_commit', ''),
+            "observed_failure": observed_failure(record)}
 
 
 @ChiaFunction(resources={"wally_sim": 1}, max_retries=0)
@@ -781,6 +819,8 @@ def run_attempt(record: dict, history: list[dict], max_fix_attempts: int) -> Non
     for revision in range(MAX_TEST_REPAIRS + 1):
         record.pop("bug_review", None)
         record["tester"] = agent_stage(tester, scratch, context)
+        if record['tester'].get('found_bug') and record['tester'].get('reproducer_file') == 'reproducer.json':
+            record['tester']['reproducer'] = remote(read_reproducer, test_dir)
         remote(check_changes, scratch, base, False, test_dir)
         remote(save_attempt, WALLY_PATH, record)
         log("Tester", record["tester"]["report"])
@@ -842,7 +882,10 @@ def run_attempt(record: dict, history: list[dict], max_fix_attempts: int) -> Non
                 feedback = {"reason": "Critic requested a test repair", "review": review}
         step["repair_needed"] = feedback
         context["test_feedback"] = feedback
-        log("Tester", f"Test repair {revision + 1}/{MAX_TEST_REPAIRS}: {feedback['reason']}")
+        if revision < MAX_TEST_REPAIRS:
+            log("Tester", f"Test repair {revision + 1}/{MAX_TEST_REPAIRS}: {feedback['reason']}")
+        else:
+            log("Tester", f"Test repairs exhausted: {feedback['reason']}")
         remote(save_attempt, WALLY_PATH, record)
     else:
         record["status"] = "test_repair_exhausted"

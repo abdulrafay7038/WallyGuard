@@ -217,7 +217,7 @@ class PreflightTests(unittest.TestCase):
                 'oracle':[str(self.root/'bin/spike'),str(self.tests/'build/test.elf')],
                 'wally_signature':f'build/{name}-wally.sig','oracle_signature':f'build/{name}-oracle.sig',
                 'wally_complete':'WALLY_DONE','oracle_complete':'SPIKE_DONE'}
-    def run_contract(self, bad=False):
+    def run_contract(self, bad=False, timeout=3):
         def run(command, log, *args):
             log.parent.mkdir(parents=True,exist_ok=True)
             name=log.stem
@@ -225,9 +225,16 @@ class PreflightTests(unittest.TestCase):
             if name != 'build':
                 group,which=name.split('-')
                 (self.tests/'build'/f'{group}-{which}.sig').write_text('02\n' if bad and group=='control' and which=='wally' else ('01\n' if group=='control' or which=='oracle' else '02\n'))
-            return {'status':'PASS','returncode':0,'timed_out':False,'log_path':str(log)}
-        with patch('orchestration.test_preflight.run_command',side_effect=run),patch('orchestration.test_preflight.shutil.which',return_value=str(self.root/'bin/spike')):
-            return run_reproducer(str(self.root),str(self.tests),self.contract,str(self.root/'run.log'),3)
+            return {'status':'PASS','returncode':0,'timed_out':False,'log_path':str(log),'deadline':args[0]}
+        with patch('orchestration.test_preflight.validate_spike'), patch('orchestration.test_preflight.run_command',side_effect=run),patch('orchestration.test_preflight.shutil.which',return_value=str(self.root/'bin/spike')):
+            return run_reproducer(str(self.root),str(self.tests),self.contract,str(self.root/'run.log'),timeout)
+    def test_oracle_deadline_does_not_shorten_build_or_dut(self):
+        with patch.dict('os.environ', {'WALLY_ORACLE_TIMEOUT':'60'}):
+            result=self.run_contract(timeout=900)
+        self.assertEqual(result['steps']['build']['deadline'],900)
+        self.assertEqual(result['steps']['control-oracle']['deadline'],60)
+        self.assertEqual(result['steps']['test-oracle']['deadline'],60)
+        self.assertEqual(result['steps']['test-wally']['deadline'],900)
     def test_real_controller_compares_artifacts(self):
         self.assertEqual(self.run_contract()['status'],Outcome.MISMATCH_CONFIRMED)
     def test_broken_control_blocks_acceptance(self):
@@ -346,7 +353,7 @@ class NativeSelfCheckTests(unittest.TestCase):
                     (self.tests/'build'/f'{log.stem}.sig').write_text('0000000000000001\n'+'0000000000000000\n'*4)
             log.write_text(content)
             return {'status':'PASS','returncode':0,'timed_out':False,'log_path':str(log)}
-        with patch('orchestration.test_preflight.run_command',side_effect=run),patch('orchestration.test_preflight.shutil.which',side_effect=lambda name,**kw:str(self.root/'bin'/name)):
+        with patch('orchestration.test_preflight.validate_spike'), patch('orchestration.test_preflight.run_command',side_effect=run),patch('orchestration.test_preflight.shutil.which',side_effect=lambda name,**kw:str(self.root/'bin'/name)):
             return run_reproducer(str(self.root),str(self.tests),self.contract,str(self.root/'run.log'),3)
     def test_native_expected_actual_mismatch(self):
         result=self.run_selfcheck()

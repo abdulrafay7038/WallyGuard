@@ -1,0 +1,554 @@
+{
+  "tag": "20260919T230158Z-efd6e12a",
+  "iteration": 2,
+  "status": "test_repair_exhausted",
+  "active": false,
+  "started_at": "2026-09-19T23:01:58.417254+00:00",
+  "timings": [
+    {
+      "stage": "architect",
+      "status": "completed",
+      "context_bytes": 6629,
+      "duration_seconds": 2072.207
+    },
+    {
+      "stage": "tester",
+      "status": "completed",
+      "context_bytes": 8206,
+      "duration_seconds": 1026.207
+    },
+    {
+      "stage": "tester",
+      "status": "completed",
+      "context_bytes": 11164,
+      "duration_seconds": 72.396
+    },
+    {
+      "stage": "tester",
+      "status": "completed",
+      "context_bytes": 13693,
+      "duration_seconds": 637.61
+    }
+  ],
+  "models": {
+    "architect": "google-vertex/gemini-3.8-flash",
+    "tester": "google-vertex/gemini-3.1-pro-preview-customtools",
+    "critic": "google-vertex/gemini-3.8-flash",
+    "rtl_fixer": "opencode/mimo-v2.5-free"
+  },
+  "run_regression": false,
+  "verification_scope": "targeted_only",
+  "scratch": "/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared",
+  "base_commit": "e7e6ea22b49cd07b2297bffaa79889124483b874",
+  "baseline_tree": "cfc7d6ba1b25fb52f53df9ea3a1217ccb29bb4d5",
+  "test_dir": "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a",
+  "plan": {
+    "target": "Missing mstateen0.ENVCFG Gating on senvcfg Execution Controls in S/U Modes Allows Unauthorized Cache-Block Operations (src/privileged/csr.sv, src/privileged/privileged.sv, src/ieu/controller.sv)",
+    "rationale": "In commit 8b5693dad ('Implement Smstateen and Ssstateen'), Wally introduced support for the Smstateen and Ssstateen extensions. Under the RISC-V Smstateen specification (Section 2, Table 1 'mstateen0 bit definitions' and Section 1.1), bit 62 (ENVCFG) of mstateen0 controls access to senvcfg and the state controlled by senvcfg for execution modes less privileged than M (namely, S-mode and U-mode). The specification explicitly mandates:\n1. When mstateen0[62] is 0, any attempt to access senvcfg from a mode less privileged than M raises an illegal-instruction exception.\n2. In addition, when executing in a mode less privileged than M, any state or execution control enabled by senvcfg (such as senvcfg.CBZE for Zicboz cache-block zero, and senvcfg.CBCFE/CBIE for Zicbom cache-block management) behaves as though the corresponding enable bit in senvcfg were 0.\n\nWhile Wally correctly gates CSR read and write access to senvcfg in `src/privileged/csrs.sv` via `ENVCFGAccessM` (`IllegalCSRSAccessM = 1'b1` and `WriteSENVCFGM` inhibited when `MSTATEEN0_REGW[62] == 0`), Wally fails to gate the effective execution controls exported from `senvcfg`. Specifically, `SENVCFG_REGW` is fed directly to the execution pipeline (e.g. into `ENVCFG_CBE` in `src/privileged/privileged.sv` / `src/wally/wallypipelinedcore.sv` and decoded in `src/ieu/controller.sv` line 209). If M-mode configures `senvcfg.CBZE = 1` (or allows S-mode to configure it) and subsequently clears `mstateen0.ENVCFG = 0`, Wally's execution controller still sees `ENVCFG_CBE[3] == 1` in S-mode and U-mode. As a consequence, Wally executes `cbo.zero` (and Zicbom `cbo.clean`/`cbo.flush`/`cbo.inval`) successfully in S-mode and U-mode without taking an exception. The reference simulator (Spike) strictly enforces Smstateen: with `mstateen0.ENVCFG == 0`, executing `cbo.zero` in S-mode or U-mode raises an illegal instruction exception (mcause = 2). This creates a direct architectural divergence between Spike and Wally.",
+    "tester_prompt": "Investigate the missing enforcement of mstateen0.ENVCFG (bit 62) on the operational effects of senvcfg in S-mode and U-mode in CORE-V Wally.\n\n1. Target Configuration:\n   - Configuration: `rv64gc` (or `rv32gc`), which has `SMSTATEEN_SUPPORTED=1`, `SSSTATEEN_SUPPORTED=1`, `ZICBOZ_SUPPORTED=1`, and `ZICBOM_SUPPORTED=1` enabled.\n   - DUT: `$WALLY/sim/verilator/wkdir/rv64gc_testbench/Vtestbench`.\n   - Reference: Spike with `--isa=rv64gc_smstateen_zicboz_zicbom` (or `--isa=rv64gc_zicboz_zicbom`).\n\n2. Key RTL Files and Signals:\n   - `src/privileged/csr.sv`: Computes `ENVCFGAccessM = ~P.SMSTATEEN_SUPPORTED | (PrivilegeModeW == P.M_MODE) | MSTATEEN0_REGW[62];`.\n   - `src/privileged/csrs.sv`: Controls `SENVCFG_REGW`.\n   - `src/privileged/privileged.sv` & `src/wally/wallypipelinedcore.sv`: Multiplexes `ENVCFG_CBE` between `MENVCFG` (M-mode) and `SENVCFG` (S/U-modes).\n   - `src/ieu/controller.sv`: Line 209 evaluates `(P.ZICBOZ_SUPPORTED & (InstrD[31:20] == 12'd4) & ENVCFG_CBE[3])` to permit `cbo.zero`.\n\n3. Hypothesized RTL Bug:\n   - In `privileged.sv` (and/or `csr.sv` / `controller.sv`), `ENVCFG_CBE` for S-mode and U-mode is taken directly from `SENVCFG_REGW` without gating by `MSTATEEN0_REGW[62]` (or `ENVCFGAccessM`).\n   - When `mstateen0[62] == 0`, execution of `cbo.zero` in S-mode or U-mode is permitted in Wally DUT, whereas the RISC-V Smstateen specification mandates that `senvcfg.CBZE` behave as 0, raising an Illegal Instruction exception.\n\n4. Directed Test Plan:\n   - Create standalone assembly tests under `$TEST_DIR/tests/` linked with `$WALLY/tests/riscof/spike/env/link.ld`:\n     * Test A (`test_smstateen_cbo_zero_smode.S`): In M-mode, write `mstateen0` with bit 62 set to 1. Write `senvcfg` with bit 7 (CBZE) set to 1 (value 0x80). Then clear bit 62 of `mstateen0` to 0 (leaving `senvcfg.CBZE` latched as 1). Drop to S-mode via `mret`. Execute `cbo.zero` on a valid aligned memory address in S-mode. Set up trap handlers: if an illegal instruction exception (mcause = 2) is taken, the test passes; if `cbo.zero` executes and proceeds past the instruction without a trap, report FAILURE.\n     * Test B (`test_smstateen_cbo_zero_umode.S`): Same sequence, but drop to U-mode via `mret` and execute `cbo.zero`. Expected: Illegal instruction trap (mcause = 2).\n     * Test C (`test_smstateen_control_aligned.S`): Control case where `mstateen0[62] == 1` and `senvcfg.CBZE == 1`. In S-mode, `cbo.zero` should execute normally without trapping on both Spike and Wally.\n   - Compile each test with `riscv64-unknown-elf-gcc -march=rv64gc_zicboz -mabi=lp64d -nostdlib -nostartfiles -T $WALLY/tests/riscof/spike/env/link.ld` and generate `.memfile` using `$WALLY/bin/elf2hex`.\n   - Build and run `reproducer.sh` under `$TEST_DIR` following the workspace contract:\n     * Run Spike: `spike --isa=rv64gc_smstateen_zicboz ...`.\n     * Run Wally DUT: `$WALLY/sim/verilator/wkdir/rv64gc_testbench/Vtestbench +ElfFile=...`.\n     * On unpatched baseline: Spike passes the trap test, while Wally fails (either prints FAILURE or fails to take the expected trap). Reproducer exits 1.\n     * Once fixed: Both Spike and Wally pass. Reproducer exits 0.\n   - Ensure all output files and logs reside strictly in `$TEST_DIR/build` and `$TEST_DIR/logs`.",
+    "knowledge": "1. Prior History and Resolved Gaps:\n   - History shows confirmed bugs in Zacas (`amocas` operand forwarding, `amocas` register-pair rd+1 forwarding, `amocas.q` quadword misalignment trap) and MMU (`hptw` superpage leaf PTE A/D bit updates).\n   - PMP access boundary testing (TOR / EndL) repeatedly ran into test repair exhaustion due to intricate multi-byte physical address boundary interactions; rotated focus to privileged architecture extensions.\n\n2. Smstateen / Ssstateen Architecture (RISC-V Privileged Architecture Smstateen Spec v1.0):\n   - Added in cvw commit 8b5693dad ('Implement Smstateen and Ssstateen').\n   - CSRs introduced: `mstateen0` through `mstateen3` (0x30C-0x30F) and RV32 `mstateen0h` through `mstateen3h` (0x31C-0x31F) in `src/privileged/csrm.sv`; `sstateen0` through `sstateen3` (0x10C-0x10F) in `src/privileged/csrs.sv`.\n   - Section 2, Table 1: Bit 62 (`ENVCFG`) controls access to `senvcfg` and the execution state controlled by `senvcfg` for lower privilege modes.\n   - Normative rule: If `mstateen0[62] == 0`, S-mode access to `senvcfg` raises an illegal-instruction exception, AND in modes less privileged than M (S and U), any feature controlled by `senvcfg` behaves as though the enable bit in `senvcfg` were 0.\n\n3. RTL Implementation Details in cvw:\n   - `src/privileged/csr.sv`: Lines 280-281 compute `SE0AccessM` and `ENVCFGAccessM`:\n     `assign ENVCFGAccessM = ~P.SMSTATEEN_SUPPORTED | (PrivilegeModeW == P.M_MODE) | MSTATEEN0_REGW[62];`\n   - `src/privileged/csrs.sv`: Uses `ENVCFGAccessM` only to qualify `WriteSENVCFGM` and `IllegalCSRSAccessM` for `senvcfg` CSR reads and writes.\n   - `src/privileged/privileged.sv` and `src/wally/wallypipelinedcore.sv`: `ENVCFG_CBE` is muxed based on privilege mode without masking against `MSTATEEN0_REGW[62]`:\n     `SENVCFG_REGW` is passed unmasked to the execution controller.\n   - `src/ieu/controller.sv`: Line 209 relies solely on `ENVCFG_CBE` to validate `cbo.zero` and other CBO operations. When `MSTATEEN0_REGW[62] == 0`, `cbo.zero` erroneously executes instead of raising an illegal instruction exception in S-mode and U-mode."
+  },
+  "test_revisions": [
+    {
+      "revision": 0,
+      "tester": {
+        "found_bug": true,
+        "report": "Wally fails to gate S-mode/U-mode execution of `cbo.zero` with `mstateen0.ENVCFG`. When `mstateen0[62]` is cleared, Spike takes an illegal instruction trap (mcause = 2) for `cbo.zero` in S-mode, while Wally ignores `mstateen0` and incorrectly executes the instruction without trapping. This violates the Smstateen specification where features controlled by `senvcfg` must act as if disabled (0) when `mstateen0.ENVCFG` is 0.",
+        "evidence": "Spike traps with mcause=2 on S-mode cbo.zero when mstateen0[62]==0, whereas Wally does not trap and continues execution. The tests setup PMP to allow execution, configure mstateen0 and senvcfg appropriately, drop to S-mode, and execute `cbo.zero`. The `selfcheck.h` file was dynamically patched during build to use `sd` instead of `sw` to ensure Spike correctly terminates on the 64-bit `tohost` variable.",
+        "reproducer": {
+          "version": 1,
+          "oracle": "spike",
+          "build": [
+            "bash",
+            "-c",
+            "sed -i 's/sw t1, 0(t0)/sd t1, 0(t0)/g' /home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/tests/selfcheck.h && /home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/build_reproducer.sh"
+          ],
+          "trap_vectors": [
+            {
+              "elf": "build/control.elf",
+              "symbol": "trap_handler"
+            },
+            {
+              "elf": "build/test.elf",
+              "symbol": "trap_handler"
+            }
+          ],
+          "control": {
+            "mode": "selfcheck",
+            "wally": [
+              "/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/bin/wsim",
+              "rv64gc",
+              "--sim",
+              "verilator",
+              "--elf",
+              "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/build/control.elf"
+            ],
+            "oracle": [
+              "/usr/bin/spike",
+              "--isa=rv64gc_smstateen_zicboz_zicbom",
+              "+signature=/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/logs/control-spike.sig",
+              "+signature-granularity=8",
+              "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/build/control.elf"
+            ],
+            "oracle_signature": "logs/control-spike.sig"
+          },
+          "test": {
+            "mode": "selfcheck",
+            "wally": [
+              "/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/bin/wsim",
+              "rv64gc",
+              "--sim",
+              "verilator",
+              "--elf",
+              "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/build/test.elf"
+            ],
+            "oracle": [
+              "/usr/bin/spike",
+              "--isa=rv64gc_smstateen_zicboz_zicbom",
+              "+signature=/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/logs/test-spike.sig",
+              "+signature-granularity=8",
+              "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/build/test.elf"
+            ],
+            "oracle_signature": "logs/test-spike.sig"
+          }
+        }
+      },
+      "inputs": {
+        "events.jsonl": "d7d1030e68e1bee2895f8c9fe4cedc90e4f5e82d86b724320e07e237785336f2",
+        "build_reproducer.sh": "ade4d5ca715e761b6186396634c1cf0c36ca608027bd441cc9f861f89d7a76d3",
+        "reproducer.json": "ed07d6d879096af523fb915511de51373de7c91534fb07ea86802df74f41df30",
+        "tests/selfcheck.h": "683533f816891774292be73d84bee13ecfaec5ec47d62bb5e20ef227fdf88803",
+        "tests/test.S": "a213cba22f2e4e2e4332569001c55377ee7772a4399dcf87f3eebe2092ce1f3d",
+        "tests/template.S.example": "acee174df523ce250c839e4c0747ed4cc324ef06e1fc0cdcd607425ea0a8d89b",
+        "tests/control.S": "ef2b4ac1183322b1f301124df4e9f7783db208494d6b012142c3c1737b234aa7"
+      },
+      "baseline_reproducer": {
+        "status": "TEST_INVALID",
+        "reason": "build: Shell control flow/redirection is forbidden at the verifier boundary",
+        "returncode": null,
+        "timed_out": false,
+        "passed": false,
+        "ran": true,
+        "steps": {},
+        "log_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/logs/baseline-reproducer-0.log",
+        "evidence_dir": "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/logs/baseline-reproducer-0-evidence",
+        "captured": {},
+        "duration_seconds": 0.0035143299974151887
+      },
+      "repair_needed": {
+        "reason": "Baseline reproducer failed to execute correctly",
+        "verification": {
+          "status": "TEST_INVALID",
+          "reason": "build: Shell control flow/redirection is forbidden at the verifier boundary",
+          "returncode": null,
+          "timed_out": false,
+          "passed": false,
+          "ran": true,
+          "steps": {},
+          "log_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/logs/baseline-reproducer-0.log",
+          "evidence_dir": "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/logs/baseline-reproducer-0-evidence",
+          "captured": {},
+          "duration_seconds": 0.0035143299974151887
+        }
+      }
+    },
+    {
+      "revision": 1,
+      "tester": {
+        "found_bug": true,
+        "report": "Wally fails to gate S-mode/U-mode execution of `cbo.zero` with `mstateen0.ENVCFG`. When `mstateen0[62]` is cleared, Spike takes an illegal instruction trap (mcause = 2) for `cbo.zero` in S-mode, while Wally ignores `mstateen0` and incorrectly executes the instruction without trapping. This violates the Smstateen specification where features controlled by `senvcfg` must act as if disabled (0) when `mstateen0.ENVCFG` is 0.",
+        "evidence": "Spike traps with mcause=2 on S-mode cbo.zero when mstateen0[62]==0, whereas Wally does not trap and continues execution. The tests setup PMP to allow execution, configure mstateen0 and senvcfg appropriately, drop to S-mode, and execute `cbo.zero`. The `selfcheck.h` file was statically patched to use `sd` instead of `sw` to ensure Spike correctly terminates on the 64-bit `tohost` variable.",
+        "reproducer": {
+          "version": 1,
+          "oracle": "spike",
+          "build": [
+            "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/build_reproducer.sh"
+          ],
+          "trap_vectors": [
+            {
+              "elf": "build/control.elf",
+              "symbol": "trap_handler"
+            },
+            {
+              "elf": "build/test.elf",
+              "symbol": "trap_handler"
+            }
+          ],
+          "control": {
+            "mode": "selfcheck",
+            "wally": [
+              "/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/bin/wsim",
+              "rv64gc",
+              "--sim",
+              "verilator",
+              "--elf",
+              "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/build/control.elf"
+            ],
+            "oracle": [
+              "/usr/bin/spike",
+              "--isa=rv64gc_smstateen_zicboz",
+              "+signature=/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/logs/control-spike.sig",
+              "+signature-granularity=8",
+              "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/build/control.elf"
+            ],
+            "oracle_signature": "logs/control-spike.sig"
+          },
+          "test": {
+            "mode": "selfcheck",
+            "wally": [
+              "/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/bin/wsim",
+              "rv64gc",
+              "--sim",
+              "verilator",
+              "--elf",
+              "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/build/test.elf"
+            ],
+            "oracle": [
+              "/usr/bin/spike",
+              "--isa=rv64gc_smstateen_zicboz",
+              "+signature=/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/logs/test-spike.sig",
+              "+signature-granularity=8",
+              "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/build/test.elf"
+            ],
+            "oracle_signature": "logs/test-spike.sig"
+          }
+        }
+      },
+      "inputs": {
+        "events.jsonl": "7d4eef4d25859287098abc2e7cdac3ddf24f1fa910374b1687bcf6f14b0ae8ee",
+        "build_reproducer.sh": "ade4d5ca715e761b6186396634c1cf0c36ca608027bd441cc9f861f89d7a76d3",
+        "reproducer.json": "ac758a4283437608fdc4dbdb07c2da2fe79c2d17b217de1cc76e73c0d84ee043",
+        "tests/selfcheck.h": "dcf6c418935b08e32362148bae808655fde8d6857f53537969d691d9192b1533",
+        "tests/test.S": "a213cba22f2e4e2e4332569001c55377ee7772a4399dcf87f3eebe2092ce1f3d",
+        "tests/template.S.example": "acee174df523ce250c839e4c0747ed4cc324ef06e1fc0cdcd607425ea0a8d89b",
+        "tests/control.S": "ef2b4ac1183322b1f301124df4e9f7783db208494d6b012142c3c1737b234aa7"
+      },
+      "baseline_reproducer": {
+        "status": "TEST_INVALID",
+        "reason": "Positive/control test failed",
+        "returncode": null,
+        "timed_out": false,
+        "passed": false,
+        "ran": true,
+        "control": {
+          "status": "HOST_COMMAND_TIMEOUT",
+          "reason": "Python host command deadline expired",
+          "returncode": -15,
+          "timed_out": true,
+          "passed": false,
+          "ran": true
+        },
+        "steps": {
+          "build": {
+            "command": [
+              "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/build_reproducer.sh"
+            ],
+            "status": "PASS",
+            "returncode": 0,
+            "timed_out": false,
+            "error": null,
+            "log_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/logs/baseline-reproducer-1-evidence/build.log",
+            "stdout_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/logs/baseline-reproducer-1-evidence/build.log",
+            "stderr_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/logs/baseline-reproducer-1-evidence/build.log",
+            "started_at": "2026-09-19T23:54:50.826270+00:00",
+            "duration_seconds": 0.2016117530001793,
+            "finished_at": "2026-09-19T23:54:51.027878+00:00"
+          },
+          "control-symbols": {
+            "command": [
+              "/usr/bin/riscv64-unknown-elf-nm",
+              "-n",
+              "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/build/control.elf"
+            ],
+            "status": "PASS",
+            "returncode": 0,
+            "timed_out": false,
+            "error": null,
+            "log_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/logs/baseline-reproducer-1-evidence/control-symbols.log",
+            "stdout_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/logs/baseline-reproducer-1-evidence/control-symbols.log",
+            "stderr_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/logs/baseline-reproducer-1-evidence/control-symbols.log",
+            "started_at": "2026-09-19T23:54:51.285067+00:00",
+            "duration_seconds": 0.051705448000575416,
+            "finished_at": "2026-09-19T23:54:51.336770+00:00"
+          },
+          "control-oracle": {
+            "command": [
+              "/usr/bin/spike",
+              "--isa=rv64gc_smstateen_zicboz",
+              "+signature=/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/logs/control-spike.sig",
+              "+signature-granularity=8",
+              "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/build/control.elf"
+            ],
+            "status": "TIMEOUT",
+            "returncode": -15,
+            "timed_out": true,
+            "error": "Timeout after 900 seconds",
+            "log_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/logs/baseline-reproducer-1-evidence/control-oracle.log",
+            "stdout_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/logs/baseline-reproducer-1-evidence/control-oracle.log",
+            "stderr_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/logs/baseline-reproducer-1-evidence/control-oracle.log",
+            "started_at": "2026-09-19T23:54:51.337333+00:00",
+            "duration_seconds": 900.0935368669961,
+            "finished_at": "2026-09-20T00:09:51.430874+00:00"
+          }
+        },
+        "log_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/logs/baseline-reproducer-1.log",
+        "evidence_dir": "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/logs/baseline-reproducer-1-evidence",
+        "captured": {
+          "control.elf": {
+            "path": "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/logs/baseline-reproducer-1-evidence/control.elf",
+            "sha256": "b7c8cec0055020028c2621e815aac2679bc6b14f2a8cc4831f1436f03ccce28d"
+          }
+        },
+        "duration_seconds": 900.7804092609949
+      },
+      "repair_needed": {
+        "reason": "Baseline reproducer failed to execute correctly",
+        "verification": {
+          "status": "TEST_INVALID",
+          "reason": "Positive/control test failed",
+          "returncode": null,
+          "timed_out": false,
+          "passed": false,
+          "ran": true,
+          "control": {
+            "status": "HOST_COMMAND_TIMEOUT",
+            "reason": "Python host command deadline expired",
+            "returncode": -15,
+            "timed_out": true,
+            "passed": false,
+            "ran": true
+          },
+          "steps": {
+            "build": {
+              "command": [
+                "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/build_reproducer.sh"
+              ],
+              "status": "PASS",
+              "returncode": 0,
+              "timed_out": false,
+              "error": null,
+              "log_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/logs/baseline-reproducer-1-evidence/build.log",
+              "stdout_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/logs/baseline-reproducer-1-evidence/build.log",
+              "stderr_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/logs/baseline-reproducer-1-evidence/build.log",
+              "started_at": "2026-09-19T23:54:50.826270+00:00",
+              "duration_seconds": 0.2016117530001793,
+              "finished_at": "2026-09-19T23:54:51.027878+00:00"
+            },
+            "control-symbols": {
+              "command": [
+                "/usr/bin/riscv64-unknown-elf-nm",
+                "-n",
+                "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/build/control.elf"
+              ],
+              "status": "PASS",
+              "returncode": 0,
+              "timed_out": false,
+              "error": null,
+              "log_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/logs/baseline-reproducer-1-evidence/control-symbols.log",
+              "stdout_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/logs/baseline-reproducer-1-evidence/control-symbols.log",
+              "stderr_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/logs/baseline-reproducer-1-evidence/control-symbols.log",
+              "started_at": "2026-09-19T23:54:51.285067+00:00",
+              "duration_seconds": 0.051705448000575416,
+              "finished_at": "2026-09-19T23:54:51.336770+00:00"
+            },
+            "control-oracle": {
+              "command": [
+                "/usr/bin/spike",
+                "--isa=rv64gc_smstateen_zicboz",
+                "+signature=/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/logs/control-spike.sig",
+                "+signature-granularity=8",
+                "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/build/control.elf"
+              ],
+              "status": "TIMEOUT",
+              "returncode": -15,
+              "timed_out": true,
+              "error": "Timeout after 900 seconds",
+              "log_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/logs/baseline-reproducer-1-evidence/control-oracle.log",
+              "stdout_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/logs/baseline-reproducer-1-evidence/control-oracle.log",
+              "stderr_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/logs/baseline-reproducer-1-evidence/control-oracle.log",
+              "started_at": "2026-09-19T23:54:51.337333+00:00",
+              "duration_seconds": 900.0935368669961,
+              "finished_at": "2026-09-20T00:09:51.430874+00:00"
+            }
+          },
+          "log_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/logs/baseline-reproducer-1.log",
+          "evidence_dir": "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/logs/baseline-reproducer-1-evidence",
+          "captured": {
+            "control.elf": {
+              "path": "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/logs/baseline-reproducer-1-evidence/control.elf",
+              "sha256": "b7c8cec0055020028c2621e815aac2679bc6b14f2a8cc4831f1436f03ccce28d"
+            }
+          },
+          "duration_seconds": 900.7804092609949
+        }
+      }
+    },
+    {
+      "revision": 2,
+      "tester": {
+        "found_bug": true,
+        "report": "Wally fails to enforce mstateen0.ENVCFG (bit 62) for senvcfg execution controls in S-mode. When mstateen0[62] is 0, execution of cbo.zero in S-mode should raise an Illegal Instruction exception (mcause=2). Spike correctly traps, but Wally incorrectly executes the instruction without trapping. Both control and test were updated to set menvcfg.CBZE=1 before dropping to S-mode to avoid unrelated traps, and the tohost section was properly flagged as allocable.",
+        "evidence": "In the control test (mstateen0[62]=1), both Spike and Wally successfully execute cbo.zero in S-mode. In the test case (mstateen0[62]=0), Spike traps with mcause=2 and goes to the success handler, while Wally does not trap and falls through to the failure handler.",
+        "reproducer": {
+          "version": 1,
+          "oracle": "spike",
+          "build": [
+            "/bin/bash",
+            "-c",
+            "cd /home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a && sed -i 's/.section .tohost/.section .tohost,\"aw\",@progbits/' tests/selfcheck.h && ./build_reproducer.sh"
+          ],
+          "trap_vectors": [
+            {
+              "elf": "build/control.elf",
+              "symbol": "trap_handler"
+            },
+            {
+              "elf": "build/test.elf",
+              "symbol": "trap_handler"
+            }
+          ],
+          "control": {
+            "mode": "selfcheck",
+            "wally": [
+              "/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/bin/wsim",
+              "rv64gc",
+              "--sim",
+              "verilator",
+              "--elf",
+              "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/build/control.elf"
+            ],
+            "oracle": [
+              "/usr/bin/spike",
+              "--isa=rv64gc_smstateen_zicboz",
+              "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/build/control.elf"
+            ]
+          },
+          "test": {
+            "mode": "selfcheck",
+            "wally": [
+              "/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/bin/wsim",
+              "rv64gc",
+              "--sim",
+              "verilator",
+              "--elf",
+              "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/build/test.elf"
+            ],
+            "oracle": [
+              "/usr/bin/spike",
+              "--isa=rv64gc_smstateen_zicboz",
+              "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/build/test.elf"
+            ]
+          }
+        }
+      },
+      "inputs": {
+        "events.jsonl": "3d7effe0bf8ee39d69b91b6eec00c01ec4ec15c929b59c4ac7196b2619dfb294",
+        "build_reproducer.sh": "ade4d5ca715e761b6186396634c1cf0c36ca608027bd441cc9f861f89d7a76d3",
+        "reproducer.json": "ac758a4283437608fdc4dbdb07c2da2fe79c2d17b217de1cc76e73c0d84ee043",
+        "tests/selfcheck.h": "c4258f634dc164dd3088ceaf0e234eb9ee3da0afe5656fe00fd18cde38a0f613",
+        "tests/test.S": "f1f7989ef4125b898d5489c7ecace1821779776301ac04085a73fa6fadf5d367",
+        "tests/template.S.example": "acee174df523ce250c839e4c0747ed4cc324ef06e1fc0cdcd607425ea0a8d89b",
+        "tests/control.S": "08d810abb8970995229627dd79c57015a678f917d1c7f57d3989e0fe6df1c901"
+      },
+      "baseline_reproducer": {
+        "status": "TEST_INVALID",
+        "reason": "build: Shell control flow/redirection is forbidden at the verifier boundary; control: 'oracle_signature'; test: 'oracle_signature'",
+        "returncode": null,
+        "timed_out": false,
+        "passed": false,
+        "ran": true,
+        "steps": {},
+        "log_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/logs/baseline-reproducer-2.log",
+        "evidence_dir": "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/logs/baseline-reproducer-2-evidence",
+        "captured": {},
+        "duration_seconds": 0.0025128500055870973
+      },
+      "repair_needed": {
+        "reason": "Baseline reproducer failed to execute correctly",
+        "verification": {
+          "status": "TEST_INVALID",
+          "reason": "build: Shell control flow/redirection is forbidden at the verifier boundary; control: 'oracle_signature'; test: 'oracle_signature'",
+          "returncode": null,
+          "timed_out": false,
+          "passed": false,
+          "ran": true,
+          "steps": {},
+          "log_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/logs/baseline-reproducer-2.log",
+          "evidence_dir": "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/logs/baseline-reproducer-2-evidence",
+          "captured": {},
+          "duration_seconds": 0.0025128500055870973
+        }
+      }
+    }
+  ],
+  "tester": {
+    "found_bug": true,
+    "report": "Wally fails to enforce mstateen0.ENVCFG (bit 62) for senvcfg execution controls in S-mode. When mstateen0[62] is 0, execution of cbo.zero in S-mode should raise an Illegal Instruction exception (mcause=2). Spike correctly traps, but Wally incorrectly executes the instruction without trapping. Both control and test were updated to set menvcfg.CBZE=1 before dropping to S-mode to avoid unrelated traps, and the tohost section was properly flagged as allocable.",
+    "evidence": "In the control test (mstateen0[62]=1), both Spike and Wally successfully execute cbo.zero in S-mode. In the test case (mstateen0[62]=0), Spike traps with mcause=2 and goes to the success handler, while Wally does not trap and falls through to the failure handler.",
+    "reproducer": {
+      "version": 1,
+      "oracle": "spike",
+      "build": [
+        "/bin/bash",
+        "-c",
+        "cd /home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a && sed -i 's/.section .tohost/.section .tohost,\"aw\",@progbits/' tests/selfcheck.h && ./build_reproducer.sh"
+      ],
+      "trap_vectors": [
+        {
+          "elf": "build/control.elf",
+          "symbol": "trap_handler"
+        },
+        {
+          "elf": "build/test.elf",
+          "symbol": "trap_handler"
+        }
+      ],
+      "control": {
+        "mode": "selfcheck",
+        "wally": [
+          "/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/bin/wsim",
+          "rv64gc",
+          "--sim",
+          "verilator",
+          "--elf",
+          "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/build/control.elf"
+        ],
+        "oracle": [
+          "/usr/bin/spike",
+          "--isa=rv64gc_smstateen_zicboz",
+          "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/build/control.elf"
+        ]
+      },
+      "test": {
+        "mode": "selfcheck",
+        "wally": [
+          "/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/bin/wsim",
+          "rv64gc",
+          "--sim",
+          "verilator",
+          "--elf",
+          "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/build/test.elf"
+        ],
+        "oracle": [
+          "/usr/bin/spike",
+          "--isa=rv64gc_smstateen_zicboz",
+          "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/build/test.elf"
+        ]
+      }
+    }
+  },
+  "baseline_reproducer": {
+    "status": "TEST_INVALID",
+    "reason": "build: Shell control flow/redirection is forbidden at the verifier boundary; control: 'oracle_signature'; test: 'oracle_signature'",
+    "returncode": null,
+    "timed_out": false,
+    "passed": false,
+    "ran": true,
+    "steps": {},
+    "log_path": "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/logs/baseline-reproducer-2.log",
+    "evidence_dir": "/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/logs/baseline-reproducer-2-evidence",
+    "captured": {},
+    "duration_seconds": 0.0025128500055870973
+  },
+  "duration_seconds": 4712.019
+}

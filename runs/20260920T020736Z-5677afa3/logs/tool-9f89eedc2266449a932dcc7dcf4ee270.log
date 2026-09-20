@@ -1,0 +1,8 @@
+Started: 2026-09-20T02:18:37.840623+00:00
+Command: bash -o pipefail -c '/usr/bin/spike --isa=rv64gc_smstateen_zicboz -l /home/rafay/miniconda3/WallyGuard2/runs/20260920T002030Z-7cc4bf4c/build/control.elf 2>&1 | head -n 40'
+
+
+Finished: 2026-09-20T03:48:37.937423+00:00
+Return code: -15
+Status: TIMEOUT
+ERROR: Timeout after 5400 seconds

@@ -1,0 +1,12 @@
+Started: 2026-09-20T05:53:00.603872+00:00
+Command: bash -o pipefail -c 'which elf2hex; which -a elf2hex'
+
+/home/rafay/riscv/bin/elf2hex
+/home/rafay/riscv/bin/elf2hex
+/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/bin/elf2hex
+/home/rafay/miniconda3/WallyGuard2/cvw/bin/elf2hex
+/home/rafay/riscv/bin/elf2hex
+
+Finished: 2026-09-20T05:53:00.662464+00:00
+Return code: 0
+Status: PASS

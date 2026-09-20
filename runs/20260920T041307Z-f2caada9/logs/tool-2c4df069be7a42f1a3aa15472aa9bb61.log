@@ -1,0 +1,55 @@
+Started: 2026-09-20T04:15:51.503902+00:00
+Command: bash -o pipefail -c 'git grep -n -C 10 "EndMatching" src/mmu/pmpchecker.sv'
+
+src/mmu/pmpchecker.sv-59-  logic                            PMPCMOAccessFault, PMPCBOMAccessFault, PMPCBOZAccessFault;
+src/mmu/pmpchecker.sv-60-  logic [2:0]                      SizeBytesMinus1;
+src/mmu/pmpchecker.sv-61-  logic                            MatchingR, MatchingW, MatchingX, MatchingL;
+src/mmu/pmpchecker.sv-62-
+src/mmu/pmpchecker.sv-63-  // Signals for end-of-access PMP boundary crossing detection
+src/mmu/pmpchecker.sv-64-  logic [P.PA_BITS-1:0]            EndAddress;       // last byte address of the access
+src/mmu/pmpchecker.sv-65-  logic [P.PMP_ENTRIES-1:0]        EndMatch;         // end address matches PMP region i
+src/mmu/pmpchecker.sv-66-  logic [P.PMP_ENTRIES-1:0]        EndFirstMatch;    // first matching region for end address
+src/mmu/pmpchecker.sv-67-  logic [P.PMP_ENTRIES-1:0]        EndL, EndX, EndW, EndR; // end address permission bits
+src/mmu/pmpchecker.sv-68-  logic [P.PMP_ENTRIES-1:0]        EndPAgePMPAdr;    // TOR chain for end address
+src/mmu/pmpchecker.sv:69:  logic                            EndMatchingR, EndMatchingW; // end address permitted for R/W
+src/mmu/pmpchecker.sv-70-  logic                            PMPBoundaryLoadFault, PMPBoundaryStoreFault;
+src/mmu/pmpchecker.sv-71-
+src/mmu/pmpchecker.sv-72-
+src/mmu/pmpchecker.sv-73-  if (P.PMP_ENTRIES > 0) begin: pmp // prevent complaints about array of no elements when PMP_ENTRIES = 0
+src/mmu/pmpchecker.sv-74-    pmpadrdec #(P) pmpadrdecs[P.PMP_ENTRIES-1:0](
+src/mmu/pmpchecker.sv-75-      .PhysicalAddress,
+src/mmu/pmpchecker.sv-76-      .Size,
+src/mmu/pmpchecker.sv-77-      .PMPCfg(PMPCFG_ARRAY_REGW),
+src/mmu/pmpchecker.sv-78-      .PMPAdr(PMPADDR_ARRAY_REGW),
+src/mmu/pmpchecker.sv-79-      .FirstMatch,
+--
+src/mmu/pmpchecker.sv-103-  assign MatchingW = |(W & FirstMatch);
+src/mmu/pmpchecker.sv-104-  assign MatchingX = |(X & FirstMatch);
+src/mmu/pmpchecker.sv-105-  assign MatchingL = |(L & FirstMatch);
+src/mmu/pmpchecker.sv-106-
+src/mmu/pmpchecker.sv-107-  // Only enforce PMP checking for effective S and U modes (accounting for mstatus.MPRV) or in Machine mode when L bit is set in selected region
+src/mmu/pmpchecker.sv-108-  assign EnforcePMP = (EffectivePrivilegeModeW != P.M_MODE) | MatchingL;
+src/mmu/pmpchecker.sv-109-
+src/mmu/pmpchecker.sv-110-  // Check end-of-access PMP permissions for boundary crossing detection
+src/mmu/pmpchecker.sv-111-  // When multi-byte access spans multiple PMP regions, all bytes must be permitted
+src/mmu/pmpchecker.sv-112-  priorityonehot #(P.PMP_ENTRIES) pmppriority_end(.a(EndMatch), .y(EndFirstMatch));
+src/mmu/pmpchecker.sv:113:  assign EndMatchingR = |(EndR & EndFirstMatch);
+src/mmu/pmpchecker.sv:114:  assign EndMatchingW = |(EndW & EndFirstMatch);
+src/mmu/pmpchecker.sv-115-
+src/mmu/pmpchecker.sv-116-  // Boundary crossing fault: access start and end match different PMP regions, and
+src/mmu/pmpchecker.sv-117-  // the end address falls in a region (or unprotected area) that doesn't permit the access
+src/mmu/pmpchecker.sv:118:  assign PMPBoundaryLoadFault  = EnforcePMP & ReadAccessM  & ~WriteAccessM & ~EndMatchingR & (FirstMatch != EndFirstMatch);
+src/mmu/pmpchecker.sv:119:  assign PMPBoundaryStoreFault = EnforcePMP & WriteAccessM & ~EndMatchingW & (FirstMatch != EndFirstMatch);
+src/mmu/pmpchecker.sv-120-
+src/mmu/pmpchecker.sv-121-  assign PMPCBOMAccessFault     = EnforcePMP & (|CMOpM[2:0]) & ~MatchingR ; // checking R is sufficient because W implies R in PMP  // exclusion-tag: immu-pmpcbom
+src/mmu/pmpchecker.sv-122-  assign PMPCBOZAccessFault     = EnforcePMP & CMOpM[3] & ~MatchingW ;          // exclusion-tag: immu-pmpcboz
+src/mmu/pmpchecker.sv-123-  assign PMPCMOAccessFault      = PMPCBOZAccessFault | PMPCBOMAccessFault;              // exclusion-tag: immu-pmpcboaccess
+src/mmu/pmpchecker.sv-124-
+src/mmu/pmpchecker.sv-125-  assign PMPInstrAccessFaultF     = EnforcePMP & ExecuteAccessF & ~MatchingX ;
+src/mmu/pmpchecker.sv-126-  assign PMPStoreAmoAccessFaultM  = (EnforcePMP & WriteAccessM & ~MatchingW)  | PMPCMOAccessFault | PMPBoundaryStoreFault; // exclusion-tag: immu-pmpstoreamoaccessfault
+src/mmu/pmpchecker.sv-127-  assign PMPLoadAccessFaultM      = (EnforcePMP & ReadAccessM & ~WriteAccessM & ~MatchingR) | PMPBoundaryLoadFault;
+src/mmu/pmpchecker.sv-128- endmodule
+
+Finished: 2026-09-20T04:15:51.564445+00:00
+Return code: 0
+Status: PASS

@@ -1,0 +1,15 @@
+Started: 2026-09-20T02:13:47.521727+00:00
+Command: bash -o pipefail -c 'grep -rn "oracle_signature" /home/rafay/miniconda3/WallyGuard2/orchestration/'
+
+/home/rafay/miniconda3/WallyGuard2/orchestration/test_preflight.py:128:            keys = ('oracle_signature',) if mode == 'selfcheck' else ('oracle_signature', 'wally_signature')
+/home/rafay/miniconda3/WallyGuard2/orchestration/test_preflight.py:137:                if '+signature=' + str(under(spec['oracle_signature'], test_dir)) not in oracle:
+/home/rafay/miniconda3/WallyGuard2/orchestration/test_preflight.py:233:            signature = under(spec['oracle_signature'], tests)
+/home/rafay/miniconda3/WallyGuard2/orchestration/test_preflight.py:262:        outputs = {key: under(spec[key], tests) for key in ('wally_signature', 'oracle_signature')}
+/home/rafay/miniconda3/WallyGuard2/orchestration/test_preflight.py:263:        if outputs['wally_signature'] == outputs['oracle_signature']:
+/home/rafay/miniconda3/WallyGuard2/orchestration/test_preflight.py:280:        equal = signatures['wally_signature'] == signatures['oracle_signature'] if signatures else None
+grep: /home/rafay/miniconda3/WallyGuard2/orchestration/__pycache__/test_preflight.cpython-310.pyc: binary file matches
+/home/rafay/miniconda3/WallyGuard2/orchestration/scaffold.py:26:            'oracle_signature': str(signature.relative_to(tests)),
+
+Finished: 2026-09-20T02:13:47.583768+00:00
+Return code: 0
+Status: PASS

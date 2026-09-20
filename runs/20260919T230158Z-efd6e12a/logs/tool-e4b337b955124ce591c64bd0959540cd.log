@@ -1,0 +1,7 @@
+Started: 2026-09-19T23:54:14.574772+00:00
+Command: bash -o pipefail -c 'sed -i '"'"'s/sw t1, 0(t0)/sd t1, 0(t0)/g'"'"' /home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/tests/selfcheck.h'
+
+
+Finished: 2026-09-19T23:54:14.640540+00:00
+Return code: 0
+Status: PASS

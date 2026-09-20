@@ -1,0 +1,11 @@
+Started: 2026-09-20T02:17:31.253162+00:00
+Command: bash -o pipefail -c 'grep -rn "ComparePair" src/ieu/datapath.sv'
+
+39:  output logic [P.XLEN*2-1:0] ComparePairM,          // amocas compare operand (pair forms use both halves)
+101:  logic [P.XLEN*2-1:0] ComparePairE;                 // amocas compare operand, captured and held
+149:  flopenr #(P.XLEN*2) ComparePairEReg(clk, reset, CASReadD, {R2PD[P.XLEN*2-1:P.XLEN], R2D}, ComparePairE);
+150:  flopenrc #(P.XLEN*2) ComparePairMReg(clk, reset, FlushM, ~StallM, ComparePairE, ComparePairM);
+
+Finished: 2026-09-20T02:17:31.312616+00:00
+Return code: 0
+Status: PASS

@@ -1,0 +1,51 @@
+Started: 2026-09-19T23:05:12.860009+00:00
+Command: bash -o pipefail -c 'git grep -n "CSRRead" src/
+'
+
+src/ieu/controller.sv:79:  output logic        CSRReadM, CSRWriteM, PrivilegedM, // CSR read, write, or privileged instruction
+src/ieu/controller.sv:120:  logic        CSRReadD;                       // CSR read instruction
+src/ieu/controller.sv:125:  logic        MemReadE, CSRReadE;             // Instruction reads memory, reads a CSR (needed for Hazard unit)
+src/ieu/controller.sv:280:    // RegWrite_ImmSrc_ALUSrc(A_B)_MemRW_ResultSrc_Branch_ALUOp_Jump_ALUResultSrc_BaseW64_CSRRead_Privileged_Fence_MDU_Atomic_CMO_Illegal
+src/ieu/controller.sv:348:          ResultSrcD, BranchD, ALUOpD, JumpD, ALUResultSrcD, BaseW64D, CSRReadD,
+src/ieu/controller.sv:352:  assign CSRWriteD = CSRReadD & !(CSRZeroSrcD & InstrD[13]);            // Don't write if setting or clearing zeros
+src/ieu/controller.sv:488:                           {ALUSelectD, RegWriteD, ResultSrcD, MemRWD, JumpD, BranchD, ALUSrcAD, ALUSrcBD, ALUResultSrcD, CSRReadD, CSRWriteD, PrivilegedD, Funct3D, Funct7D, W64D, BUW64D, SubArithD, MDUD, AtomicD, InvalidateICacheD, FlushDCacheD, FenceD, CMOpD, IFUPrefetchD, LSUPrefetchD, CZeroD, InstrValidD, AMOCASPairD},
+src/ieu/controller.sv:489:                           {ALUSelectE, IEURegWriteE, ResultSrcE, MemRWE, JumpE, BranchE, ALUSrcAE, ALUSrcBE, ALUResultSrcE, CSRReadE, CSRWriteE, PrivilegedE, Funct3E, Funct7E, W64E, UW64E, SubArithE, MDUE, AtomicE, InvalidateICacheE, FlushDCacheE, FenceE, CMOpE, IFUPrefetchE, LSUPrefetchE, CZeroE, InstrValidE, AMOCASPairE});
+src/ieu/controller.sv:512:                         {RegWriteE, ResultSrcE, MemRWE, CSRReadE, CSRWriteE, PrivilegedE, Funct3E, FWriteIntE, AtomicE, InvalidateICacheE, FlushDCacheE, FenceE, InstrValidE, IntDivE, CMOpE, LSUPrefetchE, AMOCASPairE},
+src/ieu/controller.sv:513:                         {RegWriteM, ResultSrcM, MemRWM, CSRReadM, CSRWriteM, PrivilegedM, Funct3M, FWriteIntM, AtomicM, InvalidateICacheM, FlushDCacheM, FenceM, InstrValidM, IntDivM, CMOpM, LSUPrefetchM, AMOCASPairM});
+src/ieu/controller.sv:543:  assign CSRRdStallD = CSRReadE & MatchDE;
+src/ieu/datapath.sv:77:  input  logic [P.XLEN-1:0] CSRReadValW,             // CSR read result
+src/ieu/datapath.sv:192:  mux5  #(P.XLEN) resultmuxW(IFCvtResultW, ReadDataW, CSRReadValW, MulDivResultW, SCResultW, ResultSrcW, ResultW);
+src/ieu/ieu.sv:69:  input  logic [P.XLEN-1:0] CSRReadValW,                     // CSR read value,
+src/ieu/ieu.sv:85:  output logic              CSRReadM, CSRWriteM, PrivilegedM,// CSR read, CSR write, is privileged instruction
+src/ieu/ieu.sv:132:    .StallM, .FlushM, .MemRWE, .MemRWM, .CSRReadM, .CSRWriteM, .PrivilegedM, .AtomicM, .Funct3M,
+src/ieu/ieu.sv:143:    .CSRReadValW, .MDUResultW, .FIntDivResultW, .RdW,
+src/privileged/csr.sv:42:  input  logic                     CSRReadM, CSRWriteM,       // read or write CSR
+src/privileged/csr.sv:96:  output logic [P.XLEN-1:0]        CSRReadValM,
+src/privileged/csr.sv:97:  output logic [P.XLEN-1:0]        CSRReadValW,               // value read from CSR
+src/privileged/csr.sv:148:  logic [P.XLEN-1:0]       CSRReadVal2M;
+src/privileged/csr.sv:215:    if (CSRAdrM == MIP | CSRAdrM == SIP) CSRReadVal2M = {{(P.XLEN-12){1'b0}}, MIP_REGW_writeable};
+src/privileged/csr.sv:216:    else                                 CSRReadVal2M = CSRReadValM;
+src/privileged/csr.sv:220:    CSRRSM =   CSRReadVal2M | CSRSrcM;
+src/privileged/csr.sv:221:    CSRRCM =   CSRReadVal2M & ~CSRSrcM;
+src/privileged/csr.sv:226:      default: CSRWriteValM = CSRReadValM;
+src/privileged/csr.sv:387:  assign CSRReadValM = CSRUReadValM | CSRSReadValM | CSRMReadValM | CSRCReadValM | CSRDReadValM | CSRTrigReadValM;
+src/privileged/csr.sv:388:  flopenrc #(P.XLEN) CSRValWReg(clk, reset, FlushW, ~StallW, CSRReadValM, CSRReadValW);
+src/privileged/csr.sv:399:    InsufficientCSRPrivilegeM) & CSRReadM) | IllegalCSRMWriteReadonlyM;
+src/privileged/privileged.sv:36:  input  logic              CSRReadM, CSRWriteM,                            // Read or write CSRs
+src/privileged/privileged.sv:82:  output logic [P.XLEN-1:0] CSRReadValM,
+src/privileged/privileged.sv:83:  output logic [P.XLEN-1:0] CSRReadValW,                                    // Value read from CSR
+src/privileged/privileged.sv:164:    .CSRReadM, .CSRWriteM, .TrapM, .mretM, .sretM, .InterruptM,
+src/privileged/privileged.sv:177:    .CSRReadValM, .CSRReadValW, .IllegalCSRAccessM, .BigEndianM,
+src/wally/wallypipelinedcore.sv:69:  logic                          CSRReadM, CSRWriteM, PrivilegedM;
+src/wally/wallypipelinedcore.sv:78:  logic [P.XLEN-1:0]             CSRReadValM, CSRReadValW, MDUResultW;
+src/wally/wallypipelinedcore.sv:253:     .CSRReadValW, .MDUResultW, .FIntDivResultW, .RdW, .ReadDataW(ReadDataW[P.XLEN-1:0]), .ReadDataHighW,
+src/wally/wallypipelinedcore.sv:258:     .CSRReadM, .CSRWriteM, .PrivilegedM, .CSRWriteFenceM, .InvalidateICacheM,
+src/wally/wallypipelinedcore.sv:338:      .CSRReadM, .CSRWriteM, .SrcAM, .NextValidPCE, .PCM, .PCSpillM,
+src/wally/wallypipelinedcore.sv:339:      .InstrM, .InstrOrigM, .CSRReadValM, .CSRReadValW, .EPCM, .TrapVectorM,
+src/wally/wallypipelinedcore.sv:363:    assign {CSRReadValW, PrivilegeModeW,
+src/wally/wallypipelinedcore.sv:439:      mux3 #(P.LLEN) debugregmux(P.LLEN'(DebugR1D), P.LLEN'(CSRReadValM), P.LLEN'(DebugFRD1D),
+src/wally/wallypipelinedcore.sv:442:      mux2 #(P.LLEN) debugregmux(P.LLEN'(DebugR1D), P.LLEN'(CSRReadValM), DebugCSREnable, DebugRegRDATA);
+
+Finished: 2026-09-19T23:05:12.916326+00:00
+Return code: 0
+Status: PASS

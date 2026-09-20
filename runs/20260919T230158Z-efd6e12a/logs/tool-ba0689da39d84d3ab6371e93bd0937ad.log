@@ -1,0 +1,34 @@
+Started: 2026-09-19T23:05:15.742815+00:00
+Command: bash -o pipefail -c 'sed -n '"'"'340,365p'"'"' src/ieu/controller.sv
+'
+
+
+  /* verilator lint_on CASEINCOMPLETE */
+
+  // Unswizzle control bits
+  // Squash control signals if coming from an illegal compressed instruction
+  // On RV32E, can't write to upper 16 registers.  Checking reads to upper 16 is more costly so disregard them.
+  assign IllegalERegAdrD = P.E_SUPPORTED & P.ZICSR_SUPPORTED & ControlsD[`CTRLW-1] & InstrD[11];
+  assign {BaseRegWriteD, PreImmSrcD, ALUSrcAD, BaseALUSrcBD, MemRWD,
+          ResultSrcD, BranchD, ALUOpD, JumpD, ALUResultSrcD, BaseW64D, CSRReadD,
+          PrivilegedD, FenceXD, MDUD, AtomicD, CMOD, unused} = IllegalIEUFPUInstrD ? `CTRLW'b0 : ControlsD;
+
+  assign CSRZeroSrcD = InstrD[14] ? (InstrD[19:15] == 0) : (Rs1D == 0); // Is a CSR instruction using zero as the source?
+  assign CSRWriteD = CSRReadD & !(CSRZeroSrcD & InstrD[13]);            // Don't write if setting or clearing zeros
+  assign SFenceVmaD = PrivilegedD & (InstrD[31:25] ==  7'b0001001);
+  assign FenceD = SFenceVmaD | FenceXD; // possible sfence.vma or fence.i
+
+  // ALU Decoding is lazy, only using func7[5] to distinguish add/sub and srl/sra
+  assign sltuD = (Funct3D == 3'b011);
+  assign subD = (Funct3D == 3'b000 & Funct7D[5] & OpD[5]);  // OpD[5] needed to distinguish sub from addi
+  assign sraD = (Funct3D == 3'b101 & Funct7D[5]);
+  assign BaseSubArithD = ALUOpD & (subD | sraD | sltD | sltuD);
+
+  // bit manipulation Configuration Block
+  if (P.ZBS_SUPPORTED  | P.ZBA_SUPPORTED  | P.ZBB_SUPPORTED  | P.ZBC_SUPPORTED |
+      P.ZBKB_SUPPORTED | P.ZBKC_SUPPORTED | P.ZBKX_SUPPORTED | P.ZKNE_SUPPORTED |
+      P.ZKND_SUPPORTED | P.ZKNH_SUPPORTED) begin: bitmanipi
+
+Finished: 2026-09-19T23:05:15.803868+00:00
+Return code: 0
+Status: PASS

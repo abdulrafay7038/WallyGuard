@@ -1,0 +1,8 @@
+Started: 2026-09-19T22:32:36.585424+00:00
+Command: bash -o pipefail -c '/usr/bin/spike -d --log-commits --isa=rv64gc +signature=/dev/null +signature-granularity=8 /home/rafay/miniconda3/WallyGuard2/runs/20260919T193248Z-eb60e108/build/control.elf 2>&1 | head -n 100'
+
+
+Finished: 2026-09-19T22:40:51.732593+00:00
+Return code: -15
+Status: INFRA_FAILURE
+ERROR: Command cancelled by tool shutdown

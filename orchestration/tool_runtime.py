@@ -1,6 +1,7 @@
 """Project-local MCP lifecycle; no changes to installed CHIA internals."""
 import asyncio
 import json
+import math
 import os
 from pathlib import Path
 import threading
@@ -17,6 +18,7 @@ from .event_log import configure_logger, event, redact
 from .processes import run_command
 from .retry_policy import MCPFailure
 from .test_preflight import contract_errors, under
+from .toolchain import simulation_env
 
 
 @ray.remote(num_cpus=0)
@@ -42,7 +44,7 @@ class ToolServer:
                 return {'status': 'ready', 'tool': tool.name}
             app.mount(f'/{tool.name}', tool.mcp.streamable_http_app())
             self.server = uvicorn.Server(uvicorn.Config(app, host=host, port=port,
-                log_config=None, log_level='info', timeout_graceful_shutdown=5))
+                log_config=None, log_level='info', access_log=False, timeout_graceful_shutdown=5))
             self.thread = threading.Thread(target=self.server.run, daemon=True)
             self.thread.start()
             deadline = time.monotonic() + 5
@@ -130,13 +132,13 @@ class ManagedBashTool(ChiaTool):
             ray.kill(actor, no_restart=True)
 
     async def command_status(self, job_id: str) -> str:
-        """Wait up to 10 seconds for completion; full output remains in its log."""
+        """Wait up to 30 seconds for completion; full output remains in its log."""
         if hasattr(self, '_metrics'):
             self._metrics['polls'] += 1
         task = getattr(self, '_jobs', {}).get(job_id)
         if task is not None and not task.done():
             # asyncio.wait leaves the job alive on timeout or caller cancellation.
-            await asyncio.wait({task}, timeout=getattr(self, '_poll_wait', 10))
+            await asyncio.wait({task}, timeout=getattr(self, '_poll_wait', 30))
         return self._command_result(job_id)
 
     def _command_result(self, job_id: str) -> str:
@@ -164,7 +166,7 @@ class ManagedBashTool(ChiaTool):
         try:
             path = under(contract_path, Path(self.test_dir))
             contract = json.loads(path.read_text())
-            env = {**os.environ, 'PATH': str(Path(self.work_dir) / 'bin') + os.pathsep + os.environ.get('PATH', '')}
+            env = simulation_env(self.work_dir)
             errors = await anyio.to_thread.run_sync(
                 lambda: contract_errors(contract, Path(self.work_dir), Path(self.test_dir), env))
             return json.dumps(dict(status='PREFLIGHT_INVALID' if errors else 'PREFLIGHT_READY',
@@ -172,14 +174,21 @@ class ManagedBashTool(ChiaTool):
         except (OSError, ValueError, TypeError) as exc:
             return json.dumps(dict(status='PREFLIGHT_INVALID', errors=[str(redact(str(exc)))]))
 
-    async def run_command(self, command: str) -> str:
-        """Execute, or return RUNNING/job_id within 2s; use command_status to poll."""
+    async def run_command(self, command: str, timeout_seconds: float | None = None) -> str:
+        """Execute with a 120s default. Tester starts in its run directory; repository paths use $WALLY."""
         if not hasattr(self, '_jobs'):
             self._jobs = {}
         for job_id, task in self._jobs.items():
             if not task.done():
                 return json.dumps(dict(status='BUSY', job_id=job_id,
                     reason='Poll the running command before submitting another command'))
+        try:
+            requested = float(os.environ.get('WALLY_COMMAND_TIMEOUT', '120')) if timeout_seconds is None else timeout_seconds
+            if isinstance(requested, bool) or not isinstance(requested, (float, int)) or not math.isfinite(requested) or requested <= 0:
+                raise ValueError('timeout_seconds must be positive and finite')
+            deadline = min(requested, self.timeout_seconds)
+        except (TypeError, ValueError) as exc:
+            return json.dumps(dict(status='INVALID_COMMAND', error=str(exc)))
         # Completed metadata is bounded; full logs are never discarded.
         for key in list(self._jobs)[:-128]:
             del self._jobs[key]
@@ -187,11 +196,12 @@ class ManagedBashTool(ChiaTool):
         if hasattr(self, '_metrics'):
             self._metrics['commands'] += 1
         log_path = Path(self.test_dir) / 'logs' / f'tool-{job_id}.log'
-        env = {**os.environ, 'WALLY': self.work_dir,
-               'PATH': str(Path(self.work_dir) / 'bin') + os.pathsep + os.environ.get('PATH', '')}
+        env = simulation_env(self.work_dir)
+        env['WALLY_TEST_DIR'] = str((Path(self.work_dir) / self.test_dir).resolve())
+        command_dir = env['WALLY_TEST_DIR'] if getattr(self, 'role', None) == 'tester' else self.work_dir
         def run():
             result = run_command(['bash', '-o', 'pipefail', '-c', command], log_path,
-                                 self.timeout_seconds, env, self.work_dir, self._cancel_event)
+                                 deadline, env, command_dir, self._cancel_event)
             if hasattr(self, '_metrics'):
                 self._metrics['command_seconds'] += result['duration_seconds']
             with log_path.open('rb') as handle:

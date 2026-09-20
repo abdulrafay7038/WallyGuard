@@ -1,0 +1,10 @@
+Started: 2026-09-20T02:17:54.299384+00:00
+Command: bash -o pipefail -c 'grep -rn "CheckSelfCheck" testbench/'
+
+testbench/testbench.sv:526:          if (selfcheck_record_addr != 0) CheckSelfCheck(ElfFile, selfcheck_record_addr, errors);
+testbench/testbench.sv:540:          if (selfcheck_record_addr != 0) CheckSelfCheck(tests[test], selfcheck_record_addr, errors);
+testbench/testbench.sv:1151:  task automatic CheckSelfCheck;
+
+Finished: 2026-09-20T02:17:54.359799+00:00
+Return code: 0
+Status: PASS

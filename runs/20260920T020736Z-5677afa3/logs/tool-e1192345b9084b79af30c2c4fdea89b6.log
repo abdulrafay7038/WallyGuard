@@ -1,0 +1,50 @@
+Started: 2026-09-20T02:18:26.575306+00:00
+Command: bash -o pipefail -c 'ls /home/rafay/miniconda3/WallyGuard2/runs/20260920T002030Z-7cc4bf4c/logs'
+
+baseline-reproducer-0-evidence
+baseline-reproducer-0.log
+baseline-reproducer-1-evidence
+baseline-reproducer-1.log
+baseline-reproducer-2-evidence
+baseline-reproducer-2.log
+events.jsonl
+tool-00d24bf8229042b59d99781ada9e6806.log
+tool-1967e274dc7949f09fca24af27178179.log
+tool-1ba9fc6ea34e4467b7daac188ceb69f4.log
+tool-1e876df2049c49b8a2ba5a963c214825.log
+tool-22837f5d9d7543f2978ebfcc972622f6.log
+tool-23ca7e2d26d4425e8c0f46e29007964c.log
+tool-27bf0949ffac499d861540a88ea85c0a.log
+tool-27de223e73b646e5b85beceed263f25e.log
+tool-29e4a25ec2e54880a473374a120937d3.log
+tool-343887a698db4ba5ae8974794df9e72f.log
+tool-3559995d99984439a3985f8476195695.log
+tool-37a64bf737144818ac71fe07951e5cec.log
+tool-495431552bdd4542a6c3afa14f322734.log
+tool-52345449e6f541db92cccdea0648bdaa.log
+tool-57279a931a244a2bbf9847263dd32d51.log
+tool-6046d2b93abc4acd8ccff047c92eb9f3.log
+tool-7057ef37a4424344bfd95cfc744025aa.log
+tool-7a9a6acc6832441e992489d4bb7b915e.log
+tool-7ec29d5611e644649bcdff4e5ce1cf45.log
+tool-8a6b3370b0d34eef9caf3ca9fdf6d1cd.log
+tool-8eabb3c8cf5a44b68d98abba0f94ea7c.log
+tool-90f8db8938e64830988390961b867ed2.log
+tool-a0aca33b22404f538284158e00ae20a3.log
+tool-a2801b5d048a4b06b466cee1624cef9b.log
+tool-a64b49d7a4f5492c8b78b7bcef435a94.log
+tool-a8345238a58d49c2a1a7ea898c1428a6.log
+tool-ac48bdb5c3d24c4ca11b70a0a1933f28.log
+tool-b3b4b915ba594e9c9b17b7d6fea3cb84.log
+tool-babd9f93423f46e6b52bfdafab9439f9.log
+tool-c683bea377b645afae26bfeeff797b6a.log
+tool-cf5c217637ca4cf0b5d834acf01a7816.log
+tool-d0d3f41736d24718a0b807396ff08f5a.log
+tool-d512e8fff13141ffaa478c0bd57c8cb1.log
+tool-d814ea2c8d90442986e47e16652cca4c.log
+tool-e29006d064524ec18402ebdd5e753727.log
+tool-ea771d7a728f4a9683ad2c64c4a96566.log
+
+Finished: 2026-09-20T02:18:26.661337+00:00
+Return code: 0
+Status: PASS

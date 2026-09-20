@@ -7,3 +7,6 @@ wally-worktrees/
 submit.py
 test.py
 mineforge3/
+reviews/
+__pycache__/
+.ruff_cache/

@@ -1,0 +1,13 @@
+Started: 2026-09-20T05:48:19.763919+00:00
+Command: bash -o pipefail -c 'jq '"'"'.tester'"'"' /home/rafay/miniconda3/WallyGuard2/runs/20260916T220033Z-4d992f70/attempt.json'
+
+{
+  "found_bug": true,
+  "report": "Successfully reproduced the missing data hazard detection and forwarding bug for the amocas register-pair high destination (rd+1). Both the `test_zacas_rd1_control.S` (with 3 NOPs to flush the pipeline) and `test_zacas_rd0_hazard.S` (testing the base destination rd) pass the Spike simulator oracle and the Wally DUT cleanly. However, the Wally DUT fails `test_zacas_rd1_hazard.S` (with immediate dependency on rd+1) and branches to a failure handler, triggering a Watchdog Time Out (exit code 134) because it incorrectly borrows the uncommitted stale `rd+1` value from the `regfile`. The reproducer has been set up at `/home/rafay/miniconda3/WallyGuard2/runs/20260916T220033Z-4d992f70/reproducer.sh` and exits with code 1 upon successful mismatch confirmation. Critic has already reviewed and approved this bug; the reproducer was rerun and confirmed successful after inputs were checked.",
+  "reproduce_command": "bash /home/rafay/miniconda3/WallyGuard2/runs/20260916T220033Z-4d992f70/reproducer.sh",
+  "evidence": "1. Mismatch: The DUT fails `test_zacas_rd1_hazard.S` by jumping to an unhandled exception state (Watch Dog Time Out / twice in a row fetch at address 0), while Spike correctly executes it. Spike passes all variants.\n2. Config: `rv64gc_testbench` with `ZACAS_SUPPORTED = 1` and `ZAAMO_SUPPORTED = 1`.\n3. Expected Rule: RISC-V Zacas specification mandates that memory data is loaded into the register pair rd and rd+1. Sequential execution semantics mandate that RAW hazards on rd+1 must stall younger dependent instructions and forward data correctly.\n4. Logs: Written to `/home/rafay/miniconda3/WallyGuard2/runs/20260916T220033Z-4d992f70/logs/hazard.log`, `control.log`, and `neg_control.log`. \n5. Not a Test Artifact: Positive control (`test_zacas_rd1_control.S`) with 3 NOPs correctly allows `amocas.q` to clear the pipeline and write to the register file, passing on Wally. Negative control (`test_zacas_rd0_hazard.S`) successfully hazards on the base `rd` register, confirming only `rd+1` is missing hazard detection. The bug and reproducer have been verified and approved by the Critic."
+}
+
+Finished: 2026-09-20T05:48:19.825720+00:00
+Return code: 0
+Status: PASS

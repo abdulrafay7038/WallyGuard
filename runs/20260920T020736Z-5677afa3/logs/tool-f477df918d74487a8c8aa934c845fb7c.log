@@ -1,0 +1,47 @@
+Started: 2026-09-20T02:14:51.157187+00:00
+Command: bash -o pipefail -c 'sed -n '"'"'101,140p'"'"' config/rv64gc/config.vh'
+
+localparam VPU_INT_MUL_LANES = 32'd2;
+localparam VPU_FP_EU = 32'd2;
+localparam VPU_FP_LANES = 32'd2;
+localparam VPU_LSU_EU = 32'd2;
+localparam VPU_LSU_LANES = 32'd2;
+
+// privilege modes
+localparam logic S_SUPPORTED = 1; // Supervisor mode
+localparam logic U_SUPPORTED = 1; // User mode
+
+// Supervisor level extensions
+localparam logic SSTC_SUPPORTED = 1; // Supervisor-mode timer interrupts
+localparam logic SMSTATEEN_SUPPORTED = 1; // Machine-level state enable registers
+localparam logic SSSTATEEN_SUPPORTED = 1; // Supervisor-level state enable registers
+localparam logic SMP1P13_SUPPORTED = 0; // Privileged Spec 1.13 state controlled by mstateen0.P1P13
+localparam logic SMCTR_SUPPORTED = 0; // Control transfer records
+localparam logic SSCSRIND_SUPPORTED = 0; // Indirect CSR access (siselect/sireg*)
+localparam logic SSAIA_SUPPORTED = 0; // Advanced Interrupt Architecture
+localparam logic SDTRIG_SUPPORTED = 0; // Debug triggers (scontext)
+localparam logic SSQOSID_SUPPORTED = 0; // Quality of Service identifiers (srmcfg)
+
+// Hardware performance counters
+localparam logic ZICNTR_SUPPORTED = 1;
+localparam logic ZIHPM_SUPPORTED  = 1;
+localparam COUNTERS = 12'd32;
+
+// Cache-management operation extensions
+localparam logic ZICBOM_SUPPORTED = 1;
+localparam logic ZICBOZ_SUPPORTED = 1;
+localparam logic ZICBOP_SUPPORTED = 1;
+
+// Virtual memory extensions
+localparam logic SV32_SUPPORTED    = 0;
+localparam logic SV39_SUPPORTED    = 1;
+localparam logic SV48_SUPPORTED    = 1;
+localparam logic SV57_SUPPORTED    = 1;
+localparam logic SVPBMT_SUPPORTED  = 1;
+localparam logic SVNAPOT_SUPPORTED = 1;
+localparam logic SVINVAL_SUPPORTED = 1;
+localparam logic SVADU_SUPPORTED   = 1;
+
+Finished: 2026-09-20T02:14:51.218653+00:00
+Return code: 0
+Status: PASS

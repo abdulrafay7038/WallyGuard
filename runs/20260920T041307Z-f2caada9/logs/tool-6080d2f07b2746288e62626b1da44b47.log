@@ -1,0 +1,9 @@
+Started: 2026-09-20T05:59:25.427791+00:00
+Command: bash -o pipefail -c 'cat reproducer.json'
+
+cat: reproducer.json: No such file or directory
+
+Finished: 2026-09-20T05:59:25.489792+00:00
+Return code: 1
+Status: COMMAND_FAILED
+ERROR: Command exited with code 1

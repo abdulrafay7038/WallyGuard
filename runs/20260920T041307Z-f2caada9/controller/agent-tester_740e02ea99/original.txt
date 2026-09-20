@@ -1,0 +1,66 @@
+```json
+{
+  "found_bug": true,
+  "report": "Successfully reproduced the PMP boundary crossing bug in Machine mode (src/mmu/pmpchecker.sv). The multi-byte boundary crossing logic correctly decodes the end access parameters via `pmpadrdecs_end`. However, the access fault enforcement signal `EnforcePMP` in M-mode depends strictly on the start address's lock bit (`MatchingL`). When a multi-byte access originates in an unlocked PMP region (L=0) and spans into a locked PMP region (L=1, e.g., read-only), `EnforcePMP` incorrectly evaluates to 0. This unconditionally suppresses `PMPBoundaryStoreFault` and `PMPBoundaryLoadFault`, silently allowing M-mode to read or overwrite locked memory. The reproducer sets up PMP0 (unlocked, RWX, bytes 0..3) and PMP1 (locked, read-only, bytes 4..15). An 8-byte store at the start of PMP0 crosses into PMP1. Wally permits the store and incorrectly falls through, while Spike properly flags a Store/AMO Access Fault (mcause=7). The control test verifies that a 4-byte store fully confined to the unlocked PMP0 succeeds without trapping on both Wally and Spike.",
+  "evidence": "In M-mode (EffectivePrivilegeModeW == P.M_MODE), `EnforcePMP = (EffectivePrivilegeModeW != P.M_MODE) | MatchingL;`. Since `MatchingL = |(L & FirstMatch)` uses the start address's lock bit, an access starting in an unlocked TOR region evaluates `MatchingL` = 0. Therefore, `EnforcePMP` = 0. `PMPBoundaryStoreFault` and `PMPBoundaryLoadFault` both depend on `EnforcePMP & ...`, so they are forced to 0 regardless of `EndL` (the end address's lock bit) or `EndW` (the end address's write permission). Spike strictly adheres to the RISC-V Privileged Architecture (v20211203/v20240411, Section 3.7.1) and enforces permissions on any byte accessed, trapping if a multi-byte sequence encroaches into a locked, non-writable region.",
+  "reproduce_command": "bash /home/rafay/miniconda3/WallyGuard2/runs/20260920T041307Z-f2caada9/run_tests.sh",
+  "reproducer": {
+    "version": 1,
+    "oracle": "spike",
+    "build": [
+      "bash",
+      "/home/rafay/miniconda3/WallyGuard2/runs/20260920T041307Z-f2caada9/build_reproducer.sh"
+    ],
+    "control": {
+      "mode": "selfcheck",
+      "wally": [
+        "/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/bin/wsim",
+        "rv64gc",
+        "--sim",
+        "verilator",
+        "--elf",
+        "/home/rafay/miniconda3/WallyGuard2/runs/20260920T041307Z-f2caada9/build/control.elf"
+      ],
+      "oracle": [
+        "/home/rafay/riscv/bin/spike",
+        "+signature=/home/rafay/miniconda3/WallyGuard2/runs/20260920T041307Z-f2caada9/build/control.sig",
+        "+signature-granularity=8",
+        "-m0x80000000:0x100000",
+        "--pc=0x80000000",
+        "/home/rafay/miniconda3/WallyGuard2/runs/20260920T041307Z-f2caada9/build/control.elf"
+      ],
+      "oracle_signature": "/home/rafay/miniconda3/WallyGuard2/runs/20260920T041307Z-f2caada9/build/control.sig"
+    },
+    "test": {
+      "mode": "selfcheck",
+      "wally": [
+        "/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/bin/wsim",
+        "rv64gc",
+        "--sim",
+        "verilator",
+        "--elf",
+        "/home/rafay/miniconda3/WallyGuard2/runs/20260920T041307Z-f2caada9/build/test.elf"
+      ],
+      "oracle": [
+        "/home/rafay/riscv/bin/spike",
+        "+signature=/home/rafay/miniconda3/WallyGuard2/runs/20260920T041307Z-f2caada9/build/test.sig",
+        "+signature-granularity=8",
+        "-m0x80000000:0x100000",
+        "--pc=0x80000000",
+        "/home/rafay/miniconda3/WallyGuard2/runs/20260920T041307Z-f2caada9/build/test.elf"
+      ],
+      "oracle_signature": "/home/rafay/miniconda3/WallyGuard2/runs/20260920T041307Z-f2caada9/build/test.sig"
+    },
+    "trap_vectors": [
+      {
+        "elf": "/home/rafay/miniconda3/WallyGuard2/runs/20260920T041307Z-f2caada9/build/test.elf",
+        "symbol": "trap_handler"
+      },
+      {
+        "elf": "/home/rafay/miniconda3/WallyGuard2/runs/20260920T041307Z-f2caada9/build/control.elf",
+        "symbol": "trap_handler"
+      }
+    ]
+  }
+}
+```

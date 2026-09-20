@@ -1,0 +1,7 @@
+Started: 2026-09-20T05:53:17.493862+00:00
+Command: bash -o pipefail -c '$WALLY/bin/elf2hex /home/rafay/miniconda3/WallyGuard2/runs/20260919T193248Z-eb60e108/build/test.elf /home/rafay/miniconda3/WallyGuard2/runs/20260919T193248Z-eb60e108/build/test.elf.memfile'
+
+
+Finished: 2026-09-20T05:53:17.782615+00:00
+Return code: 0
+Status: PASS

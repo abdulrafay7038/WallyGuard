@@ -1,0 +1,7 @@
+Started: 2026-09-20T05:59:12.083748+00:00
+Command: /home/rafay/riscv/bin/spike -m0x80000000:0x100000 --pc=0x80000000 --isa=rv64gc /home/rafay/miniconda3/WallyGuard2/runs/20260920T041307Z-f2caada9/build/control.elf +signature=/home/rafay/miniconda3/WallyGuard2/runs/20260920T041307Z-f2caada9/build/control.sig +signature-granularity=8
+
+
+Finished: 2026-09-20T05:59:12.136966+00:00
+Return code: 0
+Status: PASS

@@ -1,0 +1,390 @@
+Started: 2026-09-20T02:15:11.995729+00:00
+Command: bash -o pipefail -c 'git log -n 5 ff84ec108^2 -p'
+
+commit e065a89e6fe4a4b4c283e8caff95f6f36a9aabf7
+Author: David Harris <David_Harris@hmc.edu>
+Date:   Wed Sep 16 05:42:22 2026 -0700
+
+    Comment why amoalu selects the word compare when Zabha is disabled
+    
+    Answers a review question on #1877: without Zabha the byte and halfword AMO
+    encodings are illegal and never reach the LSU, so those two case arms are
+    don't-cares.  Selecting lt32 rather than lt8/lt16 there is a synthesis
+    optimization, leaving the narrow signed-compare muxes with no consumer so the
+    tool can trim them.  No functional change.
+    
+    Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
+
+diff --git a/src/lsu/amoalu.sv b/src/lsu/amoalu.sv
+index 83d6dd69a..eb0c62707 100644
+--- a/src/lsu/amoalu.sv
++++ b/src/lsu/amoalu.sv
+@@ -74,7 +74,8 @@ module amoalu import cvw::*;  #(parameter cvw_t P) (
+     assign lt64  = (sngd & (a[63] ^ b[63])) ? a[63] : ltu64;
+   end
+ 
+-  // Pick the compare matching the access width
++  // Pick the compare matching the access width.  Without Zabha the byte and halfword cases are
++  // don't-cares; lt32 is chosen there as a synthesis optimization so lt8 and lt16 are trimmed.
+   always_comb
+     case (LSUFunct3M[1:0])
+       2'b00:   lt = P.ZABHA_SUPPORTED ? lt8  : lt32; // amo*.b
+
+commit ad7dd06b03ceb9958722582b09f4de4043056028
+Author: David Harris <David_Harris@hmc.edu>
+Date:   Tue Sep 15 21:33:16 2026 -0700
+
+    Simplified amoalu comparators
+
+diff --git a/src/lsu/amoalu.sv b/src/lsu/amoalu.sv
+index fc9f6ff36..83d6dd69a 100644
+--- a/src/lsu/amoalu.sv
++++ b/src/lsu/amoalu.sv
+@@ -37,43 +37,52 @@ module amoalu import cvw::*;  #(parameter cvw_t P) (
+ );
+ 
+   logic [P.XLEN-1:0] a, b, y;
+-  logic               lt, cmp, sngd, sngd32, eq32, lt32, w64;
+-  logic [31:0]        acmp, bcmp; // comparands narrowed to the access width
++  logic               lt, cmp, sngd, w64;
++  logic               eqB0, ltB0, eqB1, ltB1, eqH1, ltH1; // per-lane compares, always unsigned
++  logic               ltu16, ltu32;                       // unsigned compares assembled from the lanes
++  logic               lt8, lt16, lt32, lt64;              // compare at each access width
+ 
+   // Rename inputs
+   assign a = ReadDataM;
+   assign b = IHWriteDataM;
+ 
+-  // Share hardware among the four amomin/amomax comparators
++  // Share hardware among the four amomin/amomax comparators.  Compare each lane unsigned; only the
++  // lane holding the sign bit of the operation's width cares about signedness, and that is applied
++  // when the lane results are assembled, so the operands never need extending.
+   assign sngd = ~LSUFunct7M[5]; // Funct7[5] = 0 for signed amomin/max
+-  assign w64 = (LSUFunct3M[1:0] != 2'b11); // compare in the bottom 32 bits for byte, halfword, and word operations
+-  assign sngd32 = sngd & (P.XLEN == 32 | w64); // flip sign in lower 32 bits on 32-bit comparisons only
++  assign w64 = (LSUFunct3M[1:0] != 2'b11); // operation is narrower than 64 bits, so sign extend the result
+ 
+-  // Zabha compares byte and halfword operands, so extend them to 32 bits to share the word comparator.
+-  // ReadDataM arrives sign-extended, so re-extend both operands from the raw low bits to get the unsigned cases right.
+-  always_comb
+-    if (P.ZABHA_SUPPORTED & (LSUFunct3M[1:0] == 2'b00)) begin
+-      acmp = {{24{sngd & a[7]}}, a[7:0]};
+-      bcmp = {{24{sngd & b[7]}}, b[7:0]};
+-    end else if (P.ZABHA_SUPPORTED & (LSUFunct3M[1:0] == 2'b01)) begin
+-      acmp = {{16{sngd & a[15]}}, a[15:0]};
+-      bcmp = {{16{sngd & b[15]}}, b[15:0]};
+-    end else begin
+-      acmp = a[31:0];
+-      bcmp = b[31:0];
+-    end
++  comparator #(8)  cmpb0(a[7:0],   b[7:0],   1'b0, {eqB0, ltB0});
++  comparator #(8)  cmpb1(a[15:8],  b[15:8],  1'b0, {eqB1, ltB1});
++  comparator #(16) cmph1(a[31:16], b[31:16], 1'b0, {eqH1, ltH1});
++
++  // A wider unsigned compare is the upper lane's result, or the lower one when the upper lanes tie.
++  // Signed compares differ only when the sign bits disagree, in which case the negative operand is smaller.
++  assign ltu16 = ltB1 | (eqB1 & ltB0);
++  assign ltu32 = ltH1 | (eqH1 & ltu16);
++  assign lt8   = (sngd & (a[7]  ^ b[7]))  ? a[7]  : ltB0;
++  assign lt16  = (sngd & (a[15] ^ b[15])) ? a[15] : ltu16;
++  assign lt32  = (sngd & (a[31] ^ b[31])) ? a[31] : ltu32;
+ 
+-  comparator #(32) cmp32(acmp, bcmp, sngd32, {eq32, lt32});
+-  if (P.XLEN == 32) begin
+-    assign lt = lt32;
+-  end else begin
+-    logic equpper, ltupper, lt64;
++  if (P.XLEN == 32) begin : comp
++    assign lt64 = lt32; // RV32 has no doubleword AMOs
++  end else begin : comp
++    logic eqW1, ltW1, ltu64;
+ 
+-    comparator #(32) cmpupper(a[63:32], b[63:32], sngd, {equpper, ltupper});
+-    assign lt64 = ltupper | equpper & lt32;
+-    assign lt = w64 ? lt32 : lt64;
++    comparator #(32) cmpw1(a[63:32], b[63:32], 1'b0, {eqW1, ltW1});
++    assign ltu64 = ltW1 | (eqW1 & ltu32);
++    assign lt64  = (sngd & (a[63] ^ b[63])) ? a[63] : ltu64;
+   end
+ 
++  // Pick the compare matching the access width
++  always_comb
++    case (LSUFunct3M[1:0])
++      2'b00:   lt = P.ZABHA_SUPPORTED ? lt8  : lt32; // amo*.b
++      2'b01:   lt = P.ZABHA_SUPPORTED ? lt16 : lt32; // amo*.h
++      2'b10:   lt = lt32;                            // amo*.w
++      default: lt = lt64;                            // amo*.d
++    endcase
++
+   assign cmp = lt ^ LSUFunct7M[4]; // flip sense of comparison for maximums
+ 
+   // AMO ALU
+
+commit adc84435e71f8b3675d09149d57e840ac499f688
+Author: David Harris <David_Harris@hmc.edu>
+Date:   Tue Sep 15 21:20:17 2026 -0700
+
+    Enable Zabha in the ImperasDV lockstep configs
+    
+    Add cpu/Zabha=T to the rv64gc and rv32gc imperas.ic files so lockstep
+    accepts the byte and halfword AMOs.
+    
+    Without the override ImperasDV decodes those encodings as vector
+    instructions and reports an illegal instruction, so lockstep diverges on
+    the first byte AMO. Verified on rv64gc and rv32gc: amoadd.b, amomin.b,
+    amominu.b, amoswap.h, amomax.h and amomaxu.h all run with zero mismatches.
+    
+    Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
+
+diff --git a/config/rv32gc/imperas.ic b/config/rv32gc/imperas.ic
+index b324cc8c0..6b7201226 100644
+--- a/config/rv32gc/imperas.ic
++++ b/config/rv32gc/imperas.ic
+@@ -37,6 +37,7 @@
+ --override cpu/Zcb=T
+ --override cpu/Zimop=T
+ --override cpu/Zcmop=T
++--override cpu/Zabha=T
+ --override cpu/Sstc=T
+ 
+ # mcause and scause have 5 lsbs of code and 1 msb of interrupt flag
+diff --git a/config/rv64gc/imperas.ic b/config/rv64gc/imperas.ic
+index a869ab50d..f288aa2b8 100644
+--- a/config/rv64gc/imperas.ic
++++ b/config/rv64gc/imperas.ic
+@@ -40,6 +40,7 @@
+ --override cpu/Zcb=T
+ --override cpu/Zimop=T
+ --override cpu/Zcmop=T
++--override cpu/Zabha=T
+ --override cpu/Sstc=T
+ 
+ # mcause and scause have 5 lsbs of code and 1 msb of interrupt flag
+
+commit 14f23f89903b24c4c13023ec41b3b5e5fe27ec14
+Author: David Harris <David_Harris@hmc.edu>
+Date:   Tue Sep 15 21:14:27 2026 -0700
+
+    Zabha requires Zaamo
+
+diff --git a/testbench/common/riscvassertions.sv b/testbench/common/riscvassertions.sv
+index e37d2bef5..93ce667d8 100644
+--- a/testbench/common/riscvassertions.sv
++++ b/testbench/common/riscvassertions.sv
+@@ -53,5 +53,6 @@ module riscvassertions import cvw::*; #(parameter cvw_t P);
+     assert ((P.ZCF_SUPPORTED == 0) | ((P.F_SUPPORTED == 1) & (P.XLEN == 32))) else $fatal(1, "ZCF requires F and XLEN == 32");
+     assert ((P.ZCD_SUPPORTED == 0) | (P.D_SUPPORTED == 1)) else $fatal(1, "ZCD requires D");
+     assert ((P.ZCMOP_SUPPORTED == 0) | (P.ZCA_SUPPORTED == 1)) else $fatal(1, "ZCMOP requires ZCA");
++    assert ((P.ZABHA_SUPPORTED == 0) | (P.ZAAMO_SUPPORTED == 1)) else $fatal(1, "ZABHA requires ZAAMO");
+   end
+ endmodule
+
+commit 934e36e044d39bf9eaf01b28c7bf815089860706
+Author: David Harris <David_Harris@hmc.edu>
+Date:   Tue Sep 15 20:56:57 2026 -0700
+
+    Add Zabha support
+    
+    Zabha adds byte and halfword AMOs. Most of the plumbing was already
+    width-generic: the byte mask is computed from the size field, the
+    misaligned check is a case on size, and the subword read and write paths
+    are shared with ordinary loads and stores.
+    
+    Two changes were needed. The decode splits the atomic width check in two
+    so the AMO forms accept funct3 of 000 and 001 while lr and sc stay at word
+    and doubleword, since Zabha does not add narrow reservations. The AMO ALU
+    narrows both comparands to the access width before the shared word
+    comparator; the memory operand arrives sign-extended from the subword
+    read, which is wrong for the unsigned min and max forms, so both operands
+    are re-extended from their raw low bits per the signedness bit.
+    
+    Enabled on rv64gc and rv32gc.
+    
+    Verified on rv64gc: all 18 Zabha arch tests pass, along with the 22
+    existing Zaamo and Zalrsc tests and the 48 Zimop and Zcmop tests. Lint is
+    clean on every config.
+    
+    Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
+
+diff --git a/config/rv32e/config.vh b/config/rv32e/config.vh
+index acd7262e0..1b3d246cb 100644
+--- a/config/rv32e/config.vh
++++ b/config/rv32e/config.vh
+@@ -54,6 +54,7 @@ localparam logic ZMMUL_SUPPORTED = 0;
+ // A extension is Zaamo + Zalrsc
+ localparam logic ZAAMO_SUPPORTED  = 0;
+ localparam logic ZALRSC_SUPPORTED = 0;
++localparam logic ZABHA_SUPPORTED  = 0; // Byte and halfword AMOs
+ 
+ // Bit manipulation extensions
+ // B extension is Zba + Zbb + Zbs
+diff --git a/config/rv32gc/config.vh b/config/rv32gc/config.vh
+index 314d8d311..f21c6fb0a 100644
+--- a/config/rv32gc/config.vh
++++ b/config/rv32gc/config.vh
+@@ -54,6 +54,7 @@ localparam logic ZMMUL_SUPPORTED = 1;
+ // A extension is Zaamo + Zalrsc
+ localparam logic ZAAMO_SUPPORTED  = 1;
+ localparam logic ZALRSC_SUPPORTED = 1;
++localparam logic ZABHA_SUPPORTED  = 1; // Byte and halfword AMOs
+ 
+ // Bit manipulation extensions
+ // B extension is Zba + Zbb + Zbs
+diff --git a/config/rv32i/config.vh b/config/rv32i/config.vh
+index 3af41bdbb..85b87be08 100644
+--- a/config/rv32i/config.vh
++++ b/config/rv32i/config.vh
+@@ -54,6 +54,7 @@ localparam logic ZMMUL_SUPPORTED = 0;
+ // A extension is Zaamo + Zalrsc
+ localparam logic ZAAMO_SUPPORTED  = 0;
+ localparam logic ZALRSC_SUPPORTED = 0;
++localparam logic ZABHA_SUPPORTED  = 0; // Byte and halfword AMOs
+ 
+ // Bit manipulation extensions
+ // B extension is Zba + Zbb + Zbs
+diff --git a/config/rv32imc/config.vh b/config/rv32imc/config.vh
+index 919425ceb..12d345376 100644
+--- a/config/rv32imc/config.vh
++++ b/config/rv32imc/config.vh
+@@ -54,6 +54,7 @@ localparam logic ZMMUL_SUPPORTED = 1;
+ // A extension is Zaamo + Zalrsc
+ localparam logic ZAAMO_SUPPORTED  = 0;
+ localparam logic ZALRSC_SUPPORTED = 0;
++localparam logic ZABHA_SUPPORTED  = 0; // Byte and halfword AMOs
+ 
+ // Bit manipulation extensions
+ // B extension is Zba + Zbb + Zbs
+diff --git a/config/rv64gc/config.vh b/config/rv64gc/config.vh
+index a1b3c3f9a..76769e524 100644
+--- a/config/rv64gc/config.vh
++++ b/config/rv64gc/config.vh
+@@ -54,6 +54,7 @@ localparam logic ZMMUL_SUPPORTED = 1;
+ // A extension is Zaamo + Zalrsc
+ localparam logic ZAAMO_SUPPORTED  = 1;
+ localparam logic ZALRSC_SUPPORTED = 1;
++localparam logic ZABHA_SUPPORTED  = 1; // Byte and halfword AMOs
+ 
+ // Bit manipulation extensions
+ // B extension is Zba + Zbb + Zbs
+diff --git a/config/rv64i/config.vh b/config/rv64i/config.vh
+index 07579d9d9..dd0aa7252 100644
+--- a/config/rv64i/config.vh
++++ b/config/rv64i/config.vh
+@@ -54,6 +54,7 @@ localparam logic ZMMUL_SUPPORTED = 0;
+ // A extension is Zaamo + Zalrsc
+ localparam logic ZAAMO_SUPPORTED  = 0;
+ localparam logic ZALRSC_SUPPORTED = 0;
++localparam logic ZABHA_SUPPORTED  = 0; // Byte and halfword AMOs
+ 
+ // Bit manipulation extensions
+ // B extension is Zba + Zbb + Zbs
+diff --git a/config/shared/parameter-defs.vh b/config/shared/parameter-defs.vh
+index e6e035f48..ef0d0451b 100644
+--- a/config/shared/parameter-defs.vh
++++ b/config/shared/parameter-defs.vh
+@@ -39,6 +39,7 @@ localparam cvw_t P = '{
+   SVINVAL_SUPPORTED :    SVINVAL_SUPPORTED,
+   ZAAMO_SUPPORTED :      ZAAMO_SUPPORTED,
+   ZALRSC_SUPPORTED :     ZALRSC_SUPPORTED,
++  ZABHA_SUPPORTED :      ZABHA_SUPPORTED,
+   BUS_SUPPORTED :        BUS_SUPPORTED,
+   DCACHE_SUPPORTED :     DCACHE_SUPPORTED,
+   ICACHE_SUPPORTED :     ICACHE_SUPPORTED,
+diff --git a/src/cvw.sv b/src/cvw.sv
+index 8f6d1a815..d028bbcd2 100644
+--- a/src/cvw.sv
++++ b/src/cvw.sv
+@@ -74,6 +74,7 @@ typedef struct packed {
+   logic         ZCMOP_SUPPORTED;
+   logic         ZAAMO_SUPPORTED;
+   logic         ZALRSC_SUPPORTED;
++  logic         ZABHA_SUPPORTED;
+ 
+   // Microarchitectural Features
+   logic         BUS_SUPPORTED;
+diff --git a/src/ieu/controller.sv b/src/ieu/controller.sv
+index a16bef817..6c7bd681c 100644
+--- a/src/ieu/controller.sv
++++ b/src/ieu/controller.sv
+@@ -146,6 +146,7 @@ module controller import cvw::*;  #(parameter cvw_t P) (
+   logic        FenceFunctD;                    // Detect fence instruction
+   logic        CMOFunctD;                      // Detect CMO instruction
+   logic        AFunctD, AMOFunctD;             // Detect atomic instructions
++  logic        A3264FunctD;                    // Detect valid 32/64-bit atomics (lr/sc/amo)
+   logic        RWFunctD, MWFunctD;             // detect RW/MW instructions
+   logic        PFunctD, CSRFunctD;             // detect privileged / CSR instruction
+   logic        FenceM;                         // Fence.I or sfence.VMA instruction in memory stage
+@@ -198,7 +199,9 @@ module controller import cvw::*;  #(parameter cvw_t P) (
+                               ((P.ZICBOZ_SUPPORTED & (InstrD[31:20] == 12'd4) & ENVCFG_CBE[3]) |
+                                (P.ZICBOM_SUPPORTED & (((InstrD[31:20] == 12'd0) & (ENVCFG_CBE[1:0] == 2'b01 | ENVCFG_CBE[1:0] == 2'b11)) |
+                                                       ((InstrD[31:20] == 12'd1 | InstrD[31:20] == 12'd2) & ENVCFG_CBE[2]))));
+-    assign AFunctD          = (Funct3D == 3'b010) | (P.XLEN == 64 & Funct3D == 3'b011);
++    assign A3264FunctD      = (Funct3D == 3'b010) | (P.XLEN == 64 & Funct3D == 3'b011);
++    // Zabha adds byte and halfword AMOs, but not byte and halfword lr/sc
++    assign AFunctD          = A3264FunctD | (P.ZABHA_SUPPORTED & (Funct3D == 3'b000 | Funct3D == 3'b001));
+     assign AMOFunctD        = (InstrD[31:27] == 5'b00001) |
+                               (InstrD[31:27] == 5'b00000) |
+                               (InstrD[31:27] == 5'b00100) |
+@@ -230,6 +233,7 @@ module controller import cvw::*;  #(parameter cvw_t P) (
+     assign FenceFunctD = 1'b1; // don't bother to check fields for fences
+     assign CMOFunctD = 1'b1; // don't bother to check fields for CMO instructions
+     assign AFunctD = 1'b1; // don't bother to check fields for atomics
++    assign A3264FunctD = 1'b1; // don't bother to check fields for lr/sc and amos
+     assign AMOFunctD = 1'b1; // don't bother to check Funct7 for AMO operations
+     assign RWFunctD = 1'b1; // don't bother to check fields for RW instructions
+     assign MWFunctD = 1'b1; // don't bother to check fields for MW instructions
+@@ -270,9 +274,9 @@ module controller import cvw::*;  #(parameter cvw_t P) (
+       7'b0100111: if (FLSFunctD)
+                       ControlsD = `CTRLW'b0_001_01_01_000_0_0_0_0_0_0_0_0_0_00_0_1; // fsw - only legal if FP supported
+       7'b0101111: if (AFunctD) begin
+-                    if (P.ZALRSC_SUPPORTED & InstrD[31:27] == 5'b00010 & Rs2D == 5'b0)
++                    if (P.ZALRSC_SUPPORTED & A3264FunctD & InstrD[31:27] == 5'b00010 & Rs2D == 5'b0)
+                       ControlsD = `CTRLW'b1_000_00_10_001_0_0_0_0_0_0_0_0_0_01_0_0; // lr
+-                    else if (P.ZALRSC_SUPPORTED & InstrD[31:27] == 5'b00011)
++                    else if (P.ZALRSC_SUPPORTED & A3264FunctD & InstrD[31:27] == 5'b00011)
+                       ControlsD = `CTRLW'b1_101_01_01_100_0_0_0_0_0_0_0_0_0_01_0_0; // sc
+                     else if (P.ZAAMO_SUPPORTED & AMOFunctD)
+                       ControlsD = `CTRLW'b1_101_01_11_001_0_0_0_0_0_0_0_0_0_10_0_0; // amo
+diff --git a/src/lsu/amoalu.sv b/src/lsu/amoalu.sv
+index fe6877bad..fc9f6ff36 100644
+--- a/src/lsu/amoalu.sv
++++ b/src/lsu/amoalu.sv
+@@ -38,6 +38,7 @@ module amoalu import cvw::*;  #(parameter cvw_t P) (
+ 
+   logic [P.XLEN-1:0] a, b, y;
+   logic               lt, cmp, sngd, sngd32, eq32, lt32, w64;
++  logic [31:0]        acmp, bcmp; // comparands narrowed to the access width
+ 
+   // Rename inputs
+   assign a = ReadDataM;
+@@ -45,10 +46,24 @@ module amoalu import cvw::*;  #(parameter cvw_t P) (
+ 
+   // Share hardware among the four amomin/amomax comparators
+   assign sngd = ~LSUFunct7M[5]; // Funct7[5] = 0 for signed amomin/max
+-  assign w64 = (LSUFunct3M[1:0] == 2'b10); // operate on bottom 32 bits
++  assign w64 = (LSUFunct3M[1:0] != 2'b11); // compare in the bottom 32 bits for byte, halfword, and word operations
+   assign sngd32 = sngd & (P.XLEN == 32 | w64); // flip sign in lower 32 bits on 32-bit comparisons only
+ 
+-  comparator #(32) cmp32(a[31:0], b[31:0], sngd32, {eq32, lt32});
++  // Zabha compares byte and halfword operands, so extend them to 32 bits to share the word comparator.
++  // ReadDataM arrives sign-extended, so re-extend both operands from the raw low bits to get the unsigned cases right.
++  always_comb
++    if (P.ZABHA_SUPPORTED & (LSUFunct3M[1:0] == 2'b00)) begin
++      acmp = {{24{sngd & a[7]}}, a[7:0]};
++      bcmp = {{24{sngd & b[7]}}, b[7:0]};
++    end else if (P.ZABHA_SUPPORTED & (LSUFunct3M[1:0] == 2'b01)) begin
++      acmp = {{16{sngd & a[15]}}, a[15:0]};
++      bcmp = {{16{sngd & b[15]}}, b[15:0]};
++    end else begin
++      acmp = a[31:0];
++      bcmp = b[31:0];
++    end
++
++  comparator #(32) cmp32(acmp, bcmp, sngd32, {eq32, lt32});
+   if (P.XLEN == 32) begin
+     assign lt = lt32;
+   end else begin
+
+Finished: 2026-09-20T02:15:12.174120+00:00
+Return code: 0
+Status: PASS

@@ -39,3 +39,8 @@ EOF
 + riscv64-unknown-elf-gcc -march=rv64gc -mabi=lp64d -mcmodel=medany -static -std=gnu99 -O2 -nostdlib -nostartfiles -T /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/tests/riscof/spike/env/link.ld -I/home/rafay/miniconda3/WallyGuard2/runs/20260919T193248Z-eb60e108/tests /home/rafay/miniconda3/WallyGuard2/runs/20260919T193248Z-eb60e108/tests/control.S -o /home/rafay/miniconda3/WallyGuard2/runs/20260919T193248Z-eb60e108/build/control.elf
 + spike --isa=rv64gc /home/rafay/miniconda3/WallyGuard2/runs/20260919T193248Z-eb60e108/build/test.elf
 {"time":"2026-09-19T20:33:54.182567252Z","level":"WARN","msg":"Lock","msg":"Failed to lock memory","err":"cannot allocate memory"}
+
+Finished: 2026-09-19T22:03:54.138787+00:00
+Return code: -15
+Status: TIMEOUT
+ERROR: Timeout after 5400 seconds

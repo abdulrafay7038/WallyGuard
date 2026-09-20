@@ -13,7 +13,7 @@ from orchestration.verification_state import confirmation_allowed
 
 class LoopIntegrationTests(unittest.TestCase):
     def campaign(self, *, regression=True, regression_pass=True, baseline=Outcome.MISMATCH_CONFIRMED,
-                 directed=True, targeted=True, repair_attempts=1):
+                 directed=True, targeted=True, repair_attempts=1, saved=False):
         self.calls=[]; self.feedback=[];self.exports=[];patched=False
         def remote(function,*args,**kwargs):
             nonlocal patched
@@ -22,7 +22,9 @@ class LoopIntegrationTests(unittest.TestCase):
             if name in ('save_attempt','archive_inputs','stage_finish'):return None
             if name=='stage_snapshot':return '/fixture/guard'
             if name=='architect':return {'target':'ALU','rationale':'case','tester_prompt':'exercise','knowledge':'source'}
-            if name=='tester':return {'found_bug':True,'report':'candidate','evidence':'files','reproducer':{'version':1}}
+            if name=='tester':return {'found_bug':True,'report':'candidate','evidence':'files',
+                                     **({'reproducer_file':'reproducer.json'} if saved else {'reproducer':{'version':1}})}
+            if name=='read_reproducer':return {'version':1}
             if name=='test_fingerprint':return {'test.S':'hash'}
             if name=='check_changes':return 'RTL diff' if patched else ''
             if name=='critic':return {'verdict':'approve','critique':'evidence reviewed'}
@@ -61,6 +63,19 @@ class LoopIntegrationTests(unittest.TestCase):
         self.assertEqual(result['status'],'candidate_fix_verified')
         self.assertFalse(confirmation_allowed(result))
         self.assertTrue(result['patch'].startswith('candidate-bugs/'))
+
+    def test_saved_contract_runs_all_existing_confirmation_gates(self):
+        result=self.campaign(saved=True)
+        self.assertEqual(result['status'],'confirmed')
+        self.assertTrue(confirmation_allowed(result))
+        self.assertEqual(self.calls.count('read_reproducer'),1)
+        self.assertEqual(result['tester']['reproducer'],{'version':1})
+
+    def test_saved_contract_does_not_bypass_failed_baseline(self):
+        result=self.campaign(saved=True,baseline=Outcome.TEST_INVALID)
+        self.assertEqual(result['status'],'test_repair_exhausted')
+        self.assertNotIn('critic',self.calls)
+        self.assertEqual(self.exports,[])
 
     def test_no_directed_is_candidate_only(self):
         result=self.campaign(directed=False)

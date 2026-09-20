@@ -51,7 +51,10 @@ def parse_agent_response(agent_name: str, raw_output: str, schema: dict | None =
             raise AgentOutputInvalid('tester: missing evidence')
         # Legacy script responses are still parseable, but deterministic preflight
         # rejects them unless they supply the independent execution contract.
-        if not isinstance(value.get('reproducer'), dict) and not isinstance(value.get('reproduce_command'), str):
+        if 'reproducer_file' in value and (value['reproducer_file'] != 'reproducer.json' or 'reproducer' in value):
+            raise AgentOutputInvalid('tester: use only reproducer_file="reproducer.json", without an inline reproducer')
+        if (value.get('reproducer_file') != 'reproducer.json' and
+                not isinstance(value.get('reproducer'), dict) and not isinstance(value.get('reproduce_command'), str)):
             raise AgentOutputInvalid('tester: missing reproducer contract')
     return value
 
@@ -75,7 +78,8 @@ def structured_response(agent: str, raw: str, repair: Callable[[str], str],
                       'Convert the original answer to one JSON object. Do not invent missing facts; '
                       'if the answer lacks required information leave it absent. Schema: '
                       + json.dumps(schema) + '. Critic verdict is approve, revise, or reject. '
-                      'Tester found_bug=true also requires evidence and a reproducer contract. '
+                      'Tester found_bug=true also requires evidence and reproducer_file="reproducer.json" '
+                      'for an existing saved contract, or an inline reproducer object. '
                       '\nValidation error: ' + str(exc) + '\nOriginal answer:\n' + raw)
             raw = repair(prompt)
             save('format-repair.txt', raw)

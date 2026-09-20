@@ -1,0 +1,16 @@
+Started: 2026-09-20T02:18:10.229969+00:00
+Command: bash -o pipefail -c 'grep -rn "tohost" testbench/'
+
+testbench/testbench.sv:826:  // 2. a store word writes to the address "tohost"
+testbench/testbench.sv:835:      TestComplete <= ((dut.core.lsu.IEUAdrM == ProgramAddrLabelArray["tohost"] & dut.core.lsu.IEUAdrM != 0) & InstrMName == "SW");
+testbench/testbench.sv:837:      TestComplete <= ((InstrM == 32'h6f) & dut.core.InstrValidM ) | ((dut.core.lsu.IEUAdrM == ProgramAddrLabelArray["tohost"] & dut.core.lsu.IEUAdrM != 0) & InstrMName == "SW");
+testbench/testbench.sv:840:    //      ((dut.core.lsu.IEUAdrM == ProgramAddrLabelArray["tohost"] & dut.core.lsu.IEUAdrM != 0) & InstrMName == "SW"); // |
+testbench/testbench.sv:1214:    ProgramAddrLabelArray["tohost"] = 0;
+testbench/trek_files/platform-rv64.yaml:180:        extern void tohost_exit(int status);
+testbench/trek_files/platform-rv64.yaml:183:        #define trek_exit(status) tohost_exit(status);
+testbench/trek_files/platform-rv32.yaml:180:        extern void tohost_exit(int status);
+testbench/trek_files/platform-rv32.yaml:183:        #define trek_exit(status) tohost_exit(status);
+
+Finished: 2026-09-20T02:18:10.297134+00:00
+Return code: 0
+Status: PASS
