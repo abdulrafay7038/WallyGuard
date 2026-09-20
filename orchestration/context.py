@@ -22,7 +22,7 @@ def observed_failure(record: dict) -> str:
 def agent_context(role: str, context: dict) -> dict:
     common = ('tag', 'iteration', 'scratch', 'test_dir', 'base_commit', 'baseline_tree',
               'history_dir', 'original_checkout', 'isa_docs', 'run_regression',
-              'verification_scope', 'regression_command', 'phase')
+              'verification_scope', 'regression_command', 'directed_configured', 'phase')
     per_role = {
         'architect': (),
         'tester': ('plan', 'test_feedback', 'tester'),
@@ -34,6 +34,10 @@ def agent_context(role: str, context: dict) -> dict:
     # Include concise observations so tooling mistakes do not require another
     # investigation of the archive. Agent notes remain explicitly unverified.
     if role == 'architect':
+        result['coverage'] = deepcopy(context.get('coverage', {}))
+        result['exploration_budget'] = dict(commands=12, deeply_read_files=6, minutes=8,
+            policy='Advisory: hand off once grounded. If more reading is essential, explain the missing fact '
+                   'in extension_reason on the next tool call; no forced failure or reduced agent timeout.')
         result['history'] = [{key: str(entry.get(key, ''))[:400]
                               for key in ('tag', 'target', 'status', 'observed_failure', 'source_base')}
                              for entry in context.get('history', [])[-40:]]

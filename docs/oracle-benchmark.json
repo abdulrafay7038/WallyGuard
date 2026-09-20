@@ -1,0 +1,38 @@
+[
+  {
+    "tag": "20260919T193248Z-eb60e108",
+    "scope": "Preserved positive-control ELF, Spike only; no Wally or LLM campaign",
+    "elf": "runs/20260919T193248Z-eb60e108/logs/baseline-reproducer-0-evidence/control.elf",
+    "sha256": "ba1e5231ce8e7e8eac147e0e19ce50259162d769632d3e45f0484d737adf8ddb",
+    "before_seconds": 900.0877086690016,
+    "before_executable": "/usr/bin/spike",
+    "after_executable": "/home/rafay/riscv/bin/spike",
+    "after_seconds": 0.16301531699991756,
+    "returncode": 0,
+    "selfcheck_status": "0000000000000001"
+  },
+  {
+    "tag": "20260919T230158Z-efd6e12a",
+    "scope": "Preserved positive-control ELF, Spike only; no Wally or LLM campaign",
+    "elf": "runs/20260919T230158Z-efd6e12a/logs/baseline-reproducer-1-evidence/control.elf",
+    "sha256": "b7c8cec0055020028c2621e815aac2679bc6b14f2a8cc4831f1436f03ccce28d",
+    "before_seconds": 900.0935368669961,
+    "before_executable": "/usr/bin/spike",
+    "after_executable": "/home/rafay/riscv/bin/spike",
+    "after_seconds": 0.16013462599994455,
+    "returncode": 1,
+    "selfcheck_status": "0000000000000002"
+  },
+  {
+    "tag": "20260920T002030Z-7cc4bf4c",
+    "scope": "Preserved positive-control ELF, Spike only; no Wally or LLM campaign",
+    "elf": "runs/20260920T002030Z-7cc4bf4c/logs/baseline-reproducer-0-evidence/control.elf",
+    "sha256": "b25891c903d2882d7101ade4f5e0ed5c227f7215ae5a314ea0e6c31928b7c22d",
+    "before_seconds": 900.0909226549993,
+    "before_executable": "/usr/bin/spike",
+    "after_executable": "/home/rafay/riscv/bin/spike",
+    "after_seconds": 0.04971821499998441,
+    "returncode": 0,
+    "selfcheck_status": "0000000000000001"
+  }
+]

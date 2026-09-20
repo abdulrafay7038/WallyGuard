@@ -143,6 +143,10 @@ Full regression is disabled by default; set `WALLY_RUN_REGRESSION=1` to enable i
 With regression disabled or directed regression unconfigured, a targeted passing
 fix is `candidate_fix_verified`, exported only under `candidate-bugs/`.
 `confirmed-bugs/` requires all gates, checked again at export.
+An enabled full regression executes even without a directed command. Every
+configured stage must execute and pass before either candidate or confirmed
+export; a disabled option cannot bypass another stage's failure. Candidates
+also recheck these requirements and repeated mismatch/review evidence at export.
 
 Regression failures are retained and returned to the Fixer via the existing
 bounded fix loop. After exhaustion the campaign stops instead of treating the
@@ -179,6 +183,24 @@ CVW merge conflicts, missing suite assets, provider authentication and deployed
 worker connectivity remain external prerequisites.
 
 ## Performance visibility
+
+The current audit and measurements are in [docs/performance-audit.md](docs/performance-audit.md).
+The numbers below describe earlier checks, not a new end-to-end speedup.
+New `attempt.json` operation timings separate successful worker execution from
+dispatch/serialization/scheduling/transfer overhead. Agent lifecycle events record
+model-capacity waits, OpenCode run/export, actual backoff, tool setup and cleanup.
+`logs/tool-timing.jsonl` preserves command starts/completions independently of the
+shutdown summary; unfinished commands remain explicit in the performance report.
+Use `python -m orchestration.performance runs/<tag> --json` for structured output.
+Nested durations overlap; pure LLM generation and the split between RTL compilation
+and Wally simulation are not observable through the current backend and remain null.
+
+The coverage ledger is rebuilt from all saved attempt records, persisted at
+`runs/coverage.json`, and summarized for the Architect. Selected, tested,
+reproduced and confirmed are distinct counters. Its preferred areas are advisory;
+source revisions and unverified notes are labelled. The Architect's 12-command,
+six-deep-file/eight-minute planning budget is advisory too, with tool-visible
+reminders and recorded `extension_reason`; it never forces an agent failure.
 
 Prompt context is selected by role. The Architect gets a bounded tag/target/status
 history index with the archive path. The Tester gets its plan and repair feedback;

@@ -112,10 +112,20 @@ conflicts block a campaign before agents start.
 
 Every run records stage durations and prompt-context sizes in `attempt.json`.
 Tool counts and command durations live in `controller/agent-*/tool-metrics.json`.
+The cumulative exploration ledger (`runs/coverage.json`) distinguishes selected
+targets from controller-tested and reproduced cases. The Architect receives a
+bounded summary and advisory handoff reminders after 12 commands or eight minutes;
+it may explain and continue an essential investigation. No agent deadline is reduced.
+New timing includes worker/dispatch overhead, model capacity waits, OpenCode
+run/export, command lifecycle, retries and verifier steps. Unavailable pure model
+generation time and separate RTL compile/simulation time are reported as null.
+See [the measured performance audit](docs/performance-audit.md) for bottlenecks,
+changes, safety checks and the limits of the available before/after comparison.
 Inspect a run with:
 
 ```bash
 python -m orchestration.performance runs/<iteration-tag>
+python -m orchestration.performance runs/<iteration-tag> --json
 ```
 
 Chia profiling is enabled for the CLI by default. It records task timing and

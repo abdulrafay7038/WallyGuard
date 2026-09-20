@@ -88,7 +88,9 @@ def retry_call(call: Callable[[], Any], is_rate_limit: Callable[[Exception], boo
                 # candidate and stop rather than sleep beyond the retry budget.
                 raise
             # Keep long waits interruptible and observable to the caller.
+            wait_started = time.monotonic()
             while delay > 0:
                 interval = min(60, delay)
                 sleep(interval)
                 delay -= interval
+            emit('RATE_LIMIT_WAIT', retry_count=attempt, duration_seconds=time.monotonic() - wait_started)

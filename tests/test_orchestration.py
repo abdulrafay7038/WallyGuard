@@ -106,7 +106,8 @@ class RetryTests(unittest.TestCase):
         self.assertIs(retry_call(call, lambda e:isinstance(e,self.RateLimit), emit, sleep=sleep), response)
         sleep.assert_called_once_with(3)
         self.assertEqual(call.call_args_list[0], call.call_args_list[1])
-        self.assertEqual(emit.call_args.args[0], 'API_RATE_LIMIT')
+        self.assertEqual(emit.call_args_list[0].args[0], 'API_RATE_LIMIT')
+        self.assertEqual(emit.call_args.args[0], 'RATE_LIMIT_WAIT')
 
     def test_exhaustion(self):
         call, sleep = Mock(side_effect=self.RateLimit()), Mock()
@@ -323,7 +324,7 @@ class ToolRuntimeTests(unittest.TestCase):
         response=SimpleNamespace(result='{"critique":"needs revision"}',stderr='',returncode=0,stream_result='')
         repaired=SimpleNamespace(result='{"verdict":"revise","critique":"needs revision"}')
         with patch.object(loop,'ManagedBashTool',return_value=tool),patch.object(loop,'DiagnosticOpenCodeLLM') as model,\
-             patch.object(loop,'prompt_with_rate_limit_retry',side_effect=[response,repaired]) as prompt:
+             patch.object(loop,'prompt_with_rate_limit_retry',side_effect=[response,repaired]) as prompt, patch.object(loop,'remote'):
             result=loop.ask_agent('critic','/fixture',loop.CRITIC_PROMPT,{'test_dir':'/fixture/test','models':{'critic':'mock'}})
         self.assertEqual(result['verdict'],'revise')
         self.assertEqual(prompt.call_args_list[1].args[2],[])
@@ -386,7 +387,7 @@ class OpenCodeDiagnosticsTests(unittest.TestCase):
         sleep,emit=Mock(),Mock()
         self.assertIs(retry_call(Mock(side_effect=[limited,success]),lambda e:False,emit,RetryPolicy(1,2,5),sleep),success)
         sleep.assert_called_once_with(2)
-        self.assertEqual(emit.call_args.kwargs['stderr'],'rate details')
+        self.assertEqual(emit.call_args_list[0].kwargs['stderr'],'rate details')
 
     def test_rate_failure_survives_worker_serialization(self):
         import pickle

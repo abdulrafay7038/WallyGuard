@@ -186,6 +186,7 @@ def run_reproducer(scratch: str, test_dir: str, contract: dict, log_path: str,
     directory.mkdir(parents=True, exist_ok=False)
     env = simulation_env(str(root))
     steps, captured = {}, {}
+    comparison_seconds = 0.0
     def capture(name: str, path: Path) -> None:
         target = directory / name
         shutil.copyfile(path, target)
@@ -206,6 +207,16 @@ def run_reproducer(scratch: str, test_dir: str, contract: dict, log_path: str,
         steps[name] = result
         return result
     def pair(spec: dict, name: str) -> dict:
+        nonlocal comparison_seconds
+        pair_started = time.monotonic()
+        before = sum(step.get('duration_seconds', 0) for step in steps.values())
+        try:
+            return compare_pair(spec, name)
+        finally:
+            commands = sum(step.get('duration_seconds', 0) for step in steps.values()) - before
+            comparison_seconds += max(0, time.monotonic() - pair_started - commands)
+
+    def compare_pair(spec: dict, name: str) -> dict:
         # Agents choose test inputs, not the executable implementing the oracle.
         wally_args = artifact_argv(spec['wally'], root, tests)
         oracle_args = artifact_argv(spec['oracle'], root, tests)
@@ -320,5 +331,12 @@ def run_reproducer(scratch: str, test_dir: str, contract: dict, log_path: str,
         result = ReproducerResult(Outcome.TEST_INVALID, str(exc)).dict()
     result.update(steps=steps, log_path=str(log_path), evidence_dir=str(directory), captured=captured,
                   duration_seconds=time.monotonic() - started)
+    result['performance'] = dict(
+        test_build_seconds=steps.get('build', {}).get('duration_seconds', 0),
+        wally_build_and_simulation_seconds=sum(step.get('duration_seconds', 0) for name, step in steps.items() if name.endswith('-wally')),
+        spike_seconds=sum(step.get('duration_seconds', 0) for name, step in steps.items() if name.endswith('-oracle')),
+        comparison_and_evidence_seconds=comparison_seconds,
+        command_cleanup_seconds=sum(step.get('cleanup_seconds', 0) for step in steps.values()),
+        rtl_build_seconds=None, simulation_only_seconds=None)
     Path(log_path).write_text(json.dumps(result, indent=2) + '\n')
     return result

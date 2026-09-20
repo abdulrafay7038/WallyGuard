@@ -19,6 +19,7 @@ from .processes import run_command
 from .retry_policy import MCPFailure
 from .test_preflight import contract_errors, under
 from .toolchain import simulation_env
+from .timing import record_event, export_timing
 
 
 @ray.remote(num_cpus=0)
@@ -28,6 +29,7 @@ class ToolServer:
         from fastapi import FastAPI
         self.tool, self.server, self.thread = tool, None, None
         tool._cancel_event = threading.Event()
+        tool._stage_started = time.monotonic()
         host = ray.util.get_node_ip_address()
         base = int(os.environ.get('CHIA_TOOL_BASE_PORT', '8000'))
         last = int(os.environ.get('CHIA_TOOL_MAX_PORT', str(base + 99)))
@@ -72,12 +74,14 @@ class ToolServer:
               stage=self.tool.role, iteration_id=Path(self.tool.test_dir).name, **fields)
 
     def stop(self):
+        started = time.monotonic()
         self.tool._cancel_event.set()
         if self.server:
             self.server.should_exit = True
         if self.thread:
             self.thread.join(6)
         if hasattr(self.tool, '_metrics'):
+            self.tool._metrics['cleanup_seconds'] = time.monotonic() - started
             self.write('tool-metrics.json', self.tool._metrics)
         return not self.thread or not self.thread.is_alive()
 
@@ -92,6 +96,7 @@ class ManagedBashTool(ChiaTool):
         self.mcp.add_tool(self.command_status, name=f'{name}_command_status')
         self.mcp.add_tool(self.validate_reproducer, name=f'{name}_validate_reproducer')
         self._metrics = dict(commands=0, polls=0, preflights=0, command_seconds=0.0)
+        self._stage_started = time.monotonic()
         self._server_actor = ToolServer.options(resources={'wally_sim': 1}).remote()
         try:
             self.hostname, self.port, self.node_id = ray.get(self._server_actor.start.remote(self), timeout=45)
@@ -151,7 +156,16 @@ class ManagedBashTool(ChiaTool):
         if task.cancelled():
             return json.dumps(dict(status='INFRA_FAILURE', job_id=job_id, error='Tool shutdown cancelled command'))
         try:
-            return task.result()
+            result = json.loads(task.result())
+            if getattr(self, 'role', '') == 'architect':
+                elapsed = time.monotonic() - getattr(self, '_stage_started', time.monotonic())
+                count = getattr(self, '_metrics', {}).get('commands', 0)
+                result['planning_progress'] = dict(commands=count, elapsed_seconds=round(elapsed, 1),
+                    reminder='Handoff budget reached: return the narrow grounded target, or explain the '
+                             'specific missing fact in extension_reason for another read.'
+                             if count >= 12 or elapsed >= 480 else
+                             'Plan one target; leave builds and simulation to Tester. Aim for 12 commands / 6 deep files / 8 minutes.')
+            return json.dumps(result)
         except (OSError, ValueError) as exc:
             return json.dumps(dict(status='INFRA_FAILURE', job_id=job_id,
                                    error=str(redact(f'{type(exc).__name__}: {exc}'))))
@@ -174,7 +188,8 @@ class ManagedBashTool(ChiaTool):
         except (OSError, ValueError, TypeError) as exc:
             return json.dumps(dict(status='PREFLIGHT_INVALID', errors=[str(redact(str(exc)))]))
 
-    async def run_command(self, command: str, timeout_seconds: float | None = None) -> str:
+    async def run_command(self, command: str, timeout_seconds: float | None = None,
+                          extension_reason: str = '') -> str:
         """Execute with a 120s default. Tester starts in its run directory; repository paths use $WALLY."""
         if not hasattr(self, '_jobs'):
             self._jobs = {}
@@ -199,11 +214,17 @@ class ManagedBashTool(ChiaTool):
         env = simulation_env(self.work_dir)
         env['WALLY_TEST_DIR'] = str((Path(self.work_dir) / self.test_dir).resolve())
         command_dir = env['WALLY_TEST_DIR'] if getattr(self, 'role', None) == 'tester' else self.work_dir
+        timing_path = Path(self.test_dir) / 'logs' / 'tool-timing.jsonl'
+        fields = dict(role=getattr(self, 'role', 'unknown'), job_id=job_id, log_path=str(log_path))
+        record_event(timing_path, 'COMMAND_STARTED', **fields, extension_reason=extension_reason[:400])
         def run():
             result = run_command(['bash', '-o', 'pipefail', '-c', command], log_path,
                                  deadline, env, command_dir, self._cancel_event)
             if hasattr(self, '_metrics'):
                 self._metrics['command_seconds'] += result['duration_seconds']
+            record_event(timing_path, 'COMMAND_FINISHED', **fields,
+                         duration_seconds=result['duration_seconds'], outcome=result['status'],
+                         cleanup_seconds=result.get('cleanup_seconds'))
             with log_path.open('rb') as handle:
                 handle.seek(max(0, log_path.stat().st_size - 6000))
                 result['tail'] = handle.read().decode(errors='replace')
@@ -250,19 +271,35 @@ class DiagnosticOpenCodeLLM(OpenCodeLLM):
             result = run_command(cmd, root / 'command.log', self.timeout_seconds, env=env,
                 stdout_path=root / 'stdout', stderr_path=root / 'stderr')
             self._last_command_status = {key: result[key] for key in ('status', 'timed_out', 'returncode', 'duration_seconds')}
+            if not hasattr(self, '_performance'):
+                self._performance = {'commands': []}
+            self._performance['commands'].append(dict(operation=cmd[1] if len(cmd) > 1 else 'unknown',
+                seconds=result['duration_seconds'], cleanup_seconds=result.get('cleanup_seconds'),
+                status=result['status']))
             stdout = (root / 'stdout').read_text(errors='replace')
             stderr = (root / 'stderr').read_text(errors='replace')
             if result['status'] in ('TIMEOUT', 'INFRA_FAILURE'):
                 stderr += '\n' + str(result['error'])
             return SimpleNamespace(returncode=result['returncode'], stdout=stdout, stderr=stderr)
 
+    def _extract_from_export(self, export):
+        self._performance.update(export_timing(export))
+        return super()._extract_from_export(export)
+
     @ChiaFunction(resources={'opencode_creds': 1}, max_retries=0)
     def prompt(self, user_message: str, tools=None):
+        started = time.monotonic()
+        self._performance = {'commands': []}
         self._last_metadata, self._last_export_error = {}, None
         try:
             result = self._run_opencode(user_message, tools or [])
         except (OSError, TimeoutError) as exc:
-            return QueryResult('', -1, f'{type(exc).__name__}: {exc}', '', False)
+            result = QueryResult('', -1, f'{type(exc).__name__}: {exc}', '', False)
+            self._performance['worker_seconds'] = time.monotonic() - started
+            result.performance = self._performance
+            return result
+        self._performance['worker_seconds'] = time.monotonic() - started
+        result.performance = self._performance
         try:
             self._classify_error(result, export_error=self._last_export_error)
         except OpenCodeError as exc:

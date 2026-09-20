@@ -31,12 +31,14 @@ from orchestration.stage_runner import with_tool_recovery
 from orchestration.tool_runtime import ManagedBashTool, DiagnosticOpenCodeLLM, LLMCapacity
 from orchestration.result_classifier import Outcome, FAILURE, TOOL_ERROR
 from orchestration.test_preflight import run_reproducer, saved_contract
-from orchestration.verification_state import confirmation_allowed
+from orchestration.verification_state import confirmation_allowed, candidate_allowed
 from orchestration.processes import run_command
 from orchestration.context import agent_context, observed_failure
 from orchestration.scaffold import seed_harness
 from orchestration.toolchain import simulation_env, validate_spike
 from orchestration.input_files import input_files
+from orchestration.coverage import coverage_summary
+from orchestration.timing import active_record, measured_worker
 
 WALLY_PATH = os.environ.get("WALLY_PATH", "/home/rafay/miniconda3/WallyGuard2/cvw")
 MAX_ITERATIONS = 200
@@ -175,36 +177,40 @@ Return exactly one JSON object with the requested fields.
 """
 
 ARCHITECT_PROMPT = """
-Choose a source-grounded target and hand off promptly. Leave compiling and
-simulation to the Tester; do not spend this planning stage polling simulators.
-Use the supplied history observations and recent notes to avoid rereading old
-attempts. Notes from agents are hypotheses, not verified facts. Aim to select
-one target within 12 grouped source reads; stop broad searches once it is concrete.
-You are Agent 1, Architect. Study Wally and the relevant RISC-V ISA before
-choosing ONE narrow investigation. This is source-grounded planning, not model
-weight training. Inspect actual RTL/control paths, enabled configurations,
-existing tests and coverage gaps. Consult local specifications at isa_docs;
-if unavailable, disclose that and identify the normative rule the Tester must
-verify before claiming a bug. Read saved attempts at history_dir as needed,
-avoid repeating disproven claims, and carry forward useful lessons.
+You are Agent 1, Architect. Deliver ONE source-grounded, narrow investigation
+that the Tester can investigate deeply, not a Wally survey or reproducer.
 
-Rotate across underexplored blocks/interactions: stalls/flushes/forwarding,
-exception and interrupt priority, CSR side effects/privilege, MMU/TLB/PMP
-boundaries, cache/LSU replay and misalignment, LR/SC and AMOs, compressed
-instruction boundaries, arithmetic widths/signedness/division, FP rounding,
-NaNs/subnormals, reset/handshakes and parameter extremes. Verify that the
-configuration supports the feature. Prefer legal edge-case sequences absent
-from ordinary architecture tests. You may only write under test_dir.
+1. Read the supplied coverage ledger, recent history and reusable notes first.
+   Prefer an under-covered area from coverage.prefer; use its targeted paths.
+   Counts describe investigations, not proof of correctness. Agent notes are
+   unverified; confirm the relevant RTL on this baseline before relying on them.
+2. Choose one behavior. Use targeted rg, inspect its RTL/control path and enabled
+   configuration, and consult the relevant ISA rule and nearby test.
+   Use local isa_docs when available. If missing, name the normative rule the
+   Tester must verify rather than claim you checked unavailable documentation.
+3. Stop when you can name the signals, a legal trigger sequence, the expected
+   behavior and a falsifiable failure hypothesis. Hand off remaining uncertainties.
 
-Return string fields: target, rationale, tester_prompt, knowledge.
-tester_prompt must give the Tester a detailed assignment: RTL files/signals,
-supported configuration, hypothesized failure, directed and seeded edge cases,
-method (Spike differential / assertions / isolated block), independent oracle,
-and concrete success/failure criteria. knowledge must summarize what you read,
-with file paths and spec references for reuse by later rounds.
+Budget roughly 12 shell commands, 6 deeply read source files, and 8 minutes.
+These are advisory handoff reminders, not failure limits. If essential evidence
+is still missing, explain that concrete missing fact in extension_reason on a
+further tool call. Do not compile, simulate, debug harnesses or inspect tool
+installations during planning. Leave those tasks to the Tester. You may only
+write under test_dir. Do not perform repository-wide or home-directory surveys.
+
+Return string fields target, rationale, tester_prompt, knowledge. You may include
+subsystem using a key from coverage.areas. tester_prompt must identify RTL files
+and signals, supported configuration, the suspected failure, a minimal positive
+control and edge case, the independent oracle, success/failure criteria and any
+unverified ISA assumptions. knowledge should briefly name the files/rules read
+and reusable observations, with uncertain claims clearly labelled.
 """
 
 TESTER_PROMPT = """
+Follow the Architect target -> relevant RTL and ISA rule -> nearby test -> minimal
+control/reproducer -> Wally/Spike. Avoid repository-wide surveys. Read the exact
+controller failure before repairing artifacts. Deep investigation is appropriate
+when it resolves a specific missing fact, not to repeat the Architect's survey.
 Your shell starts in test_dir, so relative helpers such as fix_json.py are saved
 with the test artifacts. Read repository files through $WALLY and keep helper
 scripts under $WALLY_TEST_DIR. Do not create scripts at the checkout root.
@@ -270,6 +276,11 @@ a hardware mismatch from a timeout, simulator crash or a generic nonzero exit.
 """
 
 CRITIC_PROMPT = """
+Start from the supplied controller evidence and exact test/RTL paths. Challenge
+the oracle, control, legal ISA assumptions and proposed patch. Re-execute or
+expand tests when that resolves a specific doubt; do not repeat the entire
+repository survey or full regression already recorded by the controller.
+
 You are Agent 3, adversarial Critic. Try your hardest to PROVE THE TESTER WRONG.
 Read actual test sources, logs, oracle and RTL, not just reports. Independently
 execute the reproducer. Challenge spec interpretation, enabled extensions,
@@ -297,6 +308,10 @@ approve requires valid evidence and passing required verification.
 """
 
 FIXER_PROMPT = """
+Begin with plan, baseline_reproducer, bug_review, and feedback. Read the named
+evidence logs and reproducer, then inspect the implicated RTL. On a retry, use
+the previous diff and failed verification before forming another patch. Do not
+restart broad bug discovery. Keep the controller's independent rerun authoritative.
 You are Agent 4, RTL Fixer. The controller reproduced the mismatch and the Critic reviewed test quality. Read the evidence,
 reproducer and critique, find the root cause and apply the SMALLEST correct fix
 to existing files under src/. Do not edit tests, expected results, configuration,
@@ -318,6 +333,7 @@ def prompt_with_rate_limit_retry(llm, prompt: str, tools: list, role: str, emit=
     capacity = LLMCapacity.options(name="wallyguard-llm-capacity", namespace="wallyguard",
                                    get_if_exists=True).remote(LLM_CONCURRENCY)
     def call():
+        capacity_started = time.monotonic()
         lease = uuid.uuid4().hex
         acquire = capacity.acquire.remote(lease, AGENT_TIMEOUT + 60)
         try:
@@ -327,6 +343,9 @@ def prompt_with_rate_limit_retry(llm, prompt: str, tools: list, role: str, emit=
             ray.get(capacity.release.remote(lease), timeout=10)
             raise
         ref = None
+        capacity_seconds = time.monotonic() - capacity_started
+        call_started = time.monotonic()
+        response = None
         try:
             ref = llm.prompt.chia_remote(llm, prompt, tools=tools)
             deadline = time.monotonic() + AGENT_TIMEOUT + 30
@@ -335,7 +354,8 @@ def prompt_with_rate_limit_retry(llm, prompt: str, tools: list, role: str, emit=
                 if remaining <= 0:
                     raise AgentCallFailure('LLM host deadline expired')
                 try:
-                    return get(ref, timeout=min(15, remaining))
+                    response = get(ref, timeout=min(15, remaining))
+                    return response
                 except ray.exceptions.GetTimeoutError:
                     for tool in tools:
                         tool.ready()
@@ -345,6 +365,9 @@ def prompt_with_rate_limit_retry(llm, prompt: str, tools: list, role: str, emit=
             raise
         finally:
             ray.get(capacity.release.remote(lease), timeout=10)
+            emit('LLM_TIMING', capacity_wait_seconds=capacity_seconds,
+                 dispatch_seconds=time.monotonic() - call_started,
+                 performance=getattr(response, 'performance', {}))
     return retry_call(call, lambda exc: isinstance(exc, RateLimitError), emit,
                       RetryPolicy(RATE_LIMIT_RETRIES, RATE_LIMIT_BASE_DELAY, RATE_LIMIT_MAX_DELAY))
 
@@ -373,7 +396,8 @@ def ask_agent(role: str, scratch: str, instructions: str, context: dict) -> dict
             bash.ready()  # A dead MCP endpoint is infrastructure, not reasoning failure.
             raise
         bash.save('cli-diagnostics.json', dict(stderr=response.stderr,
-                  returncode=response.returncode, transcript=response.stream_result, model=model))
+                  returncode=response.returncode, transcript=response.stream_result, model=model,
+                  performance=getattr(response, 'performance', {})))
         def repair(prompt):
             formatter = DiagnosticOpenCodeLLM(model=model, timeout_seconds=AGENT_TIMEOUT, retries=1,
                 additional_providers=providers, config={'*': 'deny'}, dangerously_skip_permissions=False)
@@ -382,7 +406,8 @@ def ask_agent(role: str, scratch: str, instructions: str, context: dict) -> dict
     lifecycle = []
     def lifecycle_event(status, **fields):
         lifecycle.append(dict(status=status, model=model, agent=role, **fields))
-        log(role, status + " " + json.dumps(redact(fields)))
+        if not status.endswith("_TIMING"):
+            log(role, status + " " + json.dumps(redact(fields)))
     try:
         return with_tool_recovery(create, call, lifecycle_event)
     finally:
@@ -392,6 +417,7 @@ def ask_agent(role: str, scratch: str, instructions: str, context: dict) -> dict
 
 
 @ChiaFunction(num_cpus=0, max_retries=0)
+@measured_worker
 def architect(scratch: str, context: dict) -> dict:
     result = ask_agent("architect", scratch, ARCHITECT_PROMPT, context)
     require_text(result, "target", "rationale", "tester_prompt", "knowledge")
@@ -399,6 +425,7 @@ def architect(scratch: str, context: dict) -> dict:
 
 
 @ChiaFunction(num_cpus=0, max_retries=0)
+@measured_worker
 def tester(scratch: str, context: dict) -> dict:
     result = ask_agent("tester", scratch, TESTER_PROMPT, context)
     if type(result.get("found_bug")) is not bool:
@@ -410,6 +437,7 @@ def tester(scratch: str, context: dict) -> dict:
 
 
 @ChiaFunction(num_cpus=0, max_retries=0)
+@measured_worker
 def critic(scratch: str, context: dict) -> dict:
     result = ask_agent("critic", scratch, CRITIC_PROMPT, context)
     require_text(result, "verdict", "critique")
@@ -420,6 +448,7 @@ def critic(scratch: str, context: dict) -> dict:
 
 
 @ChiaFunction(num_cpus=0, max_retries=0)
+@measured_worker
 def rtl_fixer(scratch: str, context: dict) -> dict:
     result = ask_agent("rtl_fixer", scratch, FIXER_PROMPT, context)
     if type(result.get("changed")) is not bool:
@@ -429,6 +458,7 @@ def rtl_fixer(scratch: str, context: dict) -> dict:
 
 
 @ChiaFunction(resources={"wally_sim": 1}, max_retries=0)
+@measured_worker
 def read_reproducer(test_dir: str) -> dict:
     try:
         return saved_contract(test_dir)
@@ -437,6 +467,7 @@ def read_reproducer(test_dir: str) -> dict:
 
 
 @ChiaFunction(resources={"wally_sim": 1}, max_retries=0)
+@measured_worker
 def save_lifecycle_events(test_dir: str, entries: list[dict]) -> None:
     for entry in entries:
         fields = dict(entry)
@@ -446,11 +477,13 @@ def save_lifecycle_events(test_dir: str, entries: list[dict]) -> None:
 
 
 @ChiaFunction(resources={"wally_sim": 1}, max_retries=0)
+@measured_worker
 def stage_snapshot(scratch: str, test_dir: str, stage: str) -> str:
     return guard_snapshot(scratch, test_dir, stage)
 
 
 @ChiaFunction(resources={"wally_sim": 1}, max_retries=0)
+@measured_worker
 def stage_finish(path: str) -> None:
     guard_finish(path)
 
@@ -475,6 +508,7 @@ def agent_stage(function, scratch: str, context: dict) -> dict:
 
 
 @ChiaFunction(resources={"wally_sim": 1}, max_retries=0)
+@measured_worker
 def make_worktree(wally_path: str, tag: str) -> dict:
     """Prepare one reusable checkout; never overwrite an unarchived attempt."""
     base = Path(wally_path).resolve()
@@ -626,6 +660,7 @@ def repair_submodule_links(scratch: str, base_commit: str, test_dir: str) -> lis
 
 
 @ChiaFunction(resources={"wally_sim": 1}, max_retries=0)
+@measured_worker
 def check_changes(scratch: str, base_commit: str, allow_rtl: bool = False, test_dir: str | None = None) -> str:
     """Reject tracked edits outside the role's scope, including staged edits."""
     if git(scratch, "rev-parse", "HEAD").strip() != base_commit:
@@ -652,6 +687,7 @@ def check_changes(scratch: str, base_commit: str, allow_rtl: bool = False, test_
 
 
 @ChiaFunction(resources={"wally_sim": 1}, max_retries=0)
+@measured_worker
 def test_fingerprint(scratch: str, test_dir: str) -> dict:
     """Freeze scripts/oracle inputs, excluding designated build/log directories."""
     root = Path(scratch) / test_dir
@@ -667,6 +703,7 @@ def fingerprint_changes(before: dict, after: dict) -> dict:
 
 
 @ChiaFunction(resources={"wally_sim": 1}, max_retries=0)
+@measured_worker
 def archive_inputs(scratch: str, test_dir: str, fingerprint: dict, revision: int) -> None:
     root = Path(scratch) / test_dir
     dest = root / "controller" / f"inputs-{revision}"
@@ -677,6 +714,7 @@ def archive_inputs(scratch: str, test_dir: str, fingerprint: dict, revision: int
 
 
 @ChiaFunction(resources={"wally_sim": 1}, max_retries=0)
+@measured_worker
 def restore_review_edits(scratch: str, base: str, test_dir: str, revision: int) -> None:
     if git(scratch, "rev-parse", "HEAD").strip() != base:
         raise ArtifactError("Critic changed HEAD; automatic recovery stopped")
@@ -687,6 +725,7 @@ def restore_review_edits(scratch: str, base: str, test_dir: str, revision: int) 
 
 
 @ChiaFunction(resources={"wally_sim": 1}, max_retries=0)
+@measured_worker
 def verify_command(scratch: str, command, log_path: str, timeout: int = REGRESSION_TIMEOUT,
                    kind: str = 'regression', test_dir: str | None = None) -> dict:
     path = Path(scratch) / log_path
@@ -727,8 +766,10 @@ def verify_command(scratch: str, command, log_path: str, timeout: int = REGRESSI
 
 
 @ChiaFunction(resources={"wally_sim": 1}, max_retries=0)
+@measured_worker
 def save_attempt(wally_path: str, record: dict) -> None:
     """Archive all attempts under runs/ beside the cvw checkout."""
+    archive_started = time.monotonic()
     dest = Path(wally_path).parent / "runs" / record["tag"]
     dest.mkdir(parents=True, exist_ok=True)
     try:
@@ -754,8 +795,16 @@ def save_attempt(wally_path: str, record: dict) -> None:
     event(dest / 'events.jsonl', record['status'].upper(), readable=False,
           iteration_id=record['tag'], stage='controller', attempt=len(record.get('fix_attempts', [])))
     temp = dest / "attempt.json.tmp"
+    if not record.get('active', True):
+        record['final_archive_seconds'] = time.monotonic() - archive_started
+        record['duration_seconds'] = record.get('duration_seconds', 0) + record['final_archive_seconds']
     temp.write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
     temp.replace(dest / "attempt.json")
+    if not record.get('active', True) and 'coverage_after' in record:
+        ledger = dest.parent / 'coverage.json'
+        pending = ledger.with_suffix('.json.tmp')
+        pending.write_text(json.dumps(record['coverage_after'], indent=2) + '\n')
+        pending.replace(ledger)
 
 
 def history_entry(record: dict) -> dict:
@@ -763,10 +812,19 @@ def history_entry(record: dict) -> dict:
             "status": record["status"], "report": record.get("tester", {}).get("report", ""),
             "knowledge": record.get("plan", {}).get("knowledge", ""),
             "source_base": record.get('base_commit', ''),
+            'subsystem': record.get('plan', {}).get('subsystem'),
+            'tested': any(step.get('baseline_reproducer', {}).get('status') in (Outcome.MATCH, Outcome.MISMATCH_CONFIRMED)
+                          for step in record.get('test_revisions', [])),
+            'reproduced': any(step.get('baseline_reproducer', {}).get('status') == Outcome.MISMATCH_CONFIRMED
+                              and bool(step.get('repeats')) and all(
+                                  run.get('status') == Outcome.MISMATCH_CONFIRMED
+                                  and run.get('fingerprint') == step['baseline_reproducer'].get('fingerprint')
+                                  for run in step['repeats']) for step in record.get('test_revisions', [])),
             "observed_failure": observed_failure(record)}
 
 
 @ChiaFunction(resources={"wally_sim": 1}, max_retries=0)
+@measured_worker
 def load_history(wally_path: str) -> list[dict]:
     history = []
     for path in sorted((Path(wally_path).parent / "runs").glob("*/attempt.json")):
@@ -778,12 +836,15 @@ def load_history(wally_path: str) -> list[dict]:
 
 
 @ChiaFunction(resources={"wally_sim": 1}, max_retries=0)
+@measured_worker
 def export_patch(wally_path: str, record: dict, expected_diff: str) -> str:
     diff = check_changes(record["scratch"], record["base_commit"], allow_rtl=True, test_dir=record["test_dir"])
     if not diff or diff != expected_diff:
         raise RuntimeError("Empty patch or RTL changed after verification")
     if record.get('status') == 'full_regression_passed' and not confirmation_allowed(record):
         raise ArtifactError('Cannot export confirmed patch: deterministic gates incomplete')
+    if not candidate_allowed(record):
+        raise ArtifactError('Cannot export patch: required verification or reviews incomplete')
     dest = Path(wally_path).parent / ("confirmed-bugs" if confirmation_allowed(record) else "candidate-bugs")
     dest.mkdir(parents=True, exist_ok=True)
     path = dest / f"bug-{record['tag']}.patch"
@@ -792,17 +853,35 @@ def export_patch(wally_path: str, record: dict, expected_diff: str) -> str:
 
 
 def remote(function, *args, **kwargs):
-    return get(function.chia_remote(*args, **kwargs))
+    record = active_record.get()
+    if record is None:
+        return get(function.chia_remote(*args, **kwargs))
+    started, worker = time.monotonic(), None
+    status = 'failed'
+    try:
+        if getattr(function, '_wg_measured', False):
+            kwargs['_wg_measure'] = True
+        result = get(function.chia_remote(*args, **kwargs))
+        if isinstance(result, dict) and result.get('__wg_timing__') is True:
+            worker, result = result['worker_seconds'], result['value']
+        status = 'completed'
+        return result
+    finally:
+        elapsed = time.monotonic() - started
+        record.setdefault('operations', []).append(dict(operation=function.__name__, status=status,
+            total_seconds=elapsed, worker_seconds=worker,
+            queue_transport_seconds=max(0, elapsed - worker) if worker is not None else None))
 
 
 def run_attempt(record: dict, history: list[dict], max_fix_attempts: int) -> None:
     record['timings'] = []
     record["models"] = dict(MODELS)
     record["run_regression"] = RUN_REGRESSION
+    record['directed_configured'] = bool(DIRECTED_COMMAND)
     record["verification_scope"] = "targeted_and_regression" if RUN_REGRESSION else "targeted_only"
     record.update(remote(make_worktree, WALLY_PATH, record["tag"]))
     scratch, test_dir, base = record["scratch"], record["test_dir"], record["base_commit"]
-    context = {**record, "history": history[-40:],
+    context = {**record, "history": history[-40:], 'coverage': coverage_summary(history, base),
                "history_dir": str(Path(WALLY_PATH).parent / "runs"),
                "original_checkout": WALLY_PATH, "isa_docs": ISA_DOCS,
                "regression_command": REGRESSION_COMMAND}
@@ -930,7 +1009,7 @@ def run_attempt(record: dict, history: list[dict], max_fix_attempts: int) -> Non
                 if fix['directed']['passed']:
                     record['status'] = 'directed_regression_passed'
         fix["regression"] = dict(skipped)
-        if RUN_REGRESSION and fix['reproducer']['passed'] and fix['directed']['passed']:
+        if RUN_REGRESSION and fix['reproducer']['passed'] and (not DIRECTED_COMMAND or fix['directed']['passed']):
             log("Regression", f"Independently checking fix {attempt}: {REGRESSION_COMMAND}")
             fix["regression"] = remote(
                 verify_command, scratch, REGRESSION_COMMAND, f"{test_dir}/logs/fix-{attempt}-regression.log",
@@ -951,7 +1030,7 @@ def run_attempt(record: dict, history: list[dict], max_fix_attempts: int) -> Non
             record['patch'] = remote(export_patch, WALLY_PATH, record, diff)
             record['status'] = 'confirmed'
             return
-        if fix['reproducer']['passed'] and (not RUN_REGRESSION or not DIRECTED_COMMAND) and fix['review']['verdict'] == 'approve':
+        if candidate_allowed(record):
             record['status'] = 'candidate_fix_verified'
             record['patch'] = remote(export_patch, WALLY_PATH, record, diff)
             return
@@ -976,6 +1055,7 @@ def main(max_iterations: int | None = MAX_ITERATIONS, max_fix_attempts: int = MA
         tag = f"{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}-{uuid.uuid4().hex[:8]}"
         record = {"tag": tag, "iteration": i, "status": "in_progress", "active": True,
                   "started_at": datetime.now(timezone.utc).isoformat()}
+        timing_context = active_record.set(record)
         log("LOOP", f"Iteration {i}: {tag}")
         try:
             run_attempt(record, history, max_fix_attempts)
@@ -1006,6 +1086,7 @@ def main(max_iterations: int | None = MAX_ITERATIONS, max_fix_attempts: int = MA
             log("LOOP", f"Controller failure: {exc!r}; preserving current candidate")
         finally:
             record['active'] = False
+            record['coverage_after'] = coverage_summary(history + [history_entry(record)], record.get('base_commit', ''))
             record['duration_seconds'] = round(time.monotonic() - iteration_started, 3)
             try:
                 remote(save_attempt, WALLY_PATH, record)
@@ -1013,6 +1094,7 @@ def main(max_iterations: int | None = MAX_ITERATIONS, max_fix_attempts: int = MA
                 log("LOOP", f"Archive failed: {exc!r}; files remain in {record.get('scratch')}")
             history.append(history_entry(record))
             log("LOOP", f"Outcome: {record['status']}; worktree retained: {record.get('scratch')}")
+            active_record.reset(timing_context)
         if record['status'] in {'fix_attempts_exhausted', 'fix_rejected', 'regression_blocked',
                                 'api_rate_limit', 'mcp_server_timeout', 'agent_failed',
                                 'agent_output_invalid', 'controller_error'}:

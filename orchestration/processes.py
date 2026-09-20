@@ -141,6 +141,7 @@ def run_command(command, log_path, timeout, env=None, cwd=None, cancellation_eve
             result.update(status="INFRA_FAILURE", error=f"{type(exc).__name__}: command cancelled")
             raise
         finally:
+            cleanup_started = time.monotonic()
             if process is not None:
                 try:
                     cleanup_error = _cleanup(process, known)
@@ -150,7 +151,8 @@ def run_command(command, log_path, timeout, env=None, cwd=None, cancellation_eve
                     result['returncode'] = process.returncode
                 if cleanup_error:
                     result.update(status="INFRA_FAILURE", error=cleanup_error)
-            result.update(duration_seconds=time.monotonic() - started,
+            result.update(cleanup_seconds=time.monotonic() - cleanup_started,
+                          duration_seconds=time.monotonic() - started,
                           finished_at=datetime.now(timezone.utc).isoformat())
             handle.write(f"\nFinished: {result['finished_at']}\nReturn code: {result['returncode']}\n"
                          f"Status: {result['status']}\n")

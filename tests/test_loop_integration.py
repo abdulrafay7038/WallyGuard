@@ -13,7 +13,7 @@ from orchestration.verification_state import confirmation_allowed
 
 class LoopIntegrationTests(unittest.TestCase):
     def campaign(self, *, regression=True, regression_pass=True, baseline=Outcome.MISMATCH_CONFIRMED,
-                 directed=True, targeted=True, repair_attempts=1, saved=False):
+                 directed=True, directed_pass=True, targeted=True, repair_attempts=1, saved=False):
         self.calls=[]; self.feedback=[];self.exports=[];patched=False
         def remote(function,*args,**kwargs):
             nonlocal patched
@@ -40,8 +40,8 @@ class LoopIntegrationTests(unittest.TestCase):
                 if 'reproducer' in path:
                     status=(Outcome.MATCH if targeted else Outcome.MISMATCH_CONFIRMED) if patched else baseline
                     return {'status':status,'passed':status==Outcome.MATCH,'returncode':0}
-                passed=True if not patched else regression_pass
-                return {'status':'REGRESSION_PASS' if passed else 'REGRESSION_FAIL','passed':passed,'returncode':0 if passed else 1}
+                passed=True if not patched else (directed_pass if 'directed' in path else regression_pass)
+                return {'ran':True,'status':'REGRESSION_PASS' if passed else 'REGRESSION_FAIL','passed':passed,'returncode':0 if passed else 1}
             raise AssertionError((name,args))
         record={'tag':'fixture','status':'in_progress'}
         with patch.object(loop,'remote',side_effect=remote),patch.object(loop,'RUN_REGRESSION',regression),\
@@ -81,6 +81,37 @@ class LoopIntegrationTests(unittest.TestCase):
         result=self.campaign(directed=False)
         self.assertEqual(result['status'],'candidate_fix_verified')
         self.assertFalse(confirmation_allowed(result))
+        self.assertTrue(result['fix_attempts'][-1]['regression']['ran'])
+
+    def test_enabled_validation_matrix(self):
+        for regression in (False, True):
+            for directed in (False, True):
+                for directed_pass in (False, True):
+                    for regression_pass in (False, True):
+                        with self.subTest(regression=regression, directed=directed,
+                                          directed_pass=directed_pass, regression_pass=regression_pass):
+                            result = self.campaign(regression=regression, directed=directed,
+                                directed_pass=directed_pass, regression_pass=regression_pass)
+                            fix = result['fix_attempts'][-1]
+                            expected = (not directed or directed_pass) and (not regression or regression_pass)
+                            self.assertEqual(bool(self.exports), expected)
+                            self.assertEqual(fix['regression']['ran'], regression and (not directed or directed_pass))
+                            if not expected:
+                                self.assertEqual(result['status'], 'fix_attempts_exhausted')
+
+    def test_candidate_export_rechecks_enabled_validation(self):
+        from inspect import unwrap
+        result = self.campaign(regression=False)
+        result['fix_attempts'][-1]['directed']['passed'] = False
+        with patch.object(loop, 'check_changes', return_value='patch'):
+            with self.assertRaises(loop.ArtifactError):
+                unwrap(loop.export_patch)('/fixture/cvw', result, 'patch')
+
+    def test_passed_flag_without_execution_cannot_export(self):
+        from orchestration.verification_state import candidate_allowed
+        result = self.campaign()
+        result['fix_attempts'][-1]['directed']['ran'] = False
+        self.assertFalse(candidate_allowed(result))
 
     def test_regression_failure_returns_feedback_to_fixer(self):
         result=self.campaign(regression_pass=False,repair_attempts=2)
