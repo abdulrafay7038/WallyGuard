@@ -171,3 +171,20 @@ control is still invalid. Optimize additional caching/concurrency only if new
 timing demonstrates those costs dominate. Separate RTL compile/simulation timing
 would require a supported timing hook in `wsim`; both are currently reported as
 one measured operation, with the unavailable split explicitly null.
+
+## Follow-up: script-mode Ray serialization
+
+Run `20260920T071102Z-264f62cd` exposed a regression in the new timing code:
+launching `python loop.py` makes Ray serialize the agent functions by value.
+Their reference to `remote()` captured a module-level `ContextVar`, which cannot
+be pickled. The failure occurred before the Architect's model call. Workspace
+setup took 186.41 s; the controller archived the failed attempt normally.
+
+The driver now accesses its timing context through the importable timing module,
+so Ray transfers a module reference rather than the context object. A regression
+test reproduces script-mode serialization with an active driver timing context,
+covering all four agents and the main controller workers. All 100 project tests
+pass. A separate live Ray dispatch check, with CHIA profiling enabled, received
+the four real agent callables and confirmed that the worker timing context was
+empty. This checks transport, not LLM execution or campaign throughput. The
+existing archived workspace remains available for the next fresh submission.

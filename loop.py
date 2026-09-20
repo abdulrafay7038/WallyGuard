@@ -38,7 +38,8 @@ from orchestration.scaffold import seed_harness
 from orchestration.toolchain import simulation_env, validate_spike
 from orchestration.input_files import input_files
 from orchestration.coverage import coverage_summary
-from orchestration.timing import active_record, measured_worker
+from orchestration import timing as timing_state
+from orchestration.timing import measured_worker
 
 WALLY_PATH = os.environ.get("WALLY_PATH", "/home/rafay/miniconda3/WallyGuard2/cvw")
 MAX_ITERATIONS = 200
@@ -853,7 +854,9 @@ def export_patch(wally_path: str, record: dict, expected_diff: str) -> str:
 
 
 def remote(function, *args, **kwargs):
-    record = active_record.get()
+    # Keep ContextVar behind an importable module: script-mode functions are
+    # cloudpickled by value, and a captured ContextVar cannot be serialized.
+    record = timing_state.active_record.get()
     if record is None:
         return get(function.chia_remote(*args, **kwargs))
     started, worker = time.monotonic(), None
@@ -1055,7 +1058,7 @@ def main(max_iterations: int | None = MAX_ITERATIONS, max_fix_attempts: int = MA
         tag = f"{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}-{uuid.uuid4().hex[:8]}"
         record = {"tag": tag, "iteration": i, "status": "in_progress", "active": True,
                   "started_at": datetime.now(timezone.utc).isoformat()}
-        timing_context = active_record.set(record)
+        timing_context = timing_state.active_record.set(record)
         log("LOOP", f"Iteration {i}: {tag}")
         try:
             run_attempt(record, history, max_fix_attempts)
@@ -1094,7 +1097,7 @@ def main(max_iterations: int | None = MAX_ITERATIONS, max_fix_attempts: int = MA
                 log("LOOP", f"Archive failed: {exc!r}; files remain in {record.get('scratch')}")
             history.append(history_entry(record))
             log("LOOP", f"Outcome: {record['status']}; worktree retained: {record.get('scratch')}")
-            active_record.reset(timing_context)
+            timing_state.active_record.reset(timing_context)
         if record['status'] in {'fix_attempts_exhausted', 'fix_rejected', 'regression_blocked',
                                 'api_rate_limit', 'mcp_server_timeout', 'agent_failed',
                                 'agent_output_invalid', 'controller_error'}:

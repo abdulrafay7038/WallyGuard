@@ -1,3 +1,4 @@
+import ast
 import json
 from pathlib import Path
 import tempfile
@@ -38,6 +39,34 @@ class CoverageTests(unittest.TestCase):
 
 
 class TimingTests(unittest.TestCase):
+    def test_script_entrypoint_workers_serialize_with_driver_timing_active(self):
+        from ray import cloudpickle
+        path = Path(loop.__file__)
+        tree = ast.parse(path.read_text())
+        # Match `python loop.py` definitions without starting its campaign.
+        # Importing loop normally lets cloudpickle use module references and
+        # misses objects captured by script-mode functions serialized by value.
+        self.assertIsInstance(tree.body[-1], ast.If)
+        self.assertEqual(ast.dump(tree.body[-1].test),
+                         ast.dump(ast.parse("__name__ == '__main__'", mode='eval').body))
+        tree.body.pop()
+        namespace = {'__name__': '__main__', '__file__': str(path)}
+        exec(compile(tree, str(path), 'exec'), namespace)
+        record = {'tag': 'driver-only', 'operations': []}
+        context = active_record.set(record)
+        try:
+            for name in ('architect', 'tester', 'critic', 'rtl_fixer', 'make_worktree',
+                         'verify_command', 'save_attempt'):
+                with self.subTest(worker=name):
+                    original = namespace[name]._chia_original
+                    restored = cloudpickle.loads(cloudpickle.dumps(original))
+                    self.assertEqual(restored.__name__, name)
+            restored_remote = cloudpickle.loads(cloudpickle.dumps(namespace['remote']))
+            self.assertIs(restored_remote.__globals__['timing_state'].active_record, active_record)
+            self.assertIs(active_record.get(), record)
+        finally:
+            active_record.reset(context)
+
     def test_worker_wrapper_preserves_normal_calls_and_remote_reports_overhead(self):
         @measured_worker
         def work(value):
