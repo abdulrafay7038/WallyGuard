@@ -1086,6 +1086,7 @@ def main(max_iterations: int | None = MAX_ITERATIONS, max_fix_attempts: int = MA
         iteration_started = time.monotonic()
         tag = f"{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}-{uuid.uuid4().hex[:8]}"
         record = {"tag": tag, "iteration": i, "status": "in_progress", "active": True,
+                  "controller_sha256": os.environ.get('WALLYGUARD_CONTROLLER_SHA256'),
                   "started_at": datetime.now(timezone.utc).isoformat()}
         timing_context = timing_state.active_record.set(record)
         log("LOOP", f"Iteration {i}: {tag}")

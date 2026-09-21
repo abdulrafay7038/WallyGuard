@@ -329,36 +329,27 @@ export WALLY_REGRESSION_TIMEOUT=5400
 export WALLY_REPRODUCER_TIMEOUT=900
 export WALLY_LLM_CONCURRENCY=1
 
-# Explicitly forward configuration: a Ray job need not inherit shell exports.
-WALLYGUARD_RUNTIME_ENV="$(python -B - <<'RUNTIME_ENV'
-import json
-import os
-
-keys = (
-    "WALLY_PATH", "WALLY_SPIKE", "WALLY_RUN_REGRESSION", "WALLY_DIRECTED_COMMAND",
-    "WALLY_REGRESSION_COMMAND", "WALLY_REGRESSION_TIMEOUT",
-    "WALLY_REPRODUCER_TIMEOUT", "WALLY_ORACLE_TIMEOUT", "WALLY_COMMAND_TIMEOUT",
-    "WALLY_AGENT_TIMEOUT", "WALLY_BASELINE_RUNS",
-    "WALLY_LLM_CONCURRENCY", "WALLY_ISA_DOCS", "GOOGLE_CLOUD_PROJECT",
-    "WALLY_PROFILE", "WALLY_PROFILE_DIR",
-    "CHIA_ARCHITECT_MODEL", "CHIA_TESTER_MODEL", "CHIA_CRITIC_MODEL",
-)
-print(json.dumps({
-    "working_dir": os.getcwd(),
-    "excludes": ["cvw/", "runs/", "reviews/", "wally-worktrees/", "confirmed-bugs/",
-                 "candidate-bugs/", ".git/", "__pycache__/"],
-    "env_vars": {key: os.environ[key] for key in keys if key in os.environ},
-}))
-RUNTIME_ENV
-)"
-chia job submit --address http://127.0.0.1:8265 \
-    --runtime-env-json "$WALLYGUARD_RUNTIME_ENV" \
-    -- python -B loop.py
+# Forward supported configuration and verify the uploaded controller sources.
+python -B -m orchestration.submission --address http://127.0.0.1:8265
 ```
 
 The hardware checkout stays on the CVW host; only orchestration code is uploaded.
 `WALLY_PATH` and optional `WALLY_ISA_DOCS` must resolve on that host. Changes to
-local code require a new submission to reach workers.
+local code require a new submission to reach workers. The submission helper prints
+an SHA256 digest covering `loop.py`, orchestration Python sources, and harness
+templates. The uploaded entrypoint checks that digest before starting the loop;
+a stale or incomplete package fails before touching the worktree. Successful
+checks print `Controller source verified` and save `controller_sha256` in each
+attempt. Use `python -B -m orchestration.submission --dry-run` to inspect the
+submission without starting a job. Direct `python loop.py` submissions bypass
+this check. Existing jobs retain the code they were submitted with.
+
+Provider `429 / Resource exhausted` failures are separate from controller or
+simulation failures. The console reports the model, attempt count and next retry
+delay, or that retries have stopped. The existing bounded backoff remains in
+place. Persistent provider capacity failures preserve the attempt and stop the
+campaign; they cannot establish or refute an RTL bug. See the measured breakdown
+in [the performance audit](docs/performance-audit.md).
 
 `loop.py` defaults to **200 discovery iterations**, with up to **3 fix attempts**
 and **2 test-repair rounds** per candidate. It has no command-line argument parser.

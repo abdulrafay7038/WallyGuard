@@ -46,6 +46,15 @@ def event(path: Path, status: str, *, readable: bool = True, **fields: Any) -> d
     finally:
         os.close(fd)
     if readable:
-        configure_logger('wallyguard.events').info('%s stage=%s exit=%s', status,
-            record.get('stage', ''), record.get('raw_exit_code'))
+        logger = configure_logger('wallyguard.events')
+        if status == 'API_RATE_LIMIT' and 'will_retry' in record:
+            action = (f"retry in {record.get('retry_after')}s" if record['will_retry']
+                      else 'stopping; retry policy exhausted or Retry-After exceeds wait budget')
+            reason = ' '.join(str(record.get('error', '')).split())[:400]
+            logger.info('%s stage=%s model=%s attempt=%s/%s; %s; %s', status,
+                        record.get('stage', ''), record.get('model', ''),
+                        record.get('attempt_number'), record.get('max_attempts'), action, reason)
+        else:
+            logger.info('%s stage=%s exit=%s', status,
+                        record.get('stage', ''), record.get('raw_exit_code'))
     return record

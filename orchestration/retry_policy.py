@@ -83,11 +83,14 @@ def retry_call(call: Callable[[], Any], is_rate_limit: Callable[[Exception], boo
                     raise
                 raise AgentCallFailure(f'{type(exc).__name__}: provider/CLI failure; see stage diagnostics') from exc
             delay = rate_delay(exc, attempt, policy)
+            will_retry = attempt < policy.rate_retries and delay <= policy.max_delay
             emit('API_RATE_LIMIT', retry_count=attempt, retry_after=delay,
+                 attempt_number=attempt + 1, max_attempts=policy.rate_retries + 1,
+                 will_retry=will_retry,
                  raw_exit_code=getattr(exc, 'exit_code', None), error=str(exc),
                  stdout=getattr(exc, 'stdout', ''), stderr=getattr(exc, 'stderr', ''),
                  transcript=getattr(exc, 'transcript', ''), api_metadata=getattr(exc, 'api_metadata', {}))
-            if attempt == policy.rate_retries or delay > policy.max_delay:
+            if not will_retry:
                 # Do not retry earlier than a long Retry-After. Preserve the
                 # candidate and stop rather than sleep beyond the retry budget.
                 raise

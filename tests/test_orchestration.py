@@ -110,10 +110,14 @@ class RetryTests(unittest.TestCase):
         self.assertEqual(emit.call_args.args[0], 'RATE_LIMIT_WAIT')
 
     def test_exhaustion(self):
-        call, sleep = Mock(side_effect=self.RateLimit()), Mock()
+        call, sleep, emit = Mock(side_effect=self.RateLimit()), Mock(), Mock()
         with self.assertRaises(self.RateLimit):
-            retry_call(call, lambda e:isinstance(e,self.RateLimit), Mock(), RetryPolicy(1), sleep)
+            retry_call(call, lambda e:isinstance(e,self.RateLimit), emit, RetryPolicy(1), sleep)
         self.assertEqual(call.call_count, 2)
+        events = [entry.kwargs for entry in emit.call_args_list if entry.args[0] == 'API_RATE_LIMIT']
+        self.assertEqual([entry['will_retry'] for entry in events], [True, False])
+        self.assertEqual([entry['attempt_number'] for entry in events], [1, 2])
+        self.assertEqual(events[-1]['max_attempts'], 2)
 
     def test_long_retry_after_stops_without_retrying_early(self):
         error=self.RateLimit();error.retry_after=10000
@@ -206,6 +210,18 @@ class ArtifactTests(unittest.TestCase):
 
 
 class LoggingTests(unittest.TestCase):
+    def test_rate_limit_log_explains_action_without_exposing_secrets(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            for retry in (True, False):
+                with self.assertLogs('wallyguard.events', level='INFO') as logs:
+                    event(Path(temporary)/'events.jsonl', 'API_RATE_LIMIT', stage='architect',
+                          model='provider/model', attempt_number=2, max_attempts=5,
+                          retry_after=60, will_retry=retry, error='Resource exhausted Authorization=private')
+                text = '\n'.join(logs.output)
+                self.assertIn('attempt=2/5', text)
+                self.assertIn('retry in 60s' if retry else 'stopping', text)
+                self.assertNotIn('private', text)
+
     def test_one_logical_event_once(self):
         stream=io.StringIO()
         logger=configure_logger('wallyguard.test-once',stream)

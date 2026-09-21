@@ -252,3 +252,57 @@ owned process was stopped. No successful live recovery or campaign throughput
 claim is made. The original failed session was exported to a temporary diagnostic
 file; no Wally worktree or archived run input was modified. A fresh job submission
 is required to exercise this workaround with the controller's active MCP tools.
+
+## Follow-up: provider capacity and controller submission
+
+Run `20260921T144858Z-059e2eea` stopped with `api_rate_limit`. Its saved events
+contain five separate HTTP 429 errors from Vertex, each before any tool call.
+No model-turn recovery was attempted. The observed breakdown is:
+
+| Measurement | Seconds |
+| --- | ---: |
+| Iteration | 1484.8 |
+| Architect stage | 1484.6 |
+| Five OpenCode calls, including provider/CLI waits | 1027.1 |
+| Four controller backoff waits | 450.8 |
+| LLM capacity lease wait | 0.9 |
+| Worktree setup | 0.05 |
+| Shell commands, Wally, Spike, controller verification | 0 |
+
+The individual OpenCode calls took 213.5, 181.9, 245.6, 174.3 and 211.8 seconds.
+Backoff was 30, 60, 120 and 240 seconds. No response supplied a Retry-After
+header. The logs do not expose pure generation time or the number of provider
+requests made internally by OpenCode. These measurements do not show slow RTL
+exploration or simulation: no investigation began. Nested durations are not
+additive.
+
+Google's [429 guidance](https://cloud.google.com/vertex-ai/generative-ai/docs/error-code-429)
+associates this error with unavailable request capacity. It recommends global
+endpoints and exponential backoff, both already configured here. These logs
+alone cannot distinguish a project quota from shared capacity pressure. No
+model substitution, concurrency increase or shorter agent timeout was applied.
+Retry events now print the model, attempt number, provider reason and whether
+another retry is actually scheduled. Exhausted retries retain the original
+failure classification and stop the campaign.
+
+An inspection of the later submission `raysubmit_H147fftEsjnvSXwp` found its
+uploaded `loop.py` matched commit `5e0d7ca08` byte-for-byte and its package had
+no `orchestration/` directory. The dashboard recorded a package upload at
+15:45:50 UTC. This establishes that an old payload was submitted, not why that
+payload was selected. The running job was left untouched.
+
+`python -B -m orchestration.submission` now submits through the same CHIA/Ray
+CLI from an absolute checkout path. It calculates a source digest locally and
+checks it in the uploaded entrypoint before importing or executing the loop.
+The digest covers `loop.py`, orchestration Python files and harness templates;
+run artifacts are excluded. An obsolete package without the entrypoint fails
+to import it; a changed or incomplete source set fails the digest check. The
+verified digest is saved in `attempt.json`. Direct submissions of `loop.py`
+bypass this check, so the README now uses the checked command.
+
+Validation: 116 tests pass. New checks exercise changed/missing source,
+template invalidation, actual entrypoint execution, environment forwarding,
+dry-run behavior, retry exhaustion and redacted console messages. A local
+round-trip through Ray's installed package builder and ZIP extraction produced
+the same source digest. No new live campaign was launched and no improved
+end-to-end throughput is claimed. Provider capacity remains an external limit.
