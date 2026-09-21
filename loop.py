@@ -404,7 +404,8 @@ def ask_agent(role: str, scratch: str, instructions: str, context: dict) -> dict
             raise
         bash.save('cli-diagnostics.json', dict(stderr=response.stderr,
                   returncode=response.returncode, transcript=response.stream_result, model=model,
-                  performance=getattr(response, 'performance', {})))
+                  performance=getattr(response, 'performance', {}),
+                  protocol_recovery=getattr(response, 'protocol_recovery', None)))
         def repair(prompt):
             formatter = DiagnosticOpenCodeLLM(model=model, timeout_seconds=AGENT_TIMEOUT, retries=1,
                 additional_providers=providers, config={'*': 'deny'}, dangerously_skip_permissions=False)

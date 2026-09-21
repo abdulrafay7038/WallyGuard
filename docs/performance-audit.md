@@ -218,3 +218,37 @@ writes through Critic/Fixer guards, restoration of unauthorized root-log edits,
 history recovery, and retention of unaccepted reviews on guard failure. These
 changes require a fresh job submission; an already running uploaded job and its
 workspace are left untouched.
+
+## Follow-up: Gemini model-turn rejection
+
+Architect runs `20260921T143000Z-4394004e` and
+`20260921T143521Z-84f06d2d` failed after successful tool calls with HTTP 400:
+`Requests ending with a model turn are not supported.` The installed OpenCode
+version was 1.18.25. The last stream contained a step with finish reason
+`unknown`, followed by the API error. This was neither a command timeout nor a
+credential-access failure. An [upstream OpenCode report](https://github.com/anomalyco/opencode/issues/45359)
+describes the same symptom and continuing with a new user message; it does not
+establish that every occurrence has the same internal cause.
+
+The project wrapper now recognizes that exact structured 400 and a consistent
+session ID, rejects streams with unfinished tool calls, and appends one user
+continuation using `--session`. It keeps the same configuration, model and tool
+endpoint, with the remaining command time budget. It does not retry arbitrary
+invalid requests, change models, or restart the investigation. A second failure
+propagates normally. The original stream/stderr is retained in diagnostics.
+
+Because OpenCode exports full session history, the wrapper ignores only the
+recovered historical error preceding its exact continuation message; new errors,
+unrelated errors, wrong sessions and missing continuation boundaries remain
+errors. Controller verification, artifact guards and JSON validation still apply.
+The performance report includes `protocol_recovery_attempts`, and generic failure
+messages now include a bounded, redacted provider explanation.
+
+Validation: 110 tests pass, including exact-error matching, one-attempt bounds,
+same-session/config continuation, remaining timeout, refusal of unrelated errors,
+and historical/new error separation. A tools-disabled live probe on a fork of
+the failed session did not complete within its 60-second diagnostic budget; its
+owned process was stopped. No successful live recovery or campaign throughput
+claim is made. The original failed session was exported to a temporary diagnostic
+file; no Wally worktree or archived run input was modified. A fresh job submission
+is required to exercise this workaround with the controller's active MCP tools.

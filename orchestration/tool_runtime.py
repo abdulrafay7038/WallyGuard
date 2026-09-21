@@ -20,6 +20,7 @@ from .retry_policy import MCPFailure
 from .test_preflight import contract_errors, under
 from .toolchain import simulation_env
 from .timing import record_event, export_timing
+from .opencode_recovery import continuation_session, clear_recovered_error, CONTINUATION
 
 
 @ray.remote(num_cpus=0)
@@ -264,11 +265,30 @@ class DiagnosticOpenCodeLLM(OpenCodeLLM):
         return config
 
     def _capture(self, cmd: list, env: dict):
+        started = time.monotonic()
+        response = self._capture_once(cmd, env)
+        if len(cmd) < 2 or cmd[1] != 'run' or getattr(self, '_turn_recovery', None):
+            return response
+        session = continuation_session(response.stdout)
+        remaining = self.timeout_seconds - (time.monotonic() - started)
+        if not session or remaining <= 0:
+            return response
+        # The original prompt is the final positional argument in CHIA's CLI.
+        # Reuse its config, tools, model and exact session; no fresh conversation.
+        if any(flag in cmd for flag in ('--session', '-s', '--continue', '-c', '--fork')):
+            return response
+        self._turn_recovery = dict(session=session, stdout=response.stdout, stderr=response.stderr,
+                                   returncode=response.returncode)
+        self._performance['protocol_recovery_attempts'] = 1
+        resumed = cmd[:-1] + ['--session', session, CONTINUATION]
+        return self._capture_once(resumed, env, timeout=remaining)
+
+    def _capture_once(self, cmd: list, env: dict, timeout=None):
         from tempfile import TemporaryDirectory
         from types import SimpleNamespace
         with TemporaryDirectory(prefix='wallyguard-opencode-') as temporary:
             root = Path(temporary)
-            result = run_command(cmd, root / 'command.log', self.timeout_seconds, env=env,
+            result = run_command(cmd, root / 'command.log', timeout or self.timeout_seconds, env=env,
                 stdout_path=root / 'stdout', stderr_path=root / 'stderr')
             self._last_command_status = {key: result[key] for key in ('status', 'timed_out', 'returncode', 'duration_seconds')}
             if not hasattr(self, '_performance'):
@@ -284,12 +304,15 @@ class DiagnosticOpenCodeLLM(OpenCodeLLM):
 
     def _extract_from_export(self, export):
         self._performance.update(export_timing(export))
+        if getattr(self, '_turn_recovery', None):
+            export = clear_recovered_error(export, self._turn_recovery['session'])
         return super()._extract_from_export(export)
 
     @ChiaFunction(resources={'opencode_creds': 1}, max_retries=0)
     def prompt(self, user_message: str, tools=None):
         started = time.monotonic()
         self._performance = {'commands': []}
+        self._turn_recovery = None
         self._last_metadata, self._last_export_error = {}, None
         try:
             result = self._run_opencode(user_message, tools or [])
@@ -297,9 +320,11 @@ class DiagnosticOpenCodeLLM(OpenCodeLLM):
             result = QueryResult('', -1, f'{type(exc).__name__}: {exc}', '', False)
             self._performance['worker_seconds'] = time.monotonic() - started
             result.performance = self._performance
+            result.protocol_recovery = self._turn_recovery
             return result
         self._performance['worker_seconds'] = time.monotonic() - started
         result.performance = self._performance
+        result.protocol_recovery = self._turn_recovery
         try:
             self._classify_error(result, export_error=self._last_export_error)
         except OpenCodeError as exc:

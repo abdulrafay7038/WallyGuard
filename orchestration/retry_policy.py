@@ -66,8 +66,12 @@ def retry_call(call: Callable[[], Any], is_rate_limit: Callable[[Exception], boo
                 emit('AGENT_CALL_FAILED', retry_count=attempt,
                      raw_exit_code=getattr(response, 'returncode', None),
                      stdout=getattr(response, 'result', ''), stderr=getattr(response, 'stderr', ''),
-                     api_metadata=getattr(response, 'api_metadata', {}), transcript=getattr(response, 'stream_result', ''))
-                raise AgentCallFailure('OpenCode failed; see stage diagnostics')
+                     api_metadata=getattr(response, 'api_metadata', {}), transcript=getattr(response, 'stream_result', ''),
+                     protocol_recovery=getattr(response, 'protocol_recovery', None))
+                from .event_log import redact
+                metadata = getattr(response, 'api_metadata', {})
+                reason = redact(str(metadata.get('message') or getattr(response, 'stderr', '') or 'No usable response'))[:500]
+                raise AgentCallFailure(f'OpenCode failed: {reason}; see stage diagnostics')
             return response
         except Exception as exc:
             if not isinstance(exc, ProviderRateLimited) and not is_rate_limit(exc):

@@ -33,6 +33,7 @@ def measurements(directory: Path) -> dict:
             role['tool_calls'] = sum(entry['role'] == name for entry in started.values())
             role['tool_time'] = sum(entry['duration_seconds'] for entry in finished.values() if entry['role'] == name)
     rate_wait, retries, recovery, lifecycle_cleanup = 0.0, 0, 0, 0.0
+    protocol_recovery = 0
     llm_observed = set()
     event_paths = list((directory / 'controller').glob('agent-*/events.jsonl')) + [
         directory / 'events.jsonl', directory / 'logs/lifecycle-events.jsonl']
@@ -53,6 +54,7 @@ def measurements(directory: Path) -> dict:
                 name = entry['agent']
                 llm_observed.add(name)
                 role, perf = roles[name], entry.get('performance', {})
+                protocol_recovery += perf.get('protocol_recovery_attempts', 0)
                 role['capacity_wait'] += entry.get('capacity_wait_seconds', 0)
                 if perf.get('worker_seconds') is not None:
                     role['opencode_worker'] = (role['opencode_worker'] or 0) + perf['worker_seconds']
@@ -95,6 +97,7 @@ def measurements(directory: Path) -> dict:
         queue_transport=sum(op.get('queue_transport_seconds') or 0 for op in operations) if operations else None,
         cleanup=lifecycle_cleanup if llm_observed else None,
         retries=retries if llm_observed else None, recovery_retries=recovery if llm_observed else None,
+        protocol_recovery_attempts=protocol_recovery if llm_observed else None,
         rate_limit_wait=rate_wait if llm_observed else None, unfinished_commands=unfinished,
         note='Nested/overlapping durations, not additive. Null means unavailable, not zero. '
              'LLM generation and separate RTL compilation/simulation are not exposed by the current backends. '

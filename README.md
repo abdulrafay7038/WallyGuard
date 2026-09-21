@@ -263,6 +263,14 @@ those credentials, and the project must have access to the configured models.
 The Fixer uses a separate OpenCode model; ensure that provider is available too.
 Do not put credential contents into runtime-environment JSON or repository files.
 
+If Gemini reports `Requests ending with a model turn are not supported.`, the
+OpenCode wrapper makes one continuation attempt in the same session, preserving
+the model, tools and assignment. It adds a user turn rather than restarting the
+investigation. Only this exact HTTP 400 is eligible; other errors or a repeated
+failure still stop the stage. Original error diagnostics and the recovery count
+are retained. This compatibility workaround is unit-tested; end-to-end recovery
+has not yet been demonstrated on the deployed provider.
+
 [GOOGLE_GENAI.md](GOOGLE_GENAI.md) contains deployment-specific ADC permission
 notes. Its older model defaults, submission helpers, and recovery descriptions
 may differ from current code; use this README and `loop.py` for current behavior.
