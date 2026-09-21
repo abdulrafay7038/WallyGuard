@@ -94,6 +94,16 @@ The assembly example deliberately fails compilation until real assertions are
 added. The controller repeats preflight and independently executes the tests;
 an agent tool's `PREFLIGHT_READY` is never evidence of a hardware bug.
 
+The simulation environment puts this checkout's `bin/` ahead of the RISC-V
+toolchain so Wally gets its own `elf2hex`; Spike is selected independently.
+For native self-check contracts, the controller explicitly regenerates the ELF
+memory/disassembly files and checks the preparation result before launching
+Wally. Address/label maps come from the ELF's `nm` symbols, preserving aliases
+such as `begin_signature` and `selfcheck_record`. These are runtime artifacts;
+the ELF, assertions and RTL are unchanged. A failed `make` remains an error even
+if the simulator subsequently exits zero. Preparation logs appear as
+`control-elf-prepare.log` and `test-elf-prepare.log` in each evidence directory.
+
 Command status calls wait up to 30 seconds for completion instead of making the
 model repeatedly poll. Shell tools default to a 120-second deadline; agents can
 request a longer `timeout_seconds` for builds, capped by `WALLY_REGRESSION_TIMEOUT`.

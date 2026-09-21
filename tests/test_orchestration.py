@@ -415,7 +415,7 @@ class ToolRuntimeTests(unittest.TestCase):
 
 class NativeSelfCheckTests(unittest.TestCase):
     setUp = PreflightTests.setUp
-    def run_selfcheck(self, *, matched=False, watchdog=False):
+    def run_selfcheck(self, *, matched=False, watchdog=False, tool_error=False):
         header=bytearray(64);header[:5]=b'\x7fELF\x02';header[18:20]=(243).to_bytes(2,'little')
         (self.tests/'build/test.elf').write_bytes(header)
         for name in ('control','test'):
@@ -425,9 +425,15 @@ class NativeSelfCheckTests(unittest.TestCase):
             log.parent.mkdir(parents=True,exist_ok=True)
             if log.stem.endswith('symbols'):
                 content='80001000 D selfcheck_record\n80001000 D begin_signature\n80001028 D end_signature\n80002000 D tohost\n'
+            elif log.stem.endswith('elf-prepare'):
+                content=''
+                for suffix in ('.memfile','.objdump'):
+                    Path(str(self.tests/'build/test.elf')+suffix).write_text('generated from ELF')
             elif log.stem.endswith('wally'):
                 elf=str(self.tests/'build/test.elf')
                 content=elf+' succeeded.  Brilliant!!!\n'
+                if tool_error:
+                    content='make: *** [control.elf.memfile] Error 1\n'+content
                 if log.stem.startswith('test') and not matched:
                     content='FAILURE: Watch Dog Time Out\n' if watchdog else f'  Error on test {elf} result 0: adr = 80000100 sim (D$) 00000002 signature = 00000001\n'
             else:
@@ -446,6 +452,10 @@ class NativeSelfCheckTests(unittest.TestCase):
         self.assertEqual(self.run_selfcheck(matched=True)['status'],Outcome.MATCH)
     def test_native_watchdog_is_not_promoted(self):
         self.assertEqual(self.run_selfcheck(watchdog=True)['status'],Outcome.DUT_WATCHDOG_FAILURE)
+    def test_make_error_overrides_apparent_selfcheck_success(self):
+        result=self.run_selfcheck(matched=True,tool_error=True)
+        self.assertEqual(result['status'],Outcome.TEST_INVALID)
+        self.assertEqual(result['control']['status'],Outcome.TOOL_FAILURE)
 
 class OpenCodeDiagnosticsTests(unittest.TestCase):
     def test_generic_failure_preserves_stdout_stderr(self):

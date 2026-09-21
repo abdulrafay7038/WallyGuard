@@ -32,7 +32,7 @@ class ReproducerResult:
 
 
 WATCHDOG = re.compile(r'(?:FAILURE:\s*)?Watch\s*Dog\s*Time\s*Out|watchdog.*(?:timeout|time out)', re.I)
-TOOL_ERROR = re.compile(r'command not found|No such file or directory|cannot open|failed to open|%Error|segmentation fault', re.I)
+TOOL_ERROR = re.compile(r'command not found|No such file or directory|cannot open|failed to open|%Error|segmentation fault|make(?:\[\d+\])?: \*\*\*|Usage: elf2hex', re.I)
 FAILURE = re.compile(r'\bFAIL(?:URE|ED)?\b|\bError:|Assertion .*failed', re.I)
 
 

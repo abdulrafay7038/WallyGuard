@@ -370,3 +370,45 @@ deadline, two-continuation cap, and errors after the last continuation. A real
 shell test verifies a blocked command has no filesystem effect, an explained
 command executes, and Tester is unaffected. No live recovery success or speedup
 has been measured for these new changes; no archived run was rewritten.
+
+## Follow-up: recurring baseline harness failures
+
+The generic baseline repair message hid several distinct problems in past runs:
+invalid command/trap metadata, the previously corrected wrong-Spike selection,
+signature layout mistakes, missing build environment, and Wally runtime artifact
+generation. The current `20260921T184036Z-0cc29037` revision 0 specifically built
+in 0.18 seconds, passed Spike in 0.06 seconds, then ran Wally for 2.23 seconds.
+Its Wally log contains `Usage: elf2hex <width> <depth> <elf_file> [base]`, a Makefile
+error, and `Single Elf file tests are not signatured verified.` Wally returned 0
+without an explicit self-check pass. The controller correctly rejected it.
+
+The environment helper introduced a name collision by prioritizing the RISC-V
+toolchain directory over Wally's `bin`. The two `elf2hex` executables have
+incompatible interfaces. Wally's scripts now take PATH precedence, while the
+oracle retains independent absolute-path selection and identity validation.
+The same collision is visible in `20260921T124830Z-d9383bb1` revision 0.
+
+A second defect survives the PATH correction: `objdump` chooses one label when
+`selfcheck_record` and `begin_signature` share an address. Wally builds its symbol
+maps from disassembly, so it can miss the self-check record and skip checking.
+The native controller now explicitly regenerates memory/disassembly inputs with
+Wally's Makefile, verifies success/nonempty outputs, then writes address/label
+maps from the already inspected ELF `nm` symbols. All aliases survive. Existing
+runtime files are regenerated and symlink outputs are refused. No test source,
+ELF assertion, DUT executable, or RTL is substituted. Wally still runs directly
+and independently; its usual RTL rebuild checks remain in force.
+
+Make failures and `elf2hex` usage errors are now recognized as tool failures,
+including before native mismatch promotion. Baseline feedback includes the
+actual status/reason and nested control failure instead of only the generic
+"failed to execute correctly" message.
+
+Validation: 129 tests pass. A temporary copy of this run's captured control ELF
+reproduced the old PATH failure using the real toolchain. Patched preparation
+generated an 8874-byte memory file and retained both aliases at `0x80001000`;
+the unmodified disassembly omitted `selfcheck_record`. A second invocation of
+the testbench Makefile preserved the corrected maps. Tests cover fresh inputs,
+alias retention, failed/missing output rejection, symlink refusal, tool selection
+and make failures overriding an apparent self-check pass. No simulation was
+started against the occupied shared worktree and the live run was not changed.
+This validates the preparation fix, not a completed fresh Wally/Spike campaign.

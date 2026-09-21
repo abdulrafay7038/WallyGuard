@@ -18,9 +18,12 @@ def simulation_env(scratch: str) -> dict:
         tool_bin = next((root / 'bin' for root in roots if (root / 'bin/spike').is_file()), None)
     # /usr/bin/spike may be an unrelated secrets CLI. Bare tool calls and the
     # absolute oracle contract must select the same simulator.
-    prefixes = ([str(tool_bin)] if tool_bin else []) + [str(Path(scratch) / 'bin')]
+    # Wally's elf2hex takes ELF/output arguments; the toolchain's same-named
+    # program takes width/depth and is incompatible with testbench/Makefile.
+    prefixes = [str(Path(scratch) / 'bin')] + ([str(tool_bin)] if tool_bin else [])
     env['PATH'] = os.pathsep.join(prefixes + [env.get('PATH', '')])
-    env['WALLY_SPIKE'] = explicit or shutil.which('spike', path=env['PATH']) or ''
+    oracle_path = os.pathsep.join(([str(tool_bin)] if tool_bin else []) + [env['PATH']])
+    env['WALLY_SPIKE'] = explicit or shutil.which('spike', path=oracle_path) or ''
     return env
 
 

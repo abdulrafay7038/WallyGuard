@@ -178,6 +178,33 @@ def vector_preflight(contract: dict, test_dir: Path, scratch: Path, directory: P
     return errors
 
 
+def prepare_selfcheck_elf(root: Path, elf: Path, symbols: dict, width: int, execute, name: str) -> dict:
+    """Rebuild runtime inputs explicitly; preserve every ELF symbol alias.
+
+    CVW's testbench ignores $system(make)'s return code, and its objdump-based
+    label extraction drops aliases such as selfcheck_record/begin_signature.
+    Do the preparation before launching Wally so neither can silently pass.
+    """
+    outputs = {suffix: Path(str(elf) + suffix)
+               for suffix in ('.memfile', '.objdump', '.objdump.addr', '.objdump.lab')}
+    for path in outputs.values():
+        if path.is_symlink():
+            raise ValueError('ELF runtime outputs must not be symlinks: ' + str(path))
+    for path in outputs.values():
+        path.unlink(missing_ok=True)
+    built = execute(name + '-elf-prepare', ['make', '-s', '-f', str(root / 'testbench/Makefile'),
+                    str(outputs['.memfile']), str(outputs['.objdump']), str(outputs['.objdump.addr'])])
+    if built['status'] != 'PASS' or TOOL_ERROR.search(log_markers(Path(built['log_path']))):
+        return classify(built, build_ok=False).dict()
+    if any(not outputs[suffix].is_file() or not outputs[suffix].stat().st_size
+           for suffix in ('.memfile', '.objdump')):
+        return ReproducerResult(Outcome.BUILD_FAILURE, 'ELF preparation did not produce memory/disassembly files').dict()
+    rows = sorted(symbols.items(), key=lambda item: (item[1], item[0]))
+    outputs['.objdump.lab'].write_text(''.join(label + '\n' for label, address in rows))
+    outputs['.objdump.addr'].write_text(''.join(f'{address:0{width * 2}x}\n' for label, address in rows))
+    return ReproducerResult(Outcome.MATCH, 'ELF runtime inputs prepared', passed=True).dict()
+
+
 def run_reproducer(scratch: str, test_dir: str, contract: dict, log_path: str,
                    timeout: int) -> dict:
     started = time.monotonic()
@@ -272,9 +299,14 @@ def run_reproducer(scratch: str, test_dir: str, contract: dict, log_path: str,
                 values = [stream.readline().strip() for _ in range(5)]
             if any(len(word) != width * 2 for word in values) or int(values[0], 16) != 1:
                 return ReproducerResult(Outcome.ORACLE_FAILURE, 'Spike selfcheck_record did not pass').dict()
+            prepared = prepare_selfcheck_elf(root, elf, symbols, width, execute, name)
+            if not prepared['passed']:
+                return prepared
             wally = execute(name + '-wally', wally_args)
             wally_log = log_markers(Path(wally['log_path']))
             if wally.get('timed_out') or WATCHDOG.search(wally_log):
+                return classify(wally, wally_log).dict()
+            if TOOL_ERROR.search(wally_log):
                 return classify(wally, wally_log).dict()
             record = re.search(re.escape(str(elf)) + r' result \d+: adr = ([0-9a-fA-F]+) sim \(D\$\) ([0-9a-fA-F]+) signature = ([0-9a-fA-F]+)', wally_log)
             if record and int(record[2], 16) != int(record[3], 16) and wally['returncode'] in (0, 1, 134, -6):
@@ -325,7 +357,8 @@ def run_reproducer(scratch: str, test_dir: str, contract: dict, log_path: str,
                 raise ValueError('; '.join(errors))
             control = pair(contract['control'], 'control')
             if control['status'] != Outcome.MATCH:
-                result = ReproducerResult(Outcome.TEST_INVALID, 'Positive/control test failed').dict()
+                result = ReproducerResult(Outcome.TEST_INVALID,
+                    'Positive/control test failed: ' + str(control['status']) + ': ' + control['reason']).dict()
                 result['control'] = control
             else:
                 result = pair(contract['test'], 'test')

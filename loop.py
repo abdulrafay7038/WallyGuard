@@ -958,7 +958,8 @@ def run_attempt(record: dict, history: list[dict], max_fix_attempts: int) -> Non
             feedback = {"reason": "Reproducer rewrote its own inputs; make the script read existing sources",
                         "files": changes}
         elif baseline.get("status") not in (Outcome.MATCH, Outcome.MISMATCH_CONFIRMED):
-            feedback = {"reason": "Baseline reproducer failed to execute correctly", "verification": baseline}
+            feedback = {"reason": "Baseline reproducer: " + str(baseline.get('status')) + ': ' +
+                        str(baseline.get('reason', 'No diagnostic')), "verification": baseline}
         elif baseline["status"] == Outcome.MATCH:
             record["status"] = "baseline_not_reproduced"
             return

@@ -38,6 +38,16 @@ class ToolchainTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'not identified'):
             validate_spike(env)
 
+    def test_wally_elf2hex_wins_while_spike_stays_pinned(self):
+        checkout = self.root / 'cvw'
+        for root, marker in [(checkout, 'wally'), (self.root/'riscv', 'toolchain')]:
+            binary=root/'bin/elf2hex';binary.parent.mkdir(parents=True,exist_ok=True)
+            binary.write_text('#!/bin/sh\nprintf '+marker+'\\n\n');binary.chmod(0o755)
+        with patch.dict(os.environ, {'RISCV':str(self.root/'riscv'), 'PATH':str(self.root/'system/bin')},clear=True):
+            env=simulation_env(str(checkout))
+        self.assertEqual(shutil.which('elf2hex',path=env['PATH']),str(checkout/'bin/elf2hex'))
+        self.assertEqual(validate_spike(env),str(self.root/'riscv/bin/spike'))
+
     def test_identity_probe_has_short_deadline(self):
         with patch('orchestration.toolchain.subprocess.run', side_effect=subprocess.TimeoutExpired('spike', 5)) as run:
             with self.assertRaisesRegex(ValueError, 'Cannot identify'):
