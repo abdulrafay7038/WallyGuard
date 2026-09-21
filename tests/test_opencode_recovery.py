@@ -80,6 +80,33 @@ class RecoveryTests(unittest.TestCase):
         export['messages'][0]['info']['error'] = error('Some other error')
         self.assertIn('error', clear_recovered_error(export, 'ses_example')['messages'][0]['info'])
 
+    def test_quoted_continuation_reaches_export_parser_without_stale_error(self):
+        llm = self.llm([])
+        llm._turn_recovery = dict(session='ses_example')
+        export = dict(info=dict(id='ses_example'), messages=[
+            dict(info=dict(role='assistant', error=error()), parts=[]),
+            dict(info=dict(role='user'), parts=[dict(type='text', text='"' + CONTINUATION + '"')]),
+            dict(info=dict(role='assistant', finish='stop'),
+                 parts=[dict(type='text', text='{"target":"one target"}')]),
+        ])
+        text, metadata, transcript, failure = llm._extract_from_export(export)
+        self.assertIsNone(failure)
+        self.assertEqual(json.loads(text), {'target': 'one target'})
+        self.assertIn('error', export['messages'][0]['info'])
+        # A new error still fails, including the same 400 after continuation.
+        for new in (error(), error('Resource exhausted', 429)):
+            export['messages'][-1]['info']['error'] = new
+            self.assertEqual(llm._extract_from_export(export)[-1], new)
+
+    def test_near_match_continuations_do_not_clear_errors(self):
+        for text in (CONTINUATION + ' extra', 'prefix ' + CONTINUATION,
+                     '"' + CONTINUATION, '"' + CONTINUATION + ' extra"'):
+            export = dict(info=dict(id='ses_example'), messages=[
+                dict(info=dict(role='assistant', error=error()), parts=[]),
+                dict(info=dict(role='user'), parts=[dict(type='text', text=text)]),
+            ])
+            self.assertEqual(clear_recovered_error(export, 'ses_example'), export)
+
 
 if __name__ == '__main__':
     unittest.main()

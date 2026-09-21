@@ -306,3 +306,35 @@ dry-run behavior, retry exhaustion and redacted console messages. A local
 round-trip through Ray's installed package builder and ZIP extraction produced
 the same source digest. No new live campaign was launched and no improved
 end-to-end throughput is claimed. Provider capacity remains an external limit.
+
+## Follow-up: successful continuation rejected as an old failure
+
+Run `20260921T171305Z-bb9ecfe5` spent 867.8 seconds in Architect and made 84 tool
+calls. Its first OpenCode command failed after 292.5 seconds with the known
+model-turn 400. The bounded same-session continuation then ran for 565.5 seconds
+and returned exit 0. Exporting the saved session showed a final assistant message
+with `finish=stop` and a structured investigation plan, with no new API error.
+
+The wrapper nevertheless failed the stage: OpenCode stored the continuation text
+with literal double quotes around it, so the exact boundary comparison did not
+match. The export parser consequently selected the earlier 400 from session
+history. The recovery filter now recognizes the exact unquoted or double-quoted
+continuation. It still requires the same session and preserves every error after
+that boundary, unrelated historical errors, and near-match continuation text.
+
+An offline replay of the actual exported session reproduces the old failure;
+the patched parser returns no remaining error and its answer passes the Architect
+schema. This verifies response extraction, not the proposed RTL bug. The original
+run record and worktree were not changed or promoted to a successful result.
+
+Healthy MCP polls previously dominated the console while real tool commands
+were recorded on disk. The health response now includes command counts, active
+commands and elapsed time; the caller prints these at most once per minute.
+Only successful httpx `/healthz` INFO access lines are filtered. Failed requests
+and readiness checks retain their existing behavior. This is progress visibility,
+not a new timeout or proof that model generation is advancing.
+
+Validation: 120 tests pass, including quoted-boundary extraction through the
+installed OpenCode parser, preservation of new 400/429 errors, near-match refusal,
+progress throttling and selective health-log filtering. No new live campaign or
+end-to-end speed measurement was performed.

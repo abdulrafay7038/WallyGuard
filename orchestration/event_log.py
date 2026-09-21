@@ -33,6 +33,19 @@ def configure_logger(name: str, stream=None) -> logging.Logger:
     return logger
 
 
+class QuietSuccessfulHealthChecks(logging.Filter):
+    """Suppress only httpx's successful /healthz access line, never failures."""
+    def filter(self, record):
+        return not (record.levelno == logging.INFO and re.fullmatch(
+            r'HTTP Request: GET https?://\S+/healthz "HTTP/[^ ]+ 200 OK"', record.getMessage()))
+
+
+def quiet_health_checks():
+    logger = logging.getLogger('httpx')
+    if not any(isinstance(item, QuietSuccessfulHealthChecks) for item in logger.filters):
+        logger.addFilter(QuietSuccessfulHealthChecks())
+
+
 def event(path: Path, status: str, *, readable: bool = True, **fields: Any) -> dict:
     record = redact(dict(timestamp=datetime.now(timezone.utc).isoformat(),
                          event_type=fields.pop('event_type', status), status=status, **fields))

@@ -14,7 +14,7 @@ from chia.base.tools.util import make_router_lifespan
 from chia.base.ChiaFunction import ChiaFunction
 from chia.models.opencode import OpenCodeLLM, OpenCodeError
 from chia.base.llm_call import QueryResult
-from .event_log import configure_logger, event, redact
+from .event_log import configure_logger, event, redact, quiet_health_checks
 from .processes import run_command
 from .retry_policy import MCPFailure
 from .test_preflight import contract_errors, under
@@ -44,7 +44,7 @@ class ToolServer:
             app = FastAPI(lifespan=make_router_lifespan([tool.mcp]))
             @app.get('/healthz')
             async def health():
-                return {'status': 'ready', 'tool': tool.name}
+                return tool.progress()
             app.mount(f'/{tool.name}', tool.mcp.streamable_http_app())
             self.server = uvicorn.Server(uvicorn.Config(app, host=host, port=port,
                 log_config=None, log_level='info', access_log=False, timeout_graceful_shutdown=5))
@@ -106,16 +106,32 @@ class ManagedBashTool(ChiaTool):
             self.stop()
             raise MCPFailure(f'MCP startup failed: {type(exc).__name__}') from exc
 
+    def progress(self):
+        metrics = getattr(self, '_metrics', {})
+        return dict(status='ready', tool=self.name, commands=metrics.get('commands', 0),
+                    polls=metrics.get('polls', 0),
+                    running_commands=sum(not task.done() for task in getattr(self, '_jobs', {}).values()),
+                    elapsed_seconds=round(time.monotonic() - self._stage_started))
+
     def ready(self):
         import httpx
         from chia.base.tools.ChiaTool import resolve_tool_url
+        quiet_health_checks()
         try:
             url = resolve_tool_url(f'http://{self.hostname}:{self.port}/healthz')
             with httpx.Client(timeout=5, trust_env=False) as client:
                 response = client.get(url)
                 response.raise_for_status()
-                if response.json().get('status') != 'ready':
+                progress = response.json()
+                if progress.get('status') != 'ready':
                     raise ValueError('Unready MCP response')
+                now = time.monotonic()
+                if 'commands' in progress and now - getattr(self, '_last_progress_log', now - 60) >= 60:
+                    self._last_progress_log = now
+                    configure_logger('wallyguard.progress').info(
+                        'AGENT_PROGRESS stage=%s elapsed=%ss commands=%s running=%s; awaiting agent completion',
+                        self.role, progress.get('elapsed_seconds'), progress['commands'],
+                        progress.get('running_commands'))
         except (httpx.HTTPError, ValueError) as exc:
             raise MCPFailure(f'MCP readiness failed: {type(exc).__name__}') from exc
 

@@ -210,6 +210,17 @@ class ArtifactTests(unittest.TestCase):
 
 
 class LoggingTests(unittest.TestCase):
+    def test_only_successful_health_requests_are_quiet(self):
+        import logging
+        from orchestration.event_log import QuietSuccessfulHealthChecks
+        filt = QuietSuccessfulHealthChecks()
+        def record(text, level=logging.INFO):
+            return logging.LogRecord('httpx', level, '', 0, text, (), None)
+        self.assertFalse(filt.filter(record('HTTP Request: GET http://host:8000/healthz "HTTP/1.1 200 OK"')))
+        for text in ('HTTP Request: GET http://host:8000/healthz "HTTP/1.1 503 Unavailable"',
+                     'HTTP Request: GET http://host:8000/api "HTTP/1.1 200 OK"', 'connection failed'):
+            self.assertTrue(filt.filter(record(text)))
+
     def test_rate_limit_log_explains_action_without_exposing_secrets(self):
         with tempfile.TemporaryDirectory() as temporary:
             for retry in (True, False):
@@ -340,6 +351,24 @@ class ProcessTests(unittest.TestCase):
 
 
 class ToolRuntimeTests(unittest.TestCase):
+    def test_health_progress_reflects_commands_and_is_throttled(self):
+        from orchestration.tool_runtime import ManagedBashTool
+        tool = object.__new__(ManagedBashTool)
+        tool.name='example'; tool.role='architect'; tool.hostname='127.0.0.1'; tool.port=8765
+        tool._stage_started=0; tool._metrics=dict(commands=7, polls=2)
+        tool._jobs={'finished':Mock(done=lambda:True), 'active':Mock(done=lambda:False)}
+        with patch('orchestration.tool_runtime.time.monotonic',return_value=100):
+            progress=tool.progress()
+        self.assertEqual(progress['running_commands'],1)
+        response=Mock();response.json.return_value=progress
+        with patch('httpx.Client') as factory, patch('orchestration.tool_runtime.configure_logger') as logger, \
+             patch('chia.base.tools.ChiaTool.resolve_tool_url',side_effect=lambda url:url), \
+             patch('orchestration.tool_runtime.time.monotonic',side_effect=[100,115,161]):
+            factory.return_value.__enter__.return_value.get.return_value=response
+            tool.ready(); tool.ready(); tool.ready()
+        self.assertEqual(logger.return_value.info.call_count,2)
+        self.assertIn(7,logger.return_value.info.call_args.args)
+
     def test_readiness_uses_health_endpoint(self):
         from orchestration.tool_runtime import ManagedBashTool
         tool=object.__new__(ManagedBashTool);tool.hostname='127.0.0.1';tool.port=8765

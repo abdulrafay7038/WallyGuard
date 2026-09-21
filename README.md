@@ -351,6 +351,12 @@ place. Persistent provider capacity failures preserve the attempt and stop the
 campaign; they cannot establish or refute an RTL bug. See the measured breakdown
 in [the performance audit](docs/performance-audit.md).
 
+While an agent runs, `AGENT_PROGRESS` reports elapsed seconds, commands started
+and commands still running at most once per minute. Successful HTTP health-check
+lines are suppressed; failures still surface. Increasing command counts indicate
+tool activity. An unchanged count does not distinguish model reasoning from
+provider/CLI waiting, and server health alone does not establish agent progress.
+
 `loop.py` defaults to **200 discovery iterations**, with up to **3 fix attempts**
 and **2 test-repair rounds** per candidate. It has no command-line argument parser.
 For a different campaign size, a Python entrypoint can call

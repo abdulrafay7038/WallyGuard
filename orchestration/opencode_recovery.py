@@ -49,7 +49,11 @@ def clear_recovered_error(export: dict, session: str) -> dict:
     messages = export.get('messages', []) or []
     boundaries = [i for i, message in enumerate(messages)
                   if message.get('info', {}).get('role') == 'user'
-                  and any(part.get('type') == 'text' and part.get('text') == CONTINUATION
+                  # OpenCode 1.18.25 can retain literal double quotes around
+                  # CLI prompt text. Match only these two exact representations;
+                  # substring matches could suppress an unrelated old failure.
+                  and any(part.get('type') == 'text' and part.get('text') in
+                          (CONTINUATION, '"' + CONTINUATION + '"')
                           for part in message.get('parts', []))]
     if not boundaries:
         return export
