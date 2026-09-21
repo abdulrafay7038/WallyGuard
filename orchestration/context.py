@@ -2,6 +2,21 @@
 from copy import deepcopy
 
 
+def review_history(record: dict) -> list[dict]:
+    """Bounded advisory feedback; never used by verification/promotion gates."""
+    notes = list(record.get('review_notes', []))
+    if not notes:
+        if record.get('bug_review'):
+            notes.append(dict(record['bug_review'], phase='bug_review', guard_passed=True))
+        for fix in record.get('fix_attempts', []):
+            if fix.get('review'):
+                notes.append(dict(fix['review'], phase='fix_review', guard_passed=True))
+    return [dict(verdict=note.get('verdict'), critique=str(note.get('critique', ''))[:1800],
+                 phase=note.get('phase', 'unknown'), guard_passed=note.get('guard_passed') is True,
+                 artifact=note.get('artifact')) for note in notes[-3:]
+            if note.get('verdict') in {'reject', 'revise'}]
+
+
 def observed_failure(record: dict) -> str:
     """Carry controller observations forward, without promoting agent claims."""
     observations = []
@@ -31,6 +46,12 @@ def agent_context(role: str, context: dict) -> dict:
                       'baseline_regression', 'feedback'),
     }
     result = {key: deepcopy(context[key]) for key in common + per_role[role] if key in context}
+    if role in {'architect', 'tester'}:
+        entries = [entry for entry in context.get('history', []) if entry.get('critic_feedback')]
+        result['prior_critic_feedback'] = [dict(
+            tag=entry.get('tag'), target=str(entry.get('target', ''))[:400],
+            source_base=entry.get('source_base'), notes=deepcopy(entry['critic_feedback']))
+            for entry in entries[-5:]]
     # Include concise observations so tooling mistakes do not require another
     # investigation of the archive. Agent notes remain explicitly unverified.
     if role == 'architect':

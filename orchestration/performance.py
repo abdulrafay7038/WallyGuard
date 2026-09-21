@@ -34,7 +34,8 @@ def measurements(directory: Path) -> dict:
             role['tool_time'] = sum(entry['duration_seconds'] for entry in finished.values() if entry['role'] == name)
     rate_wait, retries, recovery, lifecycle_cleanup = 0.0, 0, 0, 0.0
     llm_observed = set()
-    event_paths = list((directory / 'controller').glob('agent-*/events.jsonl')) + [directory / 'events.jsonl']
+    event_paths = list((directory / 'controller').glob('agent-*/events.jsonl')) + [
+        directory / 'events.jsonl', directory / 'logs/lifecycle-events.jsonl']
     for path in event_paths:
         if not path.exists():
             continue

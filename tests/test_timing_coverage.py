@@ -9,6 +9,7 @@ import unittest
 from unittest.mock import Mock, patch
 
 import loop
+from orchestration.context import agent_context
 from orchestration.coverage import coverage_summary
 from orchestration.performance import measurements
 from orchestration.timing import active_record, measured_worker, export_timing, record_event
@@ -16,6 +17,47 @@ from orchestration.tool_runtime import ManagedBashTool
 
 
 class CoverageTests(unittest.TestCase):
+    def test_rejected_review_reaches_architect_and_tester_with_provenance(self):
+        record = dict(tag='old', status='bug_rejected', plan={'target': 'PMP'},
+                      bug_review=dict(verdict='reject', critique='Use matching Spike ISA and correct mtval assertion'))
+        entry = loop.history_entry(record)
+        for role in ('architect', 'tester'):
+            notes = agent_context(role, {'history': [entry]})['prior_critic_feedback'][0]['notes']
+            self.assertIn('matching Spike ISA', notes[0]['critique'])
+            self.assertTrue(notes[0]['guard_passed'])
+
+    def test_old_guard_failed_review_recovered_only_as_advisory(self):
+        from inspect import unwrap
+        with tempfile.TemporaryDirectory() as tmp:
+            run = Path(tmp) / 'runs/old'
+            review = run / 'controller/agent-critic_example/parsed.json'
+            review.parent.mkdir(parents=True)
+            review.write_text(json.dumps(dict(verdict='reject', critique='Oracle ISA does not match DUT')))
+            record = dict(tag='old', active=False, status='invalid_artifacts', plan={'target': 'PMP'})
+            (run / 'attempt.json').write_text(json.dumps(record))
+            history = unwrap(loop.load_history)(str(Path(tmp) / 'cvw'))
+            note = history[0]['critic_feedback'][0]
+            self.assertFalse(note['guard_passed'])
+            self.assertEqual(note['artifact'], str(review))
+            self.assertEqual(json.loads((run/'attempt.json').read_text()), record)
+            self.assertFalse(history[0]['reproduced'])
+
+    def test_guard_failure_retains_review_but_cannot_return_it_as_accepted(self):
+        from orchestration.artifact_guard import ArtifactViolation
+        context = dict(test_dir='/fixture', phase='bug_review', review_notes=[])
+        def remote(function, *args):
+            if function.__name__ == 'stage_finish':
+                raise ArtifactViolation('unauthorized edit')
+            if function.__name__ == 'critic':
+                return dict(verdict='reject', critique='Test is invalid')
+            return '/guard'
+        with patch.object(loop, 'remote', side_effect=remote), patch.object(loop, 'log'):
+            with self.assertRaises(ArtifactViolation):
+                loop.agent_stage(loop.critic, '/fixture', context)
+        self.assertEqual(context['review_notes'][0]['verdict'], 'reject')
+        self.assertFalse(context['review_notes'][0]['guard_passed'])
+        self.assertNotIn('bug_review', context)
+
     def test_full_history_deduplicated_and_claims_not_counted_as_proof(self):
         history = [dict(tag=str(i), target='MMU', status='test_repair_exhausted', source_base='old') for i in range(70)]
         history += [dict(tag='proven', target='MMU page walk', tested=True, reproduced=True, status='confirmed', source_base='base')]

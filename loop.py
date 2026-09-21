@@ -33,7 +33,7 @@ from orchestration.result_classifier import Outcome, FAILURE, TOOL_ERROR
 from orchestration.test_preflight import run_reproducer, saved_contract
 from orchestration.verification_state import confirmation_allowed, candidate_allowed
 from orchestration.processes import run_command
-from orchestration.context import agent_context, observed_failure
+from orchestration.context import agent_context, observed_failure, review_history
 from orchestration.scaffold import seed_harness
 from orchestration.toolchain import simulation_env, validate_spike
 from orchestration.input_files import input_files
@@ -178,6 +178,9 @@ Return exactly one JSON object with the requested fields.
 """
 
 ARCHITECT_PROMPT = """
+Consult prior_critic_feedback before selecting a target. Do not repeat a rejected
+reproducer without identifying new evidence that addresses the critique. Review
+notes from guard-failed stages are unaccepted leads, never verification results.
 You are Agent 1, Architect. Deliver ONE source-grounded, narrow investigation
 that the Tester can investigate deeply, not a Wally survey or reproducer.
 
@@ -208,6 +211,9 @@ and reusable observations, with uncertain claims clearly labelled.
 """
 
 TESTER_PROMPT = """
+Read prior_critic_feedback for this target before building. Address its oracle
+configuration and assertion objections explicitly; a repeated mismatch alone
+does not resolve them. WALLY_TEST_DIR is supplied by both tools and controller.
 Follow the Architect target -> relevant RTL and ISA rule -> nearby test -> minimal
 control/reproducer -> Wally/Spike. Avoid repository-wide surveys. Read the exact
 controller failure before repairing artifacts. Deep investigation is appropriate
@@ -473,7 +479,7 @@ def save_lifecycle_events(test_dir: str, entries: list[dict]) -> None:
     for entry in entries:
         fields = dict(entry)
         status = fields.pop('status')
-        event(Path(test_dir) / 'events.jsonl', status, readable=False,
+        event(Path(test_dir) / 'logs' / 'lifecycle-events.jsonl', status, readable=False,
               iteration_id=Path(test_dir).name, stage=fields['agent'], **fields)
 
 
@@ -498,8 +504,14 @@ def agent_stage(function, scratch: str, context: dict) -> dict:
         guard = remote(stage_snapshot, scratch, context['test_dir'], role)
         try:
             result = remote(function, scratch, context)
+            if role == 'critic':
+                note = dict(phase=context.get('phase'), verdict=result['verdict'],
+                            critique=result['critique'], guard_passed=False)
+                context.setdefault('review_notes', []).append(note)
         finally:
             remote(stage_finish, guard)
+        if role == 'critic':
+            note['guard_passed'] = True
         timing['status'] = 'completed'
         return result
     finally:
@@ -812,6 +824,7 @@ def history_entry(record: dict) -> dict:
     return {"tag": record["tag"], "target": record.get("plan", {}).get("target", "planning failed"),
             "status": record["status"], "report": record.get("tester", {}).get("report", ""),
             "knowledge": record.get("plan", {}).get("knowledge", ""),
+            'critic_feedback': review_history(record),
             "source_base": record.get('base_commit', ''),
             'subsystem': record.get('plan', {}).get('subsystem'),
             'tested': any(step.get('baseline_reproducer', {}).get('status') in (Outcome.MATCH, Outcome.MISMATCH_CONFIRMED)
@@ -830,7 +843,21 @@ def load_history(wally_path: str) -> list[dict]:
     history = []
     for path in sorted((Path(wally_path).parent / "runs").glob("*/attempt.json")):
         try:
-            history.append(history_entry(json.loads(path.read_text(encoding="utf-8"))))
+            record = json.loads(path.read_text(encoding="utf-8"))
+            entry = history_entry(record)
+            if not entry['critic_feedback'] and not record.get('active', False):
+                # Older guards could reject controller lifecycle writes before
+                # the review reached attempt.json. Recover advisory notes only.
+                notes = []
+                for saved in sorted(path.parent.glob('controller/agent-critic*/parsed.json'))[-3:]:
+                    try:
+                        review = json.loads(saved.read_text(encoding='utf-8'))
+                        if review.get('verdict') in {'reject', 'revise'} and isinstance(review.get('critique'), str):
+                            notes.append(dict(review, guard_passed=False, artifact=str(saved)))
+                    except (OSError, ValueError, AttributeError):
+                        continue
+                entry['critic_feedback'] = review_history({'review_notes': notes})
+            history.append(entry)
         except (OSError, ValueError, KeyError) as exc:
             log("History", f"Cannot read {path}: {exc}")
     return history
@@ -878,6 +905,7 @@ def remote(function, *args, **kwargs):
 
 def run_attempt(record: dict, history: list[dict], max_fix_attempts: int) -> None:
     record['timings'] = []
+    record['review_notes'] = []
     record["models"] = dict(MODELS)
     record["run_regression"] = RUN_REGRESSION
     record['directed_configured'] = bool(DIRECTED_COMMAND)

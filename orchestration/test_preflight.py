@@ -185,6 +185,9 @@ def run_reproducer(scratch: str, test_dir: str, contract: dict, log_path: str,
     directory = Path(log_path).parent / (Path(log_path).stem + '-evidence')
     directory.mkdir(parents=True, exist_ok=False)
     env = simulation_env(str(root))
+    # Match the agent shell. Otherwise `$WALLY_TEST_DIR/build` becomes /build
+    # when a valid saved build script runs under independent verification.
+    env['WALLY_TEST_DIR'] = str(tests)
     steps, captured = {}, {}
     comparison_seconds = 0.0
     def capture(name: str, path: Path) -> None:

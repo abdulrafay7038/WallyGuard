@@ -181,6 +181,23 @@ class ArtifactTests(unittest.TestCase):
         before=snapshot(str(self.root),str(self.tests),'critic');source.write_text('bad')
         with self.assertRaises(ArtifactViolation):finish(before)
         self.assertEqual(source.read_text(),'original')
+    def test_lifecycle_events_do_not_violate_critic_or_fixer_guard(self):
+        import inspect
+        import loop
+        root_events = self.tests / 'events.jsonl'
+        root_events.write_text('controller history\n')
+        for role in ('critic', 'rtl_fixer'):
+            before = snapshot(str(self.root), str(self.tests), role)
+            inspect.unwrap(loop.save_lifecycle_events)(str(self.tests), [
+                dict(status='TOOL_STOP_TIMING', agent=role, duration_seconds=.1)])
+            finish(before)
+            self.assertEqual(root_events.read_text(), 'controller history\n')
+        self.assertEqual(len((self.tests / 'logs/lifecycle-events.jsonl').read_text().splitlines()), 2)
+        before = snapshot(str(self.root), str(self.tests), 'critic')
+        root_events.write_text('agent tampering')
+        with self.assertRaises(ArtifactViolation):
+            finish(before)
+        self.assertEqual(root_events.read_text(), 'controller history\n')
     def test_new_unauthorized_file_removed(self):
         before=snapshot(str(self.root),str(self.tests),'tester')
         (self.root/'new-env.sh').write_text('bad')
@@ -236,6 +253,26 @@ class PreflightTests(unittest.TestCase):
         self.assertEqual(result['steps']['control-oracle']['deadline'],60)
         self.assertEqual(result['steps']['test-oracle']['deadline'],60)
         self.assertEqual(result['steps']['test-wally']['deadline'],900)
+    def test_controller_supplies_test_dir_to_real_saved_build_script(self):
+        script = self.tests / 'build_reproducer.sh'
+        script.write_text('#!/bin/bash\nset -eu\nmkdir -p "$WALLY_TEST_DIR/build"\n'
+                          'printf "%s" "$WALLY_TEST_DIR" > "$WALLY_TEST_DIR/build/env.txt"\n')
+        self.contract['build'] = ['bash', str(script)]
+        real_run = run_command
+        def execute(command, path, timeout, env, cwd):
+            self.assertEqual(env['WALLY_TEST_DIR'], str(self.tests.resolve()))
+            if path.stem == 'build':
+                return real_run(command, path, timeout, env, cwd)
+            path.write_text('stop after build')
+            return dict(status='COMMAND_FAILED', returncode=1, log_path=str(path))
+        with patch.dict(os.environ, {'WALLY_TEST_DIR': '/wrong/inherited/path'}), \
+             patch('orchestration.test_preflight.validate_spike'), \
+             patch('orchestration.test_preflight.shutil.which', return_value=str(self.root/'bin/spike')), \
+             patch('orchestration.test_preflight.run_command', side_effect=execute):
+            result = run_reproducer(str(self.root), str(self.tests), self.contract, str(self.root/'env.log'), 3)
+        self.assertEqual(result['steps']['build']['status'], 'PASS')
+        self.assertEqual((self.tests/'build/env.txt').read_text(), str(self.tests.resolve()))
+        self.assertFalse(result['passed'])  # Build success is not oracle/DUT proof.
     def test_real_controller_compares_artifacts(self):
         self.assertEqual(self.run_contract()['status'],Outcome.MISMATCH_CONFIRMED)
     def test_broken_control_blocks_acceptance(self):

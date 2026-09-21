@@ -188,3 +188,33 @@ pass. A separate live Ray dispatch check, with CHIA profiling enabled, received
 the four real agent callables and confirmed that the worker timing context was
 empty. This checks transport, not LLM execution or campaign throughput. The
 existing archived workspace remains available for the next fresh submission.
+
+## Follow-up: lifecycle guards, feedback and build environment
+
+Run `20260921T124830Z-d9383bb1` reached a repeated controller mismatch and a
+Critic rejection, but controller lifecycle logging then changed the guarded
+root `events.jsonl`. The Critic's return was lost from the main attempt record.
+Lifecycle events now go to `logs/lifecycle-events.jsonl`, which the existing
+guard already treats as runtime output. The root event file and original test
+inputs remain protected. The timing report reads both new and historical logs.
+
+Review notes are retained before guard completion with `guard_passed=false`,
+updated only after the guard succeeds. Rejections/revision requests are included
+as bounded advisory history for Architect and Tester. For older finalized runs,
+the loader can recover saved Critic responses with an explicit unaccepted label
+and artifact path. It never edits those runs or restores an invalidated verdict
+to a confirmation gate. Prompts require new evidence addressing the critique
+before revisiting a rejected reproducer; this is guidance, not a guarantee of
+agent compliance.
+
+Run `20260921T134743Z-d09d0518` also exposed inconsistent command environments:
+the Tester had `WALLY_TEST_DIR`, but controller execution did not. Its build
+script consequently tried to create `/build` and failed with permission denied.
+The verifier now sets this variable to the resolved test directory, overriding
+any stale inherited value. No directory permissions or verification rules changed.
+
+Validation: 105 tests pass, including real saved-shell-script execution, lifecycle
+writes through Critic/Fixer guards, restoration of unauthorized root-log edits,
+history recovery, and retention of unaccepted reviews on guard failure. These
+changes require a fresh job submission; an already running uploaded job and its
+workspace are left untouched.

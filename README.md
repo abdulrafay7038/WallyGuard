@@ -116,6 +116,12 @@ The cumulative exploration ledger (`runs/coverage.json`) distinguishes selected
 targets from controller-tested and reproduced cases. The Architect receives a
 bounded summary and advisory handoff reminders after 12 commands or eight minutes;
 it may explain and continue an essential investigation. No agent deadline is reduced.
+Architect and Tester context also includes bounded prior Critic rejections and
+revision requests. A review recovered from a guard-failed stage is explicitly
+unaccepted advice; it never changes verification or patch-promotion gates.
+Controller lifecycle timing is written under `logs/lifecycle-events.jsonl`, so
+it does not modify guarded input files during a review. Independent reproducer
+execution supplies the same absolute `WALLY_TEST_DIR` as the agent shell.
 New timing includes worker/dispatch overhead, model capacity waits, OpenCode
 run/export, command lifecycle, retries and verifier steps. Unavailable pure model
 generation time and separate RTL compile/simulation time are reported as null.
