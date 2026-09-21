@@ -85,6 +85,37 @@ class FastPathTests(unittest.TestCase):
 
 
 class CommandDeadlineTests(unittest.IsolatedAsyncioTestCase):
+    async def test_architect_checkpoint_requires_reason_without_failing_stage(self):
+        import time
+        with tempfile.TemporaryDirectory() as tmp:
+            tool = object.__new__(ManagedBashTool)
+            tool.role='architect'; tool.work_dir=tool.test_dir=tmp
+            tool.timeout_seconds=5; tool._cancel_event=threading.Event()
+            tool._stage_started=time.monotonic()
+            tool._metrics=dict(commands=12, polls=0, preflights=0, command_seconds=0.0)
+            result=json.loads(await tool.run_command('touch checkpoint-proof'))
+            self.assertEqual(result['status'], 'PLANNING_HANDOFF_REQUIRED')
+            self.assertFalse((Path(tmp)/'checkpoint-proof').exists())
+            self.assertEqual(tool._metrics['commands'],12)
+            result=json.loads(await tool.run_command('touch checkpoint-proof',
+                extension_reason='Check the selected target configuration before handing it to Tester'))
+            while result['status']=='RUNNING':
+                result=json.loads(await tool.command_status(result['job_id']))
+            self.assertEqual(result['status'],'PASS')
+            self.assertTrue((Path(tmp)/'checkpoint-proof').exists())
+            self.assertEqual(tool._metrics['commands'],13)
+            events=(Path(tmp)/'logs/tool-timing.jsonl').read_text()
+            self.assertIn('selected target configuration',events)
+            tool._metrics['commands']=0; tool._stage_started=time.monotonic()-481
+            result=json.loads(await tool.run_command('touch elapsed-proof'))
+            self.assertEqual(result['status'],'PLANNING_HANDOFF_REQUIRED')
+            self.assertFalse((Path(tmp)/'elapsed-proof').exists())
+            tool.role='tester'
+            result=json.loads(await tool.run_command('touch tester-proof'))
+            while result['status']=='RUNNING':
+                result=json.loads(await tool.command_status(result['job_id']))
+            self.assertEqual(result['status'],'PASS')
+
     async def test_tester_relative_helper_stays_in_run_directory(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

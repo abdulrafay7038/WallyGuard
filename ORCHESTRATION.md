@@ -198,9 +198,12 @@ and Wally simulation are not observable through the current backend and remain n
 The coverage ledger is rebuilt from all saved attempt records, persisted at
 `runs/coverage.json`, and summarized for the Architect. Selected, tested,
 reproduced and confirmed are distinct counters. Its preferred areas are advisory;
-source revisions and unverified notes are labelled. The Architect's 12-command,
-six-deep-file/eight-minute planning budget is advisory too, with tool-visible
-reminders and recorded `extension_reason`; it never forces an agent failure.
+source revisions and unverified notes are labelled. After 12 shell commands or
+eight minutes, Architect commands require a nonempty `extension_reason` naming
+the missing fact; a missing reason returns `PLANNING_HANDOFF_REQUIRED` without
+executing the command or failing the stage. Six deeply read files remains prompt
+guidance. Reasons are recorded, not semantically verified by the controller.
+Essential investigations may continue within the unchanged stage deadline.
 
 Prompt context is selected by role. The Architect gets a bounded tag/target/status
 history index with the archive path. The Tester gets its plan and repair feedback;

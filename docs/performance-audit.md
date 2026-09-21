@@ -338,3 +338,35 @@ Validation: 120 tests pass, including quoted-boundary extraction through the
 installed OpenCode parser, preservation of new 400/429 errors, near-match refusal,
 progress throttling and selective health-log filtering. No new live campaign or
 end-to-end speed measurement was performed.
+
+## Follow-up: model-turn error recurs after productive continuation
+
+Run `20260921T173710Z-5f32c234` failed differently: its initial request returned
+the exact model-turn 400 after 14.0 seconds, and its continuation made 107
+completed tool calls over 1170.0 seconds before returning a new identical 400.
+Both command exits were 1. The quote-boundary fix cannot make a fresh error a
+success. The Architect also expanded from atomics into several FPU, bitmanip
+and divide paths despite the planning reminders.
+
+The wrapper now permits at most two same-session continuations within the
+original deadline. The second requires newly observed completed tool call IDs
+in the first continuation's stream, plus the exact eligible error and unchanged
+session. Replayed calls, no progress, unrelated errors and deadline expiry stop
+recovery. All continuation streams are retained; later errors are still fatal.
+This is bounded mitigation for a recurring provider/OpenCode compatibility
+problem, not a claim to repair its internal cause.
+
+The existing Architect handoff budget is now a tool checkpoint: after 12 shell
+commands or eight minutes, a command without `extension_reason` is not executed.
+The tool asks for either a narrow handoff with uncertainties or the specific
+missing fact that justifies another command. Nonempty reasons permit continued
+investigation and are recorded; their substance is not machine-validated.
+The checkpoint does not fail the stage or apply to Tester/Critic/Fixer.
+
+Validation: 124 tests pass. Saved original/final streams from this run authorize
+the second continuation in an offline replay with a mocked final call. Tests
+cover unchanged session/config, no-progress refusal, replayed IDs, shrinking
+deadline, two-continuation cap, and errors after the last continuation. A real
+shell test verifies a blocked command has no filesystem effect, an explained
+command executes, and Tester is unaffected. No live recovery success or speedup
+has been measured for these new changes; no archived run was rewritten.

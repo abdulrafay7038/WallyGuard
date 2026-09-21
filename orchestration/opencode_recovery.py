@@ -1,4 +1,4 @@
-"""Recognize one Gemini conversation-shape error; never retry arbitrary 400s."""
+"""Bounded, progress-aware Gemini continuation; never retry arbitrary 400s."""
 from copy import deepcopy
 import json
 import re
@@ -10,6 +10,23 @@ CONTINUATION = ('Continue the existing assignment from the completed tool result
                 'Do not restart exploration or repeat completed commands. Check existing '
                 'artifacts before any further edits. Preserve all original constraints and '
                 'return the originally requested structured answer when ready.')
+
+
+def completed_tool_ids(stdout: str) -> set[str]:
+    """Count only identified completed calls, not reasoning or error events."""
+    calls = set()
+    for line in stdout.splitlines():
+        try:
+            entry = json.loads(line)
+        except ValueError:
+            continue
+        if not isinstance(entry, dict) or entry.get('type') != 'tool_use':
+            continue
+        part = entry.get('part') or {}
+        call_id = part.get('callID')
+        if isinstance(call_id, str) and call_id and (part.get('state') or {}).get('status') == 'completed':
+            calls.add(call_id)
+    return calls
 
 
 def continuation_session(stdout: str) -> str | None:

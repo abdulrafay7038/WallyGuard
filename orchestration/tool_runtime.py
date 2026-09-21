@@ -20,7 +20,7 @@ from .retry_policy import MCPFailure
 from .test_preflight import contract_errors, under
 from .toolchain import simulation_env
 from .timing import record_event, export_timing
-from .opencode_recovery import continuation_session, clear_recovered_error, CONTINUATION
+from .opencode_recovery import continuation_session, clear_recovered_error, completed_tool_ids, CONTINUATION
 
 
 @ray.remote(num_cpus=0)
@@ -214,6 +214,14 @@ class ManagedBashTool(ChiaTool):
             if not task.done():
                 return json.dumps(dict(status='BUSY', job_id=job_id,
                     reason='Poll the running command before submitting another command'))
+        if getattr(self, 'role', '') == 'architect':
+            count = getattr(self, '_metrics', {}).get('commands', 0)
+            elapsed = time.monotonic() - getattr(self, '_stage_started', time.monotonic())
+            if (count >= 12 or elapsed >= 480) and not extension_reason.strip():
+                return json.dumps(dict(status='PLANNING_HANDOFF_REQUIRED', commands=count,
+                    reason='Command not executed. Return your best source-grounded narrow target with '
+                           'uncertainties for Tester, or repeat this call with extension_reason naming '
+                           'the specific missing fact needed to form the hypothesis. Do not start a new survey.'))
         try:
             requested = float(os.environ.get('WALLY_COMMAND_TIMEOUT', '120')) if timeout_seconds is None else timeout_seconds
             if isinstance(requested, bool) or not isinstance(requested, (float, int)) or not math.isfinite(requested) or requested <= 0:
@@ -294,10 +302,25 @@ class DiagnosticOpenCodeLLM(OpenCodeLLM):
         if any(flag in cmd for flag in ('--session', '-s', '--continue', '-c', '--fork')):
             return response
         self._turn_recovery = dict(session=session, stdout=response.stdout, stderr=response.stderr,
-                                   returncode=response.returncode)
-        self._performance['protocol_recovery_attempts'] = 1
+                                   returncode=response.returncode, attempts=[])
         resumed = cmd[:-1] + ['--session', session, CONTINUATION]
-        return self._capture_once(resumed, env, timeout=remaining)
+        seen = completed_tool_ids(response.stdout)
+        # One initial continuation; a second is allowed only after new completed
+        # tool calls. Both consume the original deadline and retain the session.
+        for attempt in range(2):
+            self._performance['protocol_recovery_attempts'] = attempt + 1
+            configure_logger('wallyguard.recovery').info(
+                'MODEL_TURN_RECOVERY attempt=%s/2 session=%s; continuing existing assignment', attempt + 1, session)
+            response = self._capture_once(resumed, env, timeout=remaining)
+            self._turn_recovery['attempts'].append(dict(stdout=response.stdout, stderr=response.stderr,
+                                                       returncode=response.returncode))
+            remaining = self.timeout_seconds - (time.monotonic() - started)
+            completed = completed_tool_ids(response.stdout)
+            if (attempt == 1 or continuation_session(response.stdout) != session
+                    or remaining <= 0 or not completed - seen):
+                break
+            seen.update(completed)
+        return response
 
     def _capture_once(self, cmd: list, env: dict, timeout=None):
         from tempfile import TemporaryDirectory

@@ -196,9 +196,11 @@ that the Tester can investigate deeply, not a Wally survey or reproducer.
    behavior and a falsifiable failure hypothesis. Hand off remaining uncertainties.
 
 Budget roughly 12 shell commands, 6 deeply read source files, and 8 minutes.
-These are advisory handoff reminders, not failure limits. If essential evidence
-is still missing, explain that concrete missing fact in extension_reason on a
-further tool call. Do not compile, simulate, debug harnesses or inspect tool
+These are handoff checkpoints, not stage failure limits. After 12 commands or
+8 minutes, a further command requires extension_reason naming the concrete
+missing fact; otherwise the tool returns PLANNING_HANDOFF_REQUIRED without
+executing it. Return the best grounded lead with explicit uncertainties when
+further facts can be checked by Tester. Do not compile, simulate, debug harnesses or inspect tool
 installations during planning. Leave those tasks to the Tester. You may only
 write under test_dir. Do not perform repository-wide or home-directory surveys.
 

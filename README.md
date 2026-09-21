@@ -114,8 +114,10 @@ Every run records stage durations and prompt-context sizes in `attempt.json`.
 Tool counts and command durations live in `controller/agent-*/tool-metrics.json`.
 The cumulative exploration ledger (`runs/coverage.json`) distinguishes selected
 targets from controller-tested and reproduced cases. The Architect receives a
-bounded summary and advisory handoff reminders after 12 commands or eight minutes;
-it may explain and continue an essential investigation. No agent deadline is reduced.
+bounded summary and a handoff checkpoint after 12 commands or eight minutes.
+Further commands require `extension_reason` naming the missing fact; without it,
+the tool returns `PLANNING_HANDOFF_REQUIRED` and does not execute the command.
+An explained investigation can continue. No agent deadline is reduced.
 Architect and Tester context also includes bounded prior Critic rejections and
 revision requests. A review recovered from a guard-failed stage is explicitly
 unaccepted advice; it never changes verification or patch-promotion gates.
@@ -264,12 +266,15 @@ The Fixer uses a separate OpenCode model; ensure that provider is available too.
 Do not put credential contents into runtime-environment JSON or repository files.
 
 If Gemini reports `Requests ending with a model turn are not supported.`, the
-OpenCode wrapper makes one continuation attempt in the same session, preserving
-the model, tools and assignment. It adds a user turn rather than restarting the
-investigation. Only this exact HTTP 400 is eligible; other errors or a repeated
-failure still stop the stage. Original error diagnostics and the recovery count
-are retained. This compatibility workaround is unit-tested; end-to-end recovery
-has not yet been demonstrated on the deployed provider.
+OpenCode wrapper adds a user continuation in the same session, preserving the
+model, tools and assignment. A second continuation is allowed only if the first
+completed new, identified tool calls before encountering the same error again.
+There are at most two continuations, sharing the original deadline. Repeated
+errors without new tool activity, a changed session or other HTTP errors cannot
+unlock the second continuation. Streams and recovery counts are retained. The
+quoted-continuation parser was verified against a real completed session; the
+new second-continuation path is tested using saved streams and mocked calls,
+not a newly completed live campaign. Provider errors can still recur.
 
 [GOOGLE_GENAI.md](GOOGLE_GENAI.md) contains deployment-specific ADC permission
 notes. Its older model defaults, submission helpers, and recovery descriptions

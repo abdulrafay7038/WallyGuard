@@ -2,7 +2,7 @@ from copy import deepcopy
 import json
 from types import SimpleNamespace
 import unittest
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from orchestration.opencode_recovery import MODEL_TURN_ERROR, CONTINUATION, continuation_session, clear_recovered_error
 from orchestration.tool_runtime import DiagnosticOpenCodeLLM
@@ -14,6 +14,11 @@ def error(message=MODEL_TURN_ERROR, code=400):
 
 def stream(message=MODEL_TURN_ERROR, code=400, session='ses_example'):
     return json.dumps(dict(type='error', sessionID=session, error=error(message, code))) + '\n'
+
+
+def progress(call='call_1'):
+    return json.dumps(dict(type='tool_use', sessionID='ses_example',
+                           part=dict(callID=call, state=dict(status='completed')))) + '\n'
 
 
 class RecoveryTests(unittest.TestCase):
@@ -55,6 +60,47 @@ class RecoveryTests(unittest.TestCase):
         self.assertEqual(llm._capture_once.call_count, 2)
         llm._capture(['opencode', 'export', 'ses_example'], {})
         self.assertEqual(llm._capture_once.call_count, 3)
+
+    def test_second_continuation_requires_new_completed_tools_and_same_session(self):
+        failed = SimpleNamespace(stdout=stream(), stderr='', returncode=1)
+        working = SimpleNamespace(stdout=progress() + stream(), stderr='', returncode=1)
+        success = SimpleNamespace(stdout='answer', stderr='', returncode=0)
+        llm = self.llm([failed, working, success])
+        self.assertIs(llm._capture(['opencode', 'run', 'prompt'], {}), success)
+        self.assertEqual(llm._performance['protocol_recovery_attempts'], 2)
+        self.assertEqual(len(llm._turn_recovery['attempts']), 2)
+        self.assertEqual(llm._capture_once.call_args_list[1].args[0],
+                         llm._capture_once.call_args_list[2].args[0])
+        # Replayed old calls and wrong-session errors cannot unlock a retry.
+        for original, resumed in [(working, working),
+                                  (failed, SimpleNamespace(stdout=progress()+stream(session='ses_other'), stderr='', returncode=1))]:
+            llm = self.llm([original, resumed])
+            self.assertIs(llm._capture(['opencode','run','prompt'], {}), resumed)
+            self.assertEqual(llm._capture_once.call_count, 2)
+
+    def test_progress_never_extends_deadline_or_allows_third_continuation(self):
+        failed = SimpleNamespace(stdout=stream(), stderr='', returncode=1)
+        working = SimpleNamespace(stdout=progress() + stream(), stderr='', returncode=1)
+        again = SimpleNamespace(stdout=progress('call_2') + stream(), stderr='', returncode=1)
+        llm = self.llm([failed, working, again])
+        with patch('orchestration.tool_runtime.time.monotonic', side_effect=[0, 10, 30, 40]):
+            self.assertIs(llm._capture(['opencode','run','prompt'], {}), again)
+        self.assertEqual(llm._capture_once.call_count, 3)
+        self.assertEqual(llm._capture_once.call_args_list[1].kwargs['timeout'], 50)
+        self.assertEqual(llm._capture_once.call_args_list[2].kwargs['timeout'], 30)
+        llm = self.llm([failed, working])
+        with patch('orchestration.tool_runtime.time.monotonic', side_effect=[0, 10, 61]):
+            self.assertIs(llm._capture(['opencode','run','prompt'], {}), working)
+        self.assertEqual(llm._capture_once.call_count, 2)
+
+    def test_errors_after_second_continuation_remain_fatal(self):
+        old = dict(info=dict(role='assistant', error=error()), parts=[])
+        user = dict(info=dict(role='user'), parts=[dict(type='text',text='"'+CONTINUATION+'"')])
+        export = dict(info=dict(id='ses_example'), messages=[old, user, deepcopy(old), deepcopy(user), deepcopy(old)])
+        cleaned = clear_recovered_error(export, 'ses_example')
+        self.assertNotIn('error', cleaned['messages'][0]['info'])
+        self.assertNotIn('error', cleaned['messages'][2]['info'])
+        self.assertIn('error', cleaned['messages'][4]['info'])
 
     def test_auth_and_generic_400_never_retry(self):
         for raw in (stream('Permission denied', 403), stream('Invalid argument'), stream(code=500)):
