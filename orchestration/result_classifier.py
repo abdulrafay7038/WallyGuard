@@ -82,4 +82,6 @@ def artifact_argv(value: Any, scratch: Path, test_dir: Path | None = None) -> li
         script = (scratch / args[1]).resolve()
         if not script.is_file() or (test_dir and not script.is_relative_to(test_dir.resolve())):
             raise ValueError('Script must be a saved test artifact')
+        args = list(args)
+        args[1] = str(script)
     return args

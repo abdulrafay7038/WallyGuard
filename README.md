@@ -104,6 +104,15 @@ the ELF, assertions and RTL are unchanged. A failed `make` remains an error even
 if the simulator subsequently exits zero. Preparation logs appear as
 `control-elf-prepare.log` and `test-elf-prepare.log` in each evidence directory.
 
+Saved build scripts run from `test_dir`, matching the Tester shell. Relative
+source paths therefore resolve consistently; checkout paths should use `$WALLY`.
+For an explicit native expected/actual mismatch, the controller recognizes the
+testbench's intentional Verilator `$stop` only at the current `CheckSelfCheck`
+source location and with the same ELF's failure summary. Other simulator errors
+remain fatal, including errors appearing later in the log. A mismatch still
+requires a passing Spike run, passing control, repeat verification and Critic
+review; an abort or nonzero exit alone proves nothing.
+
 Command status calls wait up to 30 seconds for completion instead of making the
 model repeatedly poll. Shell tools default to a 120-second deadline; agents can
 request a longer `timeout_seconds` for builds, capped by `WALLY_REGRESSION_TIMEOUT`.

@@ -37,15 +37,18 @@ def _contains(path: Path, marker: str) -> bool:
         return any(marker in line for line in stream)
 
 
-def log_markers(path: Path) -> str:
+def log_markers(path: Path, omit_line=None) -> str:
     """Scan complete logs, retaining only bounded first evidence for each pattern."""
     found = {}
     patterns = {'watchdog': WATCHDOG, 'tool': TOOL_ERROR, 'failure': FAILURE,
                 'incomplete': re.compile('halted without completing|wrote .* signature entries'),
                 'selfcheck': re.compile(r'result \d+: adr = [0-9a-fA-F]+ sim \(D\$\) [0-9a-fA-F]+ signature = [0-9a-fA-F]+'),
+                'selfcheck_summary': re.compile(r' failed with\s+[1-9]\d* errors\. :\('),
                 'success': re.compile(r'succeeded\.  Brilliant!!!')}
     with path.open(errors='replace') as stream:
         for line in stream:
+            if omit_line is not None and omit_line.fullmatch(line.rstrip('\r\n')):
+                continue
             for key, pattern in patterns.items():
                 if key not in found and pattern.search(line):
                     found[key] = line[:8192]
@@ -178,6 +181,37 @@ def vector_preflight(contract: dict, test_dir: Path, scratch: Path, directory: P
     return errors
 
 
+def selfcheck_failure_summary(log: str, elf: Path):
+    return re.search(r'^' + re.escape(str(elf)) + r' failed with\s+[1-9]\d* errors\. :\([ \t]*$', log, re.M)
+
+
+def selfcheck_error_log(path: Path, root: Path, elf: Path) -> str:
+    """Ignore only CheckSelfCheck's expected $stop after its failure summary.
+
+    Called only for an explicit value mismatch. Other %Error lines, make errors,
+    wrong source locations and missing summaries must still block promotion.
+    """
+    log = log_markers(path)
+    if not selfcheck_failure_summary(log, elf):
+        return log
+    source = root / 'testbench/testbench.sv'
+    try:
+        text = source.read_text()
+    except OSError:
+        return log
+    task = re.search(r'(?ms)^[ \t]*task\s+automatic\s+CheckSelfCheck\b.*?^[ \t]*endtask\b', text)
+    if not task:
+        return log
+    allowed = []
+    for stop in re.finditer(r'(?m)^[ \t]*\$stop\s*;', task.group()):
+        line = text.count('\n', 0, task.start() + stop.start()) + 1
+        allowed.append(r'%Error: ' + re.escape(str(source)) + ':' + str(line) +
+                       r'(?::\d+)?: Verilog \$stop[ \t]*')
+    # Scan the complete log again, not the bounded first-error summary: a real
+    # tool failure after the expected stop must not disappear with that stop.
+    return log_markers(path, re.compile('|'.join(allowed))) if allowed else log
+
+
 def prepare_selfcheck_elf(root: Path, elf: Path, symbols: dict, width: int, execute, name: str) -> dict:
     """Rebuild runtime inputs explicitly; preserve every ELF symbol alias.
 
@@ -233,7 +267,8 @@ def run_reproducer(scratch: str, test_dir: str, contract: dict, log_path: str,
 
     def execute(name: str, argv) -> dict:
         deadline = min(timeout, float(env.get('WALLY_ORACLE_TIMEOUT', '60'))) if name.endswith('-oracle') else timeout
-        result = run_command(artifact_argv(argv, root, tests), directory / f'{name}.log', deadline, env, root)
+        cwd = tests if name == 'build' else root
+        result = run_command(artifact_argv(argv, root, tests), directory / f'{name}.log', deadline, env, cwd)
         steps[name] = result
         return result
     def pair(spec: dict, name: str) -> dict:
@@ -306,10 +341,12 @@ def run_reproducer(scratch: str, test_dir: str, contract: dict, log_path: str,
             wally_log = log_markers(Path(wally['log_path']))
             if wally.get('timed_out') or WATCHDOG.search(wally_log):
                 return classify(wally, wally_log).dict()
-            if TOOL_ERROR.search(wally_log):
-                return classify(wally, wally_log).dict()
             record = re.search(re.escape(str(elf)) + r' result \d+: adr = ([0-9a-fA-F]+) sim \(D\$\) ([0-9a-fA-F]+) signature = ([0-9a-fA-F]+)', wally_log)
-            if record and int(record[2], 16) != int(record[3], 16) and wally['returncode'] in (0, 1, 134, -6):
+            error_log = selfcheck_error_log(Path(wally['log_path']), root, elf) if record else wally_log
+            if TOOL_ERROR.search(error_log):
+                return classify(wally, error_log).dict()
+            if (record and selfcheck_failure_summary(error_log, elf)
+                    and int(record[2], 16) != int(record[3], 16) and wally['returncode'] in (0, 1, 134, -6)):
                 result = ReproducerResult(Outcome.MISMATCH_CONFIRMED,
                     'CVW completed self-check value mismatch; same ELF passed Spike', wally['returncode']).dict()
                 result['first_mismatch'] = dict(address=record[1], wally=record[2], expected=record[3])

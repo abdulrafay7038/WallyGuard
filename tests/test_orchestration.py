@@ -282,13 +282,17 @@ class PreflightTests(unittest.TestCase):
         self.assertEqual(result['steps']['test-wally']['deadline'],900)
     def test_controller_supplies_test_dir_to_real_saved_build_script(self):
         script = self.tests / 'build_reproducer.sh'
+        (self.tests/'source.txt').write_text('source in run directory')
         script.write_text('#!/bin/bash\nset -eu\nmkdir -p "$WALLY_TEST_DIR/build"\n'
-                          'printf "%s" "$WALLY_TEST_DIR" > "$WALLY_TEST_DIR/build/env.txt"\n')
-        self.contract['build'] = ['bash', str(script)]
+                          'printf "%s" "$WALLY_TEST_DIR" > "$WALLY_TEST_DIR/build/env.txt"\n'
+                          'cat source.txt > build/source-copy.txt\n')
+        self.contract['build'] = ['bash', str(script.relative_to(self.root))]
         real_run = run_command
         def execute(command, path, timeout, env, cwd):
             self.assertEqual(env['WALLY_TEST_DIR'], str(self.tests.resolve()))
             if path.stem == 'build':
+                self.assertEqual(cwd,self.tests.resolve())
+                self.assertEqual(command[1],str(script.resolve()))
                 return real_run(command, path, timeout, env, cwd)
             path.write_text('stop after build')
             return dict(status='COMMAND_FAILED', returncode=1, log_path=str(path))
@@ -299,6 +303,7 @@ class PreflightTests(unittest.TestCase):
             result = run_reproducer(str(self.root), str(self.tests), self.contract, str(self.root/'env.log'), 3)
         self.assertEqual(result['steps']['build']['status'], 'PASS')
         self.assertEqual((self.tests/'build/env.txt').read_text(), str(self.tests.resolve()))
+        self.assertEqual((self.tests/'build/source-copy.txt').read_text(),'source in run directory')
         self.assertFalse(result['passed'])  # Build success is not oracle/DUT proof.
     def test_real_controller_compares_artifacts(self):
         self.assertEqual(self.run_contract()['status'],Outcome.MISMATCH_CONFIRMED)
@@ -415,9 +420,11 @@ class ToolRuntimeTests(unittest.TestCase):
 
 class NativeSelfCheckTests(unittest.TestCase):
     setUp = PreflightTests.setUp
-    def run_selfcheck(self, *, matched=False, watchdog=False, tool_error=False):
+    def run_selfcheck(self, *, matched=False, watchdog=False, tool_error=False, extra_error='', summary=True):
         header=bytearray(64);header[:5]=b'\x7fELF\x02';header[18:20]=(243).to_bytes(2,'little')
         (self.tests/'build/test.elf').write_bytes(header)
+        source=self.root/'testbench/testbench.sv';source.parent.mkdir()
+        source.write_text('task automatic CheckSelfCheck;\n  $stop;\nendtask\n')
         for name in ('control','test'):
             self.contract[name]['mode']='selfcheck'
             self.contract[name]['oracle'] += [f'+signature={self.tests}/build/{name}-oracle.sig', '+signature-granularity=8']
@@ -436,12 +443,17 @@ class NativeSelfCheckTests(unittest.TestCase):
                     content='make: *** [control.elf.memfile] Error 1\n'+content
                 if log.stem.startswith('test') and not matched:
                     content='FAILURE: Watch Dog Time Out\n' if watchdog else f'  Error on test {elf} result 0: adr = 80000100 sim (D$) 00000002 signature = 00000001\n'
+                    if not watchdog:
+                        if summary:content+=f'{elf} failed with 1 errors. :(\n'
+                        content+=f'%Error: {source}:2: Verilog $stop\nAborting...\n'+extra_error
             else:
                 content=''
                 if log.stem.endswith('oracle'):
                     (self.tests/'build'/f'{log.stem}.sig').write_text('0000000000000001\n'+'0000000000000000\n'*4)
             log.write_text(content)
-            return {'status':'PASS','returncode':0,'timed_out':False,'log_path':str(log)}
+            failed=log.stem=='test-wally' and not matched
+            return {'status':'COMMAND_FAILED' if failed else 'PASS','returncode':134 if failed else 0,
+                    'timed_out':False,'log_path':str(log)}
         with patch('orchestration.test_preflight.validate_spike'), patch('orchestration.test_preflight.run_command',side_effect=run),patch('orchestration.test_preflight.shutil.which',side_effect=lambda name,**kw:str(self.root/'bin'/name)):
             return run_reproducer(str(self.root),str(self.tests),self.contract,str(self.root/'run.log'),3)
     def test_native_expected_actual_mismatch(self):
@@ -450,6 +462,10 @@ class NativeSelfCheckTests(unittest.TestCase):
         self.assertEqual(result['fingerprint']['wally'],'00000002')
     def test_native_match(self):
         self.assertEqual(self.run_selfcheck(matched=True)['status'],Outcome.MATCH)
+    def test_expected_stop_cannot_hide_later_tool_error(self):
+        self.assertEqual(self.run_selfcheck(extra_error='make: *** [simulator] Error 2\n')['status'],Outcome.TOOL_FAILURE)
+    def test_mismatch_without_failure_summary_is_not_promoted(self):
+        self.assertEqual(self.run_selfcheck(summary=False)['status'],Outcome.TOOL_FAILURE)
     def test_native_watchdog_is_not_promoted(self):
         self.assertEqual(self.run_selfcheck(watchdog=True)['status'],Outcome.DUT_WATCHDOG_FAILURE)
     def test_make_error_overrides_apparent_selfcheck_success(self):

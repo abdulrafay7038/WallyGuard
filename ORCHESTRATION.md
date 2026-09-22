@@ -59,6 +59,9 @@ respectively, directly executing the same ELF under `test_dir/build`. Specify
 `--elf` explicitly for Wally. Shell control flow, inline interpreter code and
 exit-code masking are rejected at this boundary. Legitimate shell code remains
 permitted inside a saved build harness.
+Build scripts execute from `test_dir` like the Tester shell. Saved interpreter
+script paths are normalized to absolute paths before execution; other verifier
+commands continue to execute from the Wally checkout.
 
 Two deterministic comparison modes are supported:
 
@@ -73,7 +76,10 @@ Two deterministic comparison modes are supported:
    and Spike `+signature=<absolute path>` / `+signature-granularity=<XLEN/8>`.
    The controller checks Spike's freshly emitted self-check record has status 1;
    Wally must emit its native successful self-check message or an explicit
-   expected/actual value mismatch. Generic aborts, entry-count errors and
+   expected/actual value mismatch with the same ELF's completed failure summary.
+   Only the intentional `$stop` at the current `CheckSelfCheck` source location
+   is exempted from tool-error detection. The complete log is rescanned so later
+   real tool errors remain visible. Generic aborts, entry-count errors and
    unfinished self-checks are not mismatch evidence. This mode does not require
    a Wally signature-output extension or changes to CVW's testbench.
 

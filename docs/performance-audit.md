@@ -412,3 +412,57 @@ alias retention, failed/missing output rejection, symlink refusal, tool selectio
 and make failures overriding an apparent self-check pass. No simulation was
 started against the occupied shared worktree and the live run was not changed.
 This validates the preparation fix, not a completed fresh Wally/Spike campaign.
+
+## September 22: expected self-check stops and build working directory
+
+The latest campaign ended at `20260921T225618Z-e85ff7af`: Architect failed after
+651.5 seconds with the exact model-turn 400 after all three CLI segments
+(86.7, 207.6 and 353.0 seconds). Both allowed continuations ran. This is a fresh
+provider failure, not a discarded successful answer. Investigation found no
+established compatible OpenCode version/configuration fix; no dependency upgrade,
+model switch or additional retry was applied.
+
+An audit of 12 verifier attempts across `191541`, `201013`, `205005` and `221049`
+found three build-directory failures, five native self-check abort paths
+(including a genuinely failing positive control), two invalid signature
+fallbacks, one Spike failure and one valid baseline match. The controller must
+continue rejecting failing controls and invalid oracle/signature evidence.
+
+Two local defects were corrected:
+
+- Saved build scripts now run from `test_dir`, matching Tester commands. Relative
+  source paths such as `tests/control.S` no longer unexpectedly refer to the
+  Wally checkout. Interpreter script paths are normalized to absolute paths
+  before changing directory. Other verification commands retain their checkout
+  working directory.
+- The preceding make-error fix also intercepted `%Error ... Verilog $stop`, the
+  intentional termination of a native failed self-check. The controller now
+  requires an explicit unequal expected/actual record and the same ELF's failure
+  summary, then exempts only the `$stop` source line inside the current
+  `CheckSelfCheck` task. It rescans the full log, preserving unrelated errors
+  before or after that line. Source/line mismatches, missing summaries, generic
+  aborts, watchdogs and later tool failures remain failures. Raw logs are intact.
+
+The Tester prompt now explains this normal native termination and prohibits
+switching to fabricated/copied Wally signatures or startup/UART completion
+markers. The invalid signature workaround in `221049` revision 2 is not reused.
+
+Validation: 134 tests pass, including a real saved build with relative source
+paths and all termination-parser safety cases. Independent code review found no
+remaining blocker. With no active Ray jobs, the preserved `221049` revision-1
+inputs were hash-checked and copied to `/tmp/wallyguard-verifier-replay-dh5cq076`.
+Only contract paths were relocated. Holding the existing workspace lock, on the
+same clean baseline `a4ec211a34f36f6bc2c5a57093ef0951800258e1`, real controller
+verification ran Spike and Wally twice:
+
+| Result | First replay | Repeat |
+| --- | --- | --- |
+| Verification duration | 5.72 s | 4.62 s |
+| Positive control | MATCH | MATCH |
+| Edge case | MISMATCH_CONFIRMED | MISMATCH_CONFIRMED |
+| Wally / expected value | `0` / `0x9abcdef0` | Same fingerprint |
+
+This is repeated executable mismatch evidence, not a confirmed architectural
+bug: Critic/spec review, RTL fixing and regression were not run. Archived run
+records were not rewritten or promoted. No new LLM campaign was launched and
+the recurring provider error remains unresolved.

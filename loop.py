@@ -231,8 +231,14 @@ The template is scaffolding, not a test result or an oracle.
 The DUT command MUST directly invoke $WALLY/bin/wsim CONFIG --sim verilator
 --elf ABSOLUTE_ELF_PATH. No wrapper scripts or direct Vtestbench at this boundary.
 Spike must be the installed absolute executable and run that same ELF.
-Keep build=["bash", "ABSOLUTE_TEST_DIR/build_reproducer.sh"]. Write repairs to
-saved files through run_command before submitting. Never put python -c, bash -c,
+Keep build=["bash", "ABSOLUTE_TEST_DIR/build_reproducer.sh"].
+Build scripts execute from test_dir, matching the Tester shell; repository paths
+must use $WALLY. Native self-check mismatches normally end with Verilator $stop
+and exit 134. Preserve selfcheck mode when this happens; inspect the explicit
+expected/actual record. Never prewrite/copy expected data into a Wally signature
+or use UART/startup messages as architectural completion evidence.
+Write repairs to saved files through run_command before submitting.
+Never put python -c, bash -c,
 inline source generators, or commands that rewrite inputs in the build contract.
 After building/editing, save the complete contract in reproducer.json and call
 validate_reproducer. Correct every reported error, then return only
