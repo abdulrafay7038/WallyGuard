@@ -1,8 +1,0 @@
-Started: 2026-09-20T05:47:45.971711+00:00
-Command: bash -o pipefail -c 'grep -i "PMP_ENTRIES" config/rv64gc/config.vh'
-
-localparam PMP_ENTRIES = 32'd16;
-
-Finished: 2026-09-20T05:47:46.042195+00:00
-Return code: 0
-Status: PASS

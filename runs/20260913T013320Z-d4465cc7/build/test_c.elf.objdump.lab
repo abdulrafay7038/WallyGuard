@@ -1,8 +1,0 @@
-_start
-jalr_inst
-target_label
-trap_handler
-pass
-fail
-tohost
-fromhost

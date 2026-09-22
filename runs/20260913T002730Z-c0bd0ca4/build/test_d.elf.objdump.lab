@@ -1,9 +1,0 @@
-_start
-s_mode_start
-s_trap
-pass
-m_trap
-handle_ecall
-hard_fail
-tohost
-fromhost

@@ -1,7 +1,0 @@
-Started: 2026-09-18T09:49:57.088472+00:00
-Command: bash -o pipefail -c 'find sim -name "*Vtestbench*"'
-
-
-Finished: 2026-09-18T09:49:57.162060+00:00
-Return code: 0
-Status: PASS

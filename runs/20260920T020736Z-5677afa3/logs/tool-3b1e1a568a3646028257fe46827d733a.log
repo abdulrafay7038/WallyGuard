@@ -1,8 +1,0 @@
-Started: 2026-09-20T02:16:50.931425+00:00
-Command: bash -o pipefail -c 'grep -rn "module comparator" src/'
-
-src/ieu/comparator.sv:32:module comparator #(parameter WIDTH=64) (
-
-Finished: 2026-09-20T02:16:50.992693+00:00
-Return code: 0
-Status: PASS

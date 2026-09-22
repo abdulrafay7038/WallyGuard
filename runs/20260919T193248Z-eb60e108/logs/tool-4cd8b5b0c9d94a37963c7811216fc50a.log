@@ -1,8 +1,0 @@
-Started: 2026-09-19T19:36:27.787846+00:00
-Command: bash -o pipefail -c 'git grep "<<<<<<"'
-
-
-Finished: 2026-09-19T19:36:27.998725+00:00
-Return code: 1
-Status: COMMAND_FAILED
-ERROR: Command exited with code 1

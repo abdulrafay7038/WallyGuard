@@ -1,4 +1,0 @@
-  Error on test /home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/test_pmp_mmode_store_cross.elf result 0: adr = 0000000000000000 sim (D$) 0000000000009999 signature = 0000000000001111
-/home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/test_pmp_mmode_store_cross.elf failed with           1 errors. :(
-%Error: /home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/wally_clean/testbench/testbench.sv:1181: Verilog $stop
-Aborting...

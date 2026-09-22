@@ -1,8 +1,0 @@
-Started: 2026-09-18T11:26:16.913688+00:00
-Command: bash -o pipefail -c '/home/rafay/riscv/bin/riscv64-unknown-elf-nm /home/rafay/miniconda3/WallyGuard2/runs/20260918T105234Z-b204db37/build/test_pmp_mmode_control.elf | grep mtvec_handler'
-
-00000000800000a0 T mtvec_handler
-
-Finished: 2026-09-18T11:26:16.989165+00:00
-Return code: 0
-Status: PASS

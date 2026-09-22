@@ -1,8 +1,0 @@
-Started: 2026-09-19T22:05:00.472800+00:00
-Command: bash -o pipefail -c 'which spike'
-
-/usr/bin/spike
-
-Finished: 2026-09-19T22:05:00.531988+00:00
-Return code: 0
-Status: PASS

@@ -1,7 +1,0 @@
-rvtest_entry_point
-s_mode_start
-mtrap_handler
-strap_handler
-root_pt
-tohost
-fromhost

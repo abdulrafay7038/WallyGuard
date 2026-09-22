@@ -1,9 +1,0 @@
-Started: 2026-09-20T06:07:30.239194+00:00
-Command: bash -o pipefail -c 'python3 -c "import json; d=json.load(open('"'"'/home/rafay/miniconda3/WallyGuard2/runs/20260917T123710Z-9bc09998/attempt.json'"'"')); print(list(d.keys())); print(json.dumps(d.get('"'"'contract'"'"', {}), indent=2))"'
-
-['tag', 'iteration', 'status', 'models', 'run_regression', 'verification_scope', 'scratch', 'base_commit', 'test_dir', 'plan', 'test_revisions', 'tester', 'baseline_reproducer', 'bug_review', 'baseline_regression', 'fix_attempts', 'patch']
-{}
-
-Finished: 2026-09-20T06:07:30.423590+00:00
-Return code: 0
-Status: PASS

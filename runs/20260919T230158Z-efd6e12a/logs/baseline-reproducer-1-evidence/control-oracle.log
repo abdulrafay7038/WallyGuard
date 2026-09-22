@@ -1,9 +1,0 @@
-Started: 2026-09-19T23:54:51.337333+00:00
-Command: /usr/bin/spike --isa=rv64gc_smstateen_zicboz +signature=/home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/logs/control-spike.sig +signature-granularity=8 /home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/build/control.elf
-
-{"time":"2026-09-19T23:54:51.343788443Z","level":"WARN","msg":"Lock","msg":"Failed to lock memory","err":"cannot allocate memory"}
-
-Finished: 2026-09-20T00:09:51.430874+00:00
-Return code: -15
-Status: TIMEOUT
-ERROR: Timeout after 900 seconds

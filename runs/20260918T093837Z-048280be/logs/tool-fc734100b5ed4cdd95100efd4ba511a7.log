@@ -1,8 +1,0 @@
-Started: 2026-09-18T10:16:59.239043+00:00
-Command: bash -o pipefail -c 'grep INCDIRS $WALLY/sim/verilator/Makefile'
-
-
-Finished: 2026-09-18T10:16:59.314784+00:00
-Return code: 1
-Status: COMMAND_FAILED
-ERROR: Command exited with code 1

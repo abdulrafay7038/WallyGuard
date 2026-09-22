@@ -1,9 +1,0 @@
-Started: 2026-09-18T11:09:52.378161+00:00
-Command: bash -o pipefail -c 'grep -rn "wallypipelinedsoc" /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/src/
-'
-
-/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/src/wally/wallypipelinedsoc.sv:30:module wallypipelinedsoc import cvw::*; #(parameter cvw_t P)  (
-
-Finished: 2026-09-18T11:09:52.461517+00:00
-Return code: 0
-Status: PASS

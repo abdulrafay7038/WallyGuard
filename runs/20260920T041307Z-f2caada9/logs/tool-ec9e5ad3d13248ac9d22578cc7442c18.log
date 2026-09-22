@@ -1,9 +1,0 @@
-Started: 2026-09-20T06:00:11.490885+00:00
-Command: bash -o pipefail -c 'ls -al /home/rafay/miniconda3/WallyGuard2/runs/20260920T041307Z-f2caada9/build/control.sig'
-
-ls: cannot access '/home/rafay/miniconda3/WallyGuard2/runs/20260920T041307Z-f2caada9/build/control.sig': No such file or directory
-
-Finished: 2026-09-20T06:00:11.549618+00:00
-Return code: 2
-Status: COMMAND_FAILED
-ERROR: Command exited with code 2

@@ -1,9 +1,0 @@
-Started: 2026-09-20T00:58:57.966315+00:00
-Command: bash -o pipefail -c 'timeout 1s /usr/bin/spike -l --isa=rv64gc_smstateen_zicboz /home/rafay/miniconda3/WallyGuard2/runs/20260920T002030Z-7cc4bf4c/build/control.elf 2>&1 | head -n 50'
-
-{"time":"2026-09-20T00:58:57.979968736Z","level":"WARN","msg":"Lock","msg":"Failed to lock memory","err":"cannot allocate memory"}
-
-Finished: 2026-09-20T00:58:59.034631+00:00
-Return code: 124
-Status: COMMAND_FAILED
-ERROR: Command exited with code 124

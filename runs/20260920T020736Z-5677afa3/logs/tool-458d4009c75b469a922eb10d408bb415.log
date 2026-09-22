@@ -1,9 +1,0 @@
-Started: 2026-09-20T02:16:44.955122+00:00
-Command: bash -o pipefail -c 'cat src/generic/comparator.sv'
-
-cat: src/generic/comparator.sv: No such file or directory
-
-Finished: 2026-09-20T02:16:45.025360+00:00
-Return code: 1
-Status: COMMAND_FAILED
-ERROR: Command exited with code 1

@@ -1,9 +1,0 @@
-{"attempt": 0, "event_type": "IN_PROGRESS", "iteration_id": "20260918T093837Z-048280be", "stage": "controller", "status": "IN_PROGRESS", "timestamp": "2026-09-18T09:41:40.065901+00:00"}
-{"attempt": 0, "event_type": "IN_PROGRESS", "iteration_id": "20260918T093837Z-048280be", "stage": "controller", "status": "IN_PROGRESS", "timestamp": "2026-09-18T10:00:52.998360+00:00"}
-{"attempt": 0, "event_type": "IN_PROGRESS", "iteration_id": "20260918T093837Z-048280be", "stage": "controller", "status": "IN_PROGRESS", "timestamp": "2026-09-18T10:48:39.123931+00:00"}
-{"attempt": 0, "event_type": "IN_PROGRESS", "iteration_id": "20260918T093837Z-048280be", "stage": "controller", "status": "IN_PROGRESS", "timestamp": "2026-09-18T10:48:43.712945+00:00"}
-{"attempt": 0, "event_type": "IN_PROGRESS", "iteration_id": "20260918T093837Z-048280be", "stage": "controller", "status": "IN_PROGRESS", "timestamp": "2026-09-18T10:50:39.117834+00:00"}
-{"attempt": 0, "event_type": "IN_PROGRESS", "iteration_id": "20260918T093837Z-048280be", "stage": "controller", "status": "IN_PROGRESS", "timestamp": "2026-09-18T10:50:45.410832+00:00"}
-{"attempt": 0, "event_type": "IN_PROGRESS", "iteration_id": "20260918T093837Z-048280be", "stage": "controller", "status": "IN_PROGRESS", "timestamp": "2026-09-18T10:52:27.854156+00:00"}
-{"attempt": 0, "event_type": "IN_PROGRESS", "iteration_id": "20260918T093837Z-048280be", "stage": "controller", "status": "IN_PROGRESS", "timestamp": "2026-09-18T10:52:34.346192+00:00"}
-{"attempt": 0, "event_type": "TEST_REPAIR_EXHAUSTED", "iteration_id": "20260918T093837Z-048280be", "stage": "controller", "status": "TEST_REPAIR_EXHAUSTED", "timestamp": "2026-09-18T10:52:34.476843+00:00"}

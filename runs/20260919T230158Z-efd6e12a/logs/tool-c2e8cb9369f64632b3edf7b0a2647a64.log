@@ -1,9 +1,0 @@
-Started: 2026-09-20T00:11:47.126448+00:00
-Command: bash -o pipefail -c '/usr/bin/spike --isa=rv64gc_smstateen_zicboz_zicbom +signature=/tmp/spike.sig +signature-granularity=8 /home/rafay/miniconda3/WallyGuard2/runs/20260919T230158Z-efd6e12a/build/control.elf'
-
-{"time":"2026-09-20T00:11:47.135226056Z","level":"WARN","msg":"Lock","msg":"Failed to lock memory","err":"cannot allocate memory"}
-
-Finished: 2026-09-20T00:20:28.803392+00:00
-Return code: -15
-Status: INFRA_FAILURE
-ERROR: Command cancelled by tool shutdown

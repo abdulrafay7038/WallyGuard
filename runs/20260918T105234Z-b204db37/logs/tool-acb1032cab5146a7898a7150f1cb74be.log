@@ -1,8 +1,0 @@
-Started: 2026-09-18T11:01:58.096454+00:00
-Command: bash -o pipefail -c 'ls -l /home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/rv64gc_testbench/Vtestbench'
-
--rwxrwxr-x 1 rafay rafay 8801080 Sep 18 10:37 /home/rafay/miniconda3/WallyGuard2/runs/20260918T093837Z-048280be/build/rv64gc_testbench/Vtestbench
-
-Finished: 2026-09-18T11:01:58.175762+00:00
-Return code: 0
-Status: PASS

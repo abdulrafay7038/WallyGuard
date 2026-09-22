@@ -1,9 +1,0 @@
-Started: 2026-09-18T11:05:59.504997+00:00
-Command: bash -o pipefail -c 'grep -rn "reproduce_command" /home/rafay/miniconda3/WallyGuard2/orchestration/'
-
-/home/rafay/miniconda3/WallyGuard2/orchestration/agent_protocol.py:54:        if not isinstance(value.get('reproducer'), dict) and not isinstance(value.get('reproduce_command'), str):
-grep: /home/rafay/miniconda3/WallyGuard2/orchestration/__pycache__/agent_protocol.cpython-310.pyc: binary file matches
-
-Finished: 2026-09-18T11:05:59.580575+00:00
-Return code: 0
-Status: PASS

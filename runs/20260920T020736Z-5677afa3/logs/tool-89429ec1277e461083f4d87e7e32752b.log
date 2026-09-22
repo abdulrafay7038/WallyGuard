@@ -1,9 +1,0 @@
-Started: 2026-09-20T02:16:48.703641+00:00
-Command: bash -o pipefail -c 'rg "module comparator" src/'
-
-bash: line 1: rg: command not found
-
-Finished: 2026-09-20T02:16:48.767007+00:00
-Return code: 127
-Status: COMMAND_FAILED
-ERROR: Command exited with code 127

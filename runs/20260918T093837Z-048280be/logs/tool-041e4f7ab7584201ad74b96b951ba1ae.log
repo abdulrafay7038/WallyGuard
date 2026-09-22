@@ -1,9 +1,0 @@
-Started: 2026-09-18T10:21:07.882925+00:00
-Command: bash -o pipefail -c 'ls -l $WALLY/sim/verilator/wkdir/rv64gc_testbench/Vtestbench'
-
-ls: cannot access '/home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/sim/verilator/wkdir/rv64gc_testbench/Vtestbench': No such file or directory
-
-Finished: 2026-09-18T10:21:07.960336+00:00
-Return code: 2
-Status: COMMAND_FAILED
-ERROR: Command exited with code 2

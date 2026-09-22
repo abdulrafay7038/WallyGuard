@@ -1,8 +1,0 @@
-Started: 2026-09-20T04:16:40.811294+00:00
-Command: bash -o pipefail -c 'echo "WALLY_SPIKE is $WALLY_SPIKE"'
-
-WALLY_SPIKE is /home/rafay/riscv/bin/spike
-
-Finished: 2026-09-20T04:16:40.883469+00:00
-Return code: 0
-Status: PASS

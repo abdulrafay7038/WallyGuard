@@ -1,9 +1,0 @@
-Started: 2026-09-19T19:39:20.250074+00:00
-Command: bash -o pipefail -c 'git grep -n "Zabha" tests/'
-
-tests/riscof/sail_cSim/rv32gc.json:274:    "Zabha": {
-tests/riscof/sail_cSim/rv64gc.json:274:    "Zabha": {
-
-Finished: 2026-09-19T19:39:20.312470+00:00
-Return code: 0
-Status: PASS

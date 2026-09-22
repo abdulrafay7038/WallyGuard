@@ -1,8 +1,0 @@
-Started: 2026-09-18T10:59:42.272899+00:00
-Command: bash -o pipefail -c 'git check-ignore sim/verilator/wkdir'
-
-sim/verilator/wkdir
-
-Finished: 2026-09-18T10:59:42.378339+00:00
-Return code: 0
-Status: PASS

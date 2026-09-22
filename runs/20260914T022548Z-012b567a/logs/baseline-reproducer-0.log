@@ -1,3 +1,0 @@
-/home/abdul/miniconda3/WallyGuard2/runs/20260914T022548Z-012b567a/reproducer.sh: line 34: 164127 Aborted                    (core dumped) timeout 10s $WALLY_NOU +ElfFile="$test_dir/build/test_mpp_reset.elf" > "$test_dir/logs/wally_reset.log" 2>&1
-/home/abdul/miniconda3/WallyGuard2/runs/20260914T022548Z-012b567a/reproducer.sh: line 37: 164196 Aborted                    (core dumped) timeout 10s $WALLY_NOU +ElfFile="$test_dir/build/test_mpp_warl.elf" > "$test_dir/logs/wally_warl.log" 2>&1
-Bug reproduced successfully!

@@ -1,6 +1,0 @@
-rvtest_entry_point
-fail
-pass
-tohost
-fromhost
-val_bf16_subnorm

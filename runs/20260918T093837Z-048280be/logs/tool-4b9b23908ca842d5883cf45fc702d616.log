@@ -1,8 +1,0 @@
-Started: 2026-09-18T09:51:08.211584+00:00
-Command: bash -o pipefail -c 'ls -la /home/rafay/projects/cvw/sim/verilator/wkdir/rv64gc_testbench/Vtestbench'
-
--rwxrwxr-x 1 rafay rafay 8586040 Sep  4 20:50 /home/rafay/projects/cvw/sim/verilator/wkdir/rv64gc_testbench/Vtestbench
-
-Finished: 2026-09-18T09:51:08.285024+00:00
-Return code: 0
-Status: PASS

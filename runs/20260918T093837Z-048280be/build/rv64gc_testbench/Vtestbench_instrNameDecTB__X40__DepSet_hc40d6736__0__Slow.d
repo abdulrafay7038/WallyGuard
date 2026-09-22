@@ -1,3 +1,0 @@
-Vtestbench_instrNameDecTB__X40__DepSet_hc40d6736__0__Slow.o: \
- Vtestbench_instrNameDecTB__X40__DepSet_hc40d6736__0__Slow.cpp \
- Vtestbench__pch.h Vtestbench_instrNameDecTB__X40.h

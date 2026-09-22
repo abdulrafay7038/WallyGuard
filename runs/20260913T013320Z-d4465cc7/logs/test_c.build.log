@@ -1,1 +1,0 @@
-/opt/riscv/lib/gcc/riscv64-unknown-elf/15.2.0/../../../../riscv64-unknown-elf/bin/ld: warning: cannot find entry symbol rvtest_entry_point; defaulting to 0000000080000000

@@ -1,7 +1,0 @@
-/opt/riscv/lib/gcc/riscv64-unknown-elf/15.2.0/../../../../riscv64-unknown-elf/bin/ld: warning: /home/abdul/miniconda3/WallyGuard2/runs/20260914T004119Z-9aa7d80b/build/test_sfence_bare.elf has a LOAD segment with RWX permissions
-Running Spike...
-Spike exit code: 0
-Running Wally...
-/home/abdul/miniconda3/WallyGuard2/runs/20260914T004119Z-9aa7d80b/reproducer.sh: line 26: 137648 Aborted                    (core dumped) timeout 10s ./sim/verilator/wkdir/nodcache_rv64gc_testbench/Vtestbench +ElfFile="$TEST_DIR/build/test_sfence_bare.elf" > "$TEST_DIR/logs/wally.log" 2>&1
-Wally exit code: 134
-Bug reproduced: Wally failed with exit code 134 while Spike succeeded.

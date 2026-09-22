@@ -1,8 +1,0 @@
-Started: 2026-09-20T00:59:36.718009+00:00
-Command: bash -o pipefail -c 'timeout 1s /usr/bin/spike -l --isa=rv64gc_smstateen_zicboz /home/rafay/miniconda3/WallyGuard2/runs/20260920T002030Z-7cc4bf4c/build/control.elf > /tmp/spike_log2.txt 2>&1 ; tail -n 20 /tmp/spike_log2.txt'
-
-{"time":"2026-09-20T00:59:36.729849252Z","level":"WARN","msg":"Lock","msg":"Failed to lock memory","err":"cannot allocate memory"}
-
-Finished: 2026-09-20T00:59:37.785314+00:00
-Return code: 0
-Status: PASS

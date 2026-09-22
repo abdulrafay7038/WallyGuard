@@ -1,8 +1,0 @@
-Started: 2026-09-20T00:59:14.384931+00:00
-Command: bash -o pipefail -c 'ls -la /tmp/spike_log.txt'
-
--rw-rw-r-- 1 rafay rafay 130 Sep 20 00:59 /tmp/spike_log.txt
-
-Finished: 2026-09-20T00:59:14.444000+00:00
-Return code: 0
-Status: PASS

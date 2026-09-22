@@ -1,8 +1,0 @@
-Started: 2026-09-20T02:18:06.712113+00:00
-Command: bash -o pipefail -c 'grep -rn "tohost_addr" testbench/'
-
-
-Finished: 2026-09-20T02:18:06.773627+00:00
-Return code: 1
-Status: COMMAND_FAILED
-ERROR: Command exited with code 1

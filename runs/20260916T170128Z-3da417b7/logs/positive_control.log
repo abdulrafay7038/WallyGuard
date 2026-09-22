@@ -1,5 +1,0 @@
-Single Elf file tests are not signatured verified.
-- /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/testbench.sv:490: Verilog $finish
-- S i m u l a t i o n   R e p o r t: Verilator 5.036 2025-04-27
-- Verilator: $finish at 635ps; walltime 0.279 s; speed 35.522 ns/s
-- Verilator: cpu 0.018 s on 1 threads; alloced 346 MB

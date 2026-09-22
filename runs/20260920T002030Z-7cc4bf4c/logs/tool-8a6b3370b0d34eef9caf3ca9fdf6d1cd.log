@@ -1,8 +1,0 @@
-Started: 2026-09-20T00:59:29.560730+00:00
-Command: bash -o pipefail -c 'timeout 1s /usr/bin/spike -l --isa=rv64gc_smstateen_zicboz /home/rafay/miniconda3/WallyGuard2/runs/20260920T002030Z-7cc4bf4c/build/control.elf 2>&1 | grep 800000d0 | head -n 5'
-
-
-Finished: 2026-09-20T00:59:30.656621+00:00
-Return code: 1
-Status: COMMAND_FAILED
-ERROR: Command exited with code 1

@@ -1,9 +1,0 @@
-rvtest_entry_point
-s_mode_start
-trap_handler
-pass
-fail
-root_pt
-tohost
-fromhost
-dummy_data

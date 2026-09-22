@@ -1,8 +1,0 @@
-Started: 2026-09-19T19:42:04.316459+00:00
-Command: bash -o pipefail -c 'git grep -n "input.*Mf" src/fpu/postproc/'
-
-src/fpu/postproc/round.sv:36:  input  logic [P.NORMSHIFTSZ-1:0] Mf,                 // normalized fraction
-
-Finished: 2026-09-19T19:42:04.374995+00:00
-Return code: 0
-Status: PASS

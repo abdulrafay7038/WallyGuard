@@ -1,3 +1,0 @@
-[440] %Error: testbench.sv:789: Assertion failed in testbench: Program fetched illegal instruction 0x00000000 from address 0x00000000 twice in a row.  Usually due to fault with no fault handler.
-%Error: /home/rafay/miniconda3/WallyGuard2/wally-worktrees/wally-shared/testbench/testbench.sv:789: Verilog $stop
-Aborting...

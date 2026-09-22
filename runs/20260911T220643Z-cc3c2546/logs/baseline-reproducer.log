@@ -1,6 +1,0 @@
-/opt/riscv/lib/gcc/riscv64-unknown-elf/15.2.0/../../../../riscv64-unknown-elf/bin/ld: warning: cannot find entry symbol rvtest_entry_point; defaulting to 0000000080000000
-/opt/riscv/lib/gcc/riscv64-unknown-elf/15.2.0/../../../../riscv64-unknown-elf/bin/ld: warning: cannot find entry symbol rvtest_entry_point; defaulting to 0000000080000000
-/opt/riscv/lib/gcc/riscv64-unknown-elf/15.2.0/../../../../riscv64-unknown-elf/bin/ld: warning: cannot find entry symbol rvtest_entry_point; defaulting to 0000000080000000
-/opt/riscv/lib/gcc/riscv64-unknown-elf/15.2.0/../../../../riscv64-unknown-elf/bin/ld: warning: cannot find entry symbol rvtest_entry_point; defaulting to 0000000080000000
-tester_llm/20260911T220643Z-cc3c2546/reproducer.sh: line 31: 87960 Aborted                    (core dumped) sim/verilator/wkdir/rv64gc_testbench/Vtestbench +TEST=$t +ElfFile=$DIR/build/$t.elf > $DIR/logs/verilator_$t.log 2>&1
-Bug successfully reproduced: Test A failed (exit 134), positive controls passed.

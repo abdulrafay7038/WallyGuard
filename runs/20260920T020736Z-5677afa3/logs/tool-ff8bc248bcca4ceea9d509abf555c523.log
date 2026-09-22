@@ -1,8 +1,0 @@
-Started: 2026-09-20T03:49:04.466111+00:00
-Command: bash -o pipefail -c 'timeout 5s /usr/bin/spike -h 2>&1 | grep -E "steps|log|commit"'
-
-
-Finished: 2026-09-20T03:49:09.606376+00:00
-Return code: 1
-Status: COMMAND_FAILED
-ERROR: Command exited with code 1

@@ -1,9 +1,0 @@
-Started: 2026-09-20T01:52:27.911342+00:00
-Command: bash -o pipefail -c 'TEST_DIR="/home/rafay/miniconda3/WallyGuard2/runs/20260920T002030Z-7cc4bf4c"
-spike --isa=rv64gc_smstateen_zicboz +signature=$TEST_DIR/logs/control-spike.sig +signature-granularity=8 $TEST_DIR/build/control.elf
-echo "control spike exit code: $?"
-spike --isa=rv64gc_smstateen_zicboz +signature=$TEST_DIR/logs/test-spike.sig +signature-granularity=8 $TEST_DIR/build/test.elf
-echo "test spike exit code: $?"
-'
-
-{"time":"2026-09-20T01:52:27.931895113Z","level":"WARN","msg":"Lock","msg":"Failed to lock memory","err":"cannot allocate memory"}

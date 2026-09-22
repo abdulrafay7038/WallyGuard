@@ -1,2 +1,0 @@
-/home/abdul/miniconda3/WallyGuard2/runs/20260913T232549Z-e916d288/reproducer.sh: line 18: 103090 Aborted                    (core dumped) ./sim/verilator/wkdir/rv64gc_testbench/Vtestbench +ElfFile="$TEST_DIR/build/test_cbo_cbie.elf" > "$TEST_DIR/logs/wally_bug.log" 2>&1
-Bug reproduced: cbo.inval failed to invalidate cache line under CBIE=01 (abort 134)

@@ -1,7 +1,0 @@
-Started: 2026-09-20T05:58:22.836309+00:00
-Command: bash -o pipefail -c '/home/rafay/riscv/bin/spike -m0x80000000:0x100000 --pc=0x80000000 --isa=rv64gc /home/rafay/miniconda3/WallyGuard2/runs/20260920T041307Z-f2caada9/build/test.elf +signature=/home/rafay/miniconda3/WallyGuard2/runs/20260920T041307Z-f2caada9/build/test.sig +signature-granularity=8'
-
-
-Finished: 2026-09-20T05:58:22.903165+00:00
-Return code: 0
-Status: PASS

@@ -1,9 +1,0 @@
-Started: 2026-09-18T10:38:38.099130+00:00
-Command: bash -o pipefail -c 'cat $TEST_DIR/logs/test_pmp_mmode_store_cross_wally.log'
-
-cat: /logs/test_pmp_mmode_store_cross_wally.log: No such file or directory
-
-Finished: 2026-09-18T10:38:38.182571+00:00
-Return code: 1
-Status: COMMAND_FAILED
-ERROR: Command exited with code 1

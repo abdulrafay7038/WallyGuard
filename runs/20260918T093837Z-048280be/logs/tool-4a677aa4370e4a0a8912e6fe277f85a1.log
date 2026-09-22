@@ -1,8 +1,0 @@
-Started: 2026-09-18T09:50:45.482699+00:00
-Command: bash -o pipefail -c 'ls -la /home/rafay/miniconda3/WallyGuard/cvw/sim/verilator/wkdir/rv64gc_testbench/Vtestbench'
-
--rwxrwxr-x 1 rafay rafay 8586392 Sep 12 10:23 /home/rafay/miniconda3/WallyGuard/cvw/sim/verilator/wkdir/rv64gc_testbench/Vtestbench
-
-Finished: 2026-09-18T09:50:45.561539+00:00
-Return code: 0
-Status: PASS

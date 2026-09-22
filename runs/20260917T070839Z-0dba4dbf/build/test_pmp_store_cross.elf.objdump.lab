@@ -1,7 +1,0 @@
-_start
-trap_handler
-fail
-pass
-tohost
-fromhost
-buffer
