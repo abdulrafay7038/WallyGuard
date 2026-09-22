@@ -3,6 +3,7 @@ import hashlib
 import json
 from .toolchain import simulation_env, validate_spike
 from .input_files import input_files
+from .isa_compatibility import check_isa_compatibility
 from pathlib import Path
 import re
 import shutil
@@ -136,6 +137,7 @@ def contract_errors(contract: dict, scratch: Path, test_dir: Path, env: dict) ->
             elf = (scratch / wally[wally.index('--elf') + 1]).resolve()
             if not elf.is_relative_to(test_dir.resolve() / 'build') or str(elf) not in oracle:
                 raise ValueError('Wally and Spike must run the same ELF under test_dir/build')
+            check_isa_compatibility(wally, oracle, scratch)
             mode = spec.get('mode', 'signature')
             if mode not in ('signature', 'selfcheck'):
                 raise ValueError('Unsupported comparison mode')
@@ -345,6 +347,13 @@ def run_reproducer(scratch: str, test_dir: str, contract: dict, log_path: str,
             error_log = selfcheck_error_log(Path(wally['log_path']), root, elf) if record else wally_log
             if TOOL_ERROR.search(error_log):
                 return classify(wally, error_log).dict()
+            if (record and selfcheck_failure_summary(error_log, elf)
+                    and int(record[2], 16) == int(record[3], 16)):
+                return ReproducerResult(Outcome.TEST_INVALID,
+                    'Self-check reports failure but expected and actual values are equal. '
+                    'Repair the failure record: WG_FINISH uses a0=index, a1=address, '
+                    'a2=expected, a3=actual; prefer WG_CHECK_EQ over a direct jump to wg_fail.',
+                    wally['returncode']).dict()
             if (record and selfcheck_failure_summary(error_log, elf)
                     and int(record[2], 16) != int(record[3], 16) and wally['returncode'] in (0, 1, 134, -6)):
                 result = ReproducerResult(Outcome.MISMATCH_CONFIRMED,

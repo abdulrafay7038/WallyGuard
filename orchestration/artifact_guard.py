@@ -62,12 +62,33 @@ def digest(path: Path) -> str | None:
     return hashlib.sha256(path.read_bytes()).hexdigest() + ':' + oct(path.stat().st_mode & 0o777)
 
 
+def is_snapshot_backup(root: Path, name: str, before: dict, tracked: set[str]) -> bool:
+    """Recognize only new, unstaged copies of existing RTL from this stage."""
+    if not name.startswith('src/') or name in tracked or 'source/' + name in before:
+        return False
+    suffix = next((suffix for suffix in ('.orig', '.bak', '~') if name.endswith(suffix)), None)
+    if suffix is None:
+        return False
+    original = name[:-len(suffix)]
+    expected = before.get('source/' + original, '')
+    if not original.endswith('.sv') or original not in tracked or not expected or expected.startswith('link:'):
+        return False
+    # Never move a symlink or follow a redirected directory to remove a file.
+    parts = Path(name).parts
+    if any(root.joinpath(*parts[:i]).is_symlink() for i in range(1, len(parts) + 1)):
+        return False
+    path = root / name
+    return path.is_file() and hashlib.sha256(path.read_bytes()).hexdigest() == expected.split(':')[0]
+
+
 def finish(snapshot_path: str) -> None:
     directory = Path(snapshot_path)
     manifest = json.loads((directory / 'manifest.json').read_text())
     root, tests, stage = Path(manifest['scratch']), Path(manifest['test_dir']), manifest['stage']
     before = manifest['files']
     now = {'source/' + n for n in source_files(root)} | {'tests/' + n for n in test_files(tests)}
+    tracked = set(git(root, 'ls-files', '-z').split('\0')) if stage == 'rtl_fixer' else set()
+    backups = {}
     invalid = []
     for key in sorted(set(before) | now):
         scope, name = key.split('/', 1)
@@ -82,7 +103,16 @@ def finish(snapshot_path: str) -> None:
                      (stage == 'critic' and name.startswith('critic/')) or
                      (stage == 'rtl_fixer' and name.startswith('fixer/')))))
         if not allowed:
-            invalid.append(key)
+            if scope == 'source' and stage == 'rtl_fixer' and is_snapshot_backup(root, name, before, tracked):
+                archived = directory / 'backups' / name
+                archived.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(path, archived, follow_symlinks=False)
+                path.unlink()
+                backups[key] = dict(artifact=str(archived.relative_to(directory)), digest=digest(archived))
+            else:
+                invalid.append(key)
+    if backups:
+        (directory / 'backups.json').write_text(json.dumps(backups, indent=2))
     changed_head = git(root, 'rev-parse', 'HEAD').strip() != manifest['head']
     (directory / 'status-after.txt').write_text(git(root, 'status', '--porcelain=v1', '--untracked-files=all'))
     (directory / 'diff-after.patch').write_text(git(root, 'diff', '--binary', manifest['head'], '--'))

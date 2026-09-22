@@ -94,6 +94,22 @@ The assembly example deliberately fails compilation until real assertions are
 added. The controller repeats preflight and independently executes the tests;
 an agent tool's `PREFLIGHT_READY` is never evidence of a hardware bug.
 
+Preflight requires an explicit Spike ISA and checks XLEN, F/D, and Zfinx against
+the selected Wally configuration. A matching ELF alone is insufficient: for
+example, `rv64gc` and `rv64imac_zfinx` implement different floating-point models.
+This is a limited compatibility check; privilege settings, other extensions,
+and the test's architectural assumptions still need independent review. The
+check requires literal configuration values and rejects parameter/define
+overrides it cannot resolve.
+
+Before starting agents, the controller regenerates derived configurations from
+the current baseline in a temporary copy, then installs the checked outputs in
+the managed worktree. This repairs stale copied `config/deriv/` files without
+allowing Tester edits to configuration. Input and output hashes permit reuse
+when unchanged; changed configurations get fresh timestamps for Wally's rebuild
+checks. Generator failures stop workspace preparation. Agents must report a
+configuration build failure rather than running `derivgen.pl` themselves.
+
 The simulation environment puts this checkout's `bin/` ahead of the RISC-V
 toolchain so Wally gets its own `elf2hex`; Spike is selected independently.
 For native self-check contracts, the controller explicitly regenerates the ELF
@@ -473,6 +489,12 @@ stops discovery after saving the current attempt. Fixer shell commands start in
 location. Use `$WALLY/src/...` for RTL and `$WALLY_TEST_DIR/...` for original test
 artifacts. Command timeouts preserve disk logs
 and trigger process-tree cleanup.
+
+New, untracked RTL backups ending in `.sv.orig`, `.sv.bak`, or `.sv~` are moved
+into the stage guard's `backups/` directory when their contents exactly match the
+pre-stage RTL snapshot. `backups.json` records the preserved files. These backups
+do not invalidate an otherwise valid fix. Modified or staged backups, symlinks,
+patch reject files, and backups created by other roles still fail the guard.
 
 Current limitations to account for when operating the loop:
 

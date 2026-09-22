@@ -33,6 +33,7 @@ from orchestration.result_classifier import Outcome, FAILURE, TOOL_ERROR
 from orchestration.test_preflight import run_reproducer, saved_contract
 from orchestration.verification_state import confirmation_allowed, candidate_allowed
 from orchestration.workspace_baseline import retain_verified_fix
+from orchestration.derived_configs import prepare_derived_configs
 from orchestration.processes import run_command
 from orchestration.context import agent_context, observed_failure, review_history
 from orchestration.scaffold import seed_harness
@@ -179,6 +180,9 @@ snapshot between attempts; regression build files persist. Check copied build
 paths for relocation issues and rebuild when needed. Never modify shared inputs.
 Do not replace populated dependency directories with symlinks to the original
 checkout. Dependencies are already copied and must remain independent.
+The controller prepares derived configurations before agents start. Do not run
+derivgen.pl or regenerate config/ during an assignment. If configuration still
+fails to build, report the exact infrastructure error instead of editing it.
 When your work is complete, call submit_result with result_json containing your
 complete final JSON object with the requested fields. Wait for RESULT_ACCEPTED,
 then reply only done. RESULT_INVALID means correct the JSON and submit again.
@@ -201,6 +205,9 @@ that the Tester can investigate deeply, not a Wally survey or reproducer.
    unverified; confirm the relevant RTL on this baseline before relying on them.
 2. Choose one behavior. Use targeted rg, inspect its RTL/control path and enabled
    configuration, and consult the relevant ISA rule and nearby test.
+   Check the rule's extension, privilege and operand preconditions, including
+   exceptions to the general rule. A similar instruction or extension can have
+   different semantics. Treat the target as a hypothesis to disprove first.
    Use local isa_docs when available. If missing, name the normative rule the
    Tester must verify rather than claim you checked unavailable documentation.
 3. Stop when you can name the signals, a legal trigger sequence, the expected
@@ -239,9 +246,21 @@ self-check header and template.S.example are under test_dir/tests. Copy/adapt
 the example to control.S and test.S and replace its deliberate .error with real,
 independently derived assertions. Adapt ISA/config/ABI/widths for the target.
 The template is scaffolding, not a test result or an oracle.
+Prefer WG_CHECK_EQ for failure paths. A direct jump to wg_fail must initialize
+a0=index, a1=address, a2=expected and a3=actual; equal expected/actual values in
+a failure record are invalid evidence even if the program exits with failure.
 The DUT command MUST directly invoke $WALLY/bin/wsim CONFIG --sim verilator
 --elf ABSOLUTE_ELF_PATH. No wrapper scripts or direct Vtestbench at this boundary.
 Spike must be the installed absolute executable and run that same ELF.
+Specify one explicit Spike --isa before the ELF. Match Wally's XLEN, F/D and
+Zfinx configuration; preflight rejects incompatible execution models. Use a named
+configuration with literal XLEN/F_SUPPORTED/D_SUPPORTED/ZFINX_SUPPORTED values;
+parameter/define overrides require controller support and are not accepted here.
+Also verify the target's privilege and optional-extension settings on both sides.
+Before asserting a bug, check the exact normative rule and its preconditions.
+If Spike agrees with Wally or fails the expected-value assertion, reconsider the
+hypothesis and assertion. Never substitute a different ISA to force disagreement.
+found_bug=false with the disproving evidence is a successful investigation.
 Keep build=["bash", "ABSOLUTE_TEST_DIR/build_reproducer.sh"].
 Build scripts execute from test_dir, matching the Tester shell; repository paths
 must use $WALLY. Native self-check mismatches normally end with Verilator $stop
@@ -659,6 +678,12 @@ def make_worktree(wally_path: str, tag: str) -> dict:
                                "-p", source_head, "-m", "Initial local cvw snapshot for shared workspace").strip()
             git(str(scratch), "reset", "--soft", baseline)
             state = {"source": str(base), "source_head": source_head, "base_commit": baseline}
+        try:
+            state['derived_configs'] = prepare_derived_configs(scratch, state.get('derived_configs'))
+        except (OSError, ValueError, subprocess.SubprocessError) as exc:
+            raise WorkspaceUnavailableError(f'Cannot prepare derived configurations: {exc}') from exc
+        if state['derived_configs'].get('regenerated'):
+            log('Workspace', 'Regenerated derived configurations from this baseline before agent snapshots')
         # Store tests directly in runs/ so their binaries are not copied twice.
         test_dir = base.parent / "runs" / tag
         test_dir.mkdir(parents=True, exist_ok=False)

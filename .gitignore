@@ -13,5 +13,4 @@ __pycache__/
 candidate-bugs/
 confirmed-bugs/
 runs/
-tests/
 reviews/
