@@ -32,6 +32,7 @@ from orchestration.tool_runtime import ManagedBashTool, DiagnosticOpenCodeLLM, L
 from orchestration.result_classifier import Outcome, FAILURE, TOOL_ERROR
 from orchestration.test_preflight import run_reproducer, saved_contract
 from orchestration.verification_state import confirmation_allowed, candidate_allowed
+from orchestration.workspace_baseline import retain_verified_fix
 from orchestration.processes import run_command
 from orchestration.context import agent_context, observed_failure, review_history
 from orchestration.scaffold import seed_harness
@@ -40,6 +41,8 @@ from orchestration.input_files import input_files
 from orchestration.coverage import coverage_summary
 from orchestration import timing as timing_state
 from orchestration.timing import measured_worker
+from orchestration.opencode_recovery import is_model_turn_failure
+from orchestration.agent_protocol import parse_agent_response
 
 WALLY_PATH = os.environ.get("WALLY_PATH", "/home/rafay/miniconda3/WallyGuard2/cvw")
 MAX_ITERATIONS = 200
@@ -176,7 +179,13 @@ snapshot between attempts; regression build files persist. Check copied build
 paths for relocation issues and rebuild when needed. Never modify shared inputs.
 Do not replace populated dependency directories with symlinks to the original
 checkout. Dependencies are already copied and must remain independent.
-Return exactly one JSON object with the requested fields.
+When your work is complete, call submit_result with result_json containing your
+complete final JSON object with the requested fields. Wait for RESULT_ACCEPTED,
+then reply only done. RESULT_INVALID means correct the JSON and submit again.
+Submission is final: all further commands are disabled after acceptance. Poll
+any running command before submitting. This saves the answer even if the
+provider fails while producing the final chat message. It does not establish
+bug existence or bypass controller verification, reviews, or artifact guards.
 """
 
 ARCHITECT_PROMPT = """
@@ -206,7 +215,7 @@ further facts can be checked by Tester. Do not compile, simulate, debug harnesse
 installations during planning. Leave those tasks to the Tester. You may only
 write under test_dir. Do not perform repository-wide or home-directory surveys.
 
-Return string fields target, rationale, tester_prompt, knowledge. You may include
+Submit string fields target, rationale, tester_prompt, knowledge via submit_result. You may include
 subsystem using a key from coverage.areas. tester_prompt must identify RTL files
 and signals, supported configuration, the suspected failure, a minimal positive
 control and edge case, the independent oracle, success/failure criteria and any
@@ -243,7 +252,7 @@ Write repairs to saved files through run_command before submitting.
 Never put python -c, bash -c,
 inline source generators, or commands that rewrite inputs in the build contract.
 After building/editing, save the complete contract in reproducer.json and call
-validate_reproducer. Correct every reported error, then return only
+validate_reproducer. Correct every reported error, then submit through submit_result
 reproducer_file="reproducer.json" alongside found_bug, report and evidence.
 Do not repeat the contract or source code in your final answer. The controller
 reads that saved file directly. PREFLIGHT_READY only means the contract is well-formed;
@@ -334,7 +343,7 @@ regression is deliberately skipped: evaluate the targeted reproducer and RTL
 diff and state this coverage limit. Never approve failed required verification
 or call a timeout a pass. Reject test artifacts; request revision for a real bug
 whose fix needs repair. Infrastructure failures must be explicitly identified.
-Return verdict (approve/revise/reject) and critique (string).
+Submit verdict (approve/revise/reject) and critique (string) through submit_result.
 approve requires valid evidence and passing required verification.
 """
 
@@ -356,7 +365,7 @@ and run the reproducer against the fix. Use previous verification logs and
 Critic feedback to refine your patch after failures. Never hide errors, disable
 features or weaken checks. The controller runs full regression only when
 run_regression=true; otherwise it independently runs the targeted reproducer.
-Return changed (JSON boolean) and report (string: root cause, minimal fix,
+Submit through submit_result: changed (JSON boolean) and report (string: root cause, minimal fix,
 files and targeted-test outcome). changed=false if no defensible fix is possible.
 """
 
@@ -423,10 +432,31 @@ def ask_agent(role: str, scratch: str, instructions: str, context: dict) -> dict
                                    config={'*': 'deny', f'{bash.name}_*': 'allow'}, dangerously_skip_permissions=False)
         def emit(status, **fields):
             bash.emit(status, model=model, **fields)
+        def submitted_answer():
+            checkpoint = bash.submitted_result()
+            if checkpoint is None:
+                return None
+            if not isinstance(checkpoint, dict) or checkpoint.get('role') != role:
+                raise AgentOutputInvalid('Submitted result belongs to the wrong stage')
+            parsed = parse_agent_response(role, json.dumps(checkpoint.get('result')))
+            bash.save('result-selection.json', dict(origin='submit_result',
+                      submitted_at=checkpoint.get('submitted_at'), commands=checkpoint.get('commands')))
+            bash.save('parsed.json', parsed)
+            return parsed
         try:
             response = prompt_with_rate_limit_retry(llm,
                 COMMON_PROMPT + instructions + "\nContext:\n" + json.dumps(prompt_context, separators=(',', ':')),
                 [bash], role, emit)
+        except AgentCallFailure as exc:
+            bash.ready()
+            if not is_model_turn_failure(exc.api_metadata):
+                raise
+            parsed = submitted_answer()
+            if parsed is None:
+                raise  # Incomplete output and provider errors cannot establish a result.
+            emit('AGENT_RESULT_RECOVERED', api_metadata=exc.api_metadata,
+                 origin='submit_result', note='Complete agent answer retained; stage guards and verification still required.')
+            return parsed
         except Exception:
             bash.ready()  # A dead MCP endpoint is infrastructure, not reasoning failure.
             raise
@@ -434,6 +464,9 @@ def ask_agent(role: str, scratch: str, instructions: str, context: dict) -> dict
                   returncode=response.returncode, transcript=response.stream_result, model=model,
                   performance=getattr(response, 'performance', {}),
                   protocol_recovery=getattr(response, 'protocol_recovery', None)))
+        parsed = submitted_answer()
+        if parsed is not None:
+            return parsed
         def repair(prompt):
             formatter = DiagnosticOpenCodeLLM(model=model, timeout_seconds=AGENT_TIMEOUT, retries=1,
                 additional_providers=providers, config={'*': 'deny'}, dangerously_skip_permissions=False)
@@ -572,9 +605,10 @@ def make_worktree(wally_path: str, tag: str) -> dict:
             if state["source"] != str(base) or not (scratch / ".git").is_file():
                 raise WorkspaceUnavailableError("Shared worktree does not match its saved source")
             previous = base.parent / "runs" / state["tag"] / "attempt.json"
-            if not previous.exists() or (json.loads(previous.read_text()).get('active', False) or json.loads(previous.read_text())["status"] == "in_progress"):
+            previous_record = json.loads(previous.read_text()) if previous.exists() else {}
+            if not previous_record or previous_record.get('active', False) or previous_record["status"] == "in_progress":
                 raise WorkspaceUnavailableError(f"Previous attempt is active or unarchived: {previous}")
-            if json.loads(previous.read_text()).get("workspace_recovery_required"):
+            if previous_record.get("workspace_recovery_required"):
                 raise WorkspaceUnavailableError(f"Previous archive needs repair; see archive_errors in {previous}")
             # Older state files used a private snapshot whose parent was the
             # source HEAD. Never silently reuse it after cvw has advanced.
@@ -585,7 +619,12 @@ def make_worktree(wally_path: str, tag: str) -> dict:
                     f"cvw HEAD changed from {saved_head} to {source_head}; "
                     "preserve the archived workspace and reseed it before continuing")
             state["source_head"] = saved_head
-            # Only this managed copy is reset. Keep ignored/untracked build data.
+            try:
+                state = retain_verified_fix(scratch, state_path, state, previous_record, previous.parent)
+            except (OSError, ValueError, subprocess.CalledProcessError) as exc:
+                raise WorkspaceUnavailableError(f"Cannot retain accepted RTL fix; workspace preserved: {exc}") from exc
+            # Reset to the cumulative accepted baseline. Unaccepted edits are
+            # archived then cleared; ignored/untracked build data stays reusable.
             git(str(scratch), "reset", "--hard", state["base_commit"])
             git(str(scratch), "clean", "-fdx", "--", "src/")
         else:

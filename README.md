@@ -439,10 +439,20 @@ Each iteration writes to `runs/<UTC-timestamp>-<id>/` beside the original checko
   format-repair responses, validation errors, and CLI diagnostics.
 
 The original CVW checkout is not the agent editing workspace. The first managed
-copy can capture local source edits in a private baseline commit; subsequent
-iterations restore that baseline while retaining ignored dependency/build data.
-Changes to the original checkout are not automatically synchronized. Confirmed
-patches are exported, not automatically applied or accumulated into that baseline.
+copy can capture local source edits in a private baseline commit. Before each
+subsequent iteration, including after a restart, the controller retains the previous
+attempt's accepted fix (`confirmed` or `candidate_fix_verified`) as a new local
+baseline commit. It rechecks the verification gates and requires the exported
+patch to match the archived `proposed.patch`. Missing or inconsistent evidence
+stops startup before any reset. Accepted fixes accumulate, so later discovery
+runs against already-fixed RTL; each new patch is relative to that updated baseline.
+Targeted-only candidates retain their limited verification status.
+
+The baseline and fix provenance are saved in `wally-worktrees/wally-shared.json`.
+Unaccepted edits are archived and cleared on the next iteration, while ignored
+dependency/build data is retained. The original checkout and its branches are not
+changed or automatically synchronized. Fixes from older attempts that were already
+reset before this retention behavior was introduced are not automatically replayed.
 Do not run unrelated editors or campaigns in the managed shared checkout.
 
 | Status | Meaning |

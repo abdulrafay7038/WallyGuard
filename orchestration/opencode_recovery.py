@@ -9,7 +9,15 @@ CONTINUATION = ('Continue the existing assignment from the completed tool result
                 'ending with a model turn; this user message resumes that conversation. '
                 'Do not restart exploration or repeat completed commands. Check existing '
                 'artifacts before any further edits. Preserve all original constraints and '
-                'return the originally requested structured answer when ready.')
+                'submit the originally requested structured answer when ready. '
+                'If submit_result already returned RESULT_ACCEPTED, reply only done '
+                'without further commands or submissions.')
+
+
+def is_model_turn_failure(metadata: dict) -> bool:
+    return (metadata.get('error_type') == 'invalid_request'
+            and metadata.get('status_code') == 400
+            and metadata.get('message') == MODEL_TURN_ERROR)
 
 
 def completed_tool_ids(stdout: str) -> set[str]:

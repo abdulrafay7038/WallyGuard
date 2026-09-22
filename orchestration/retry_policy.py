@@ -9,6 +9,13 @@ from typing import Callable, Any
 class AgentCallFailure(RuntimeError):
     status = 'agent_call_failed'
 
+    def __init__(self, message, api_metadata=None):
+        self.api_metadata = api_metadata or {}
+        super().__init__(message)
+
+    def __reduce__(self):
+        return type(self), (str(self), self.api_metadata)
+
 
 class ProviderRateLimited(RuntimeError):
     status = 'api_rate_limit'
@@ -71,7 +78,7 @@ def retry_call(call: Callable[[], Any], is_rate_limit: Callable[[Exception], boo
                 from .event_log import redact
                 metadata = getattr(response, 'api_metadata', {})
                 reason = redact(str(metadata.get('message') or getattr(response, 'stderr', '') or 'No usable response'))[:500]
-                raise AgentCallFailure(f'OpenCode failed: {reason}; see stage diagnostics')
+                raise AgentCallFailure(f'OpenCode failed: {reason}; see stage diagnostics', metadata)
             return response
         except Exception as exc:
             if not isinstance(exc, ProviderRateLimited) and not is_rate_limit(exc):

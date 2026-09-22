@@ -7,6 +7,7 @@ from pathlib import Path
 import threading
 import time
 import uuid
+from datetime import datetime, timezone
 import anyio
 import ray
 from chia.base.tools.ChiaTool import ChiaTool, ToolInfo
@@ -21,10 +22,15 @@ from .test_preflight import contract_errors, under
 from .toolchain import simulation_env
 from .timing import record_event, export_timing
 from .opencode_recovery import continuation_session, clear_recovered_error, completed_tool_ids, CONTINUATION
+from .agent_protocol import parse_agent_response
 
 
 @ray.remote(num_cpus=0)
 class ToolServer:
+    def submitted_result(self):
+        # Use the actor's memory; the disk copy is diagnostic, never an input.
+        return getattr(self.tool, '_submitted_result', None)
+
     def start(self, tool):
         import uvicorn
         from fastapi import FastAPI
@@ -96,6 +102,8 @@ class ManagedBashTool(ChiaTool):
         self.mcp.add_tool(self.run_command, name=f'{name}_run_command')
         self.mcp.add_tool(self.command_status, name=f'{name}_command_status')
         self.mcp.add_tool(self.validate_reproducer, name=f'{name}_validate_reproducer')
+        self.mcp.add_tool(self.submit_result, name=f'{name}_submit_result')
+        self._submitted_result = None
         self._metrics = dict(commands=0, polls=0, preflights=0, command_seconds=0.0)
         self._stage_started = time.monotonic()
         self._server_actor = ToolServer.options(resources={'wally_sim': 1}).remote()
@@ -137,6 +145,9 @@ class ManagedBashTool(ChiaTool):
 
     def save(self, name, value):
         ray.get(self._server_actor.write.remote(name, value), timeout=15)
+
+    def submitted_result(self):
+        return ray.get(self._server_actor.submitted_result.remote(), timeout=15)
 
     def emit(self, status, **fields):
         ray.get(self._server_actor.emit.remote(status, fields), timeout=15)
@@ -189,6 +200,8 @@ class ManagedBashTool(ChiaTool):
 
     async def validate_reproducer(self, contract_path: str = 'reproducer.json') -> str:
         """Check the saved contract before submitting a finding; does not prove a bug."""
+        if getattr(self, '_submitted_result', None) is not None:
+            return json.dumps(dict(status='RESULT_ALREADY_SUBMITTED', note='Finish with done; no further tools needed.'))
         if hasattr(self, '_metrics'):
             self._metrics['preflights'] += 1
         for job_id, task in getattr(self, '_jobs', {}).items():
@@ -205,9 +218,40 @@ class ManagedBashTool(ChiaTool):
         except (OSError, ValueError, TypeError) as exc:
             return json.dumps(dict(status='PREFLIGHT_INVALID', errors=[str(redact(str(exc)))]))
 
+    async def submit_result(self, result_json: str) -> str:
+        """Save your complete final role JSON before replying done. Freezes further commands; no verification gates are bypassed."""
+        for job_id, task in getattr(self, '_jobs', {}).items():
+            if not task.done():
+                return json.dumps(dict(status='BUSY', job_id=job_id, note='Wait for the command before submitting.'))
+        try:
+            # Strict JSON at this boundary; never salvage part of a truncated call.
+            parsed = parse_agent_response(self.role, json.dumps(json.loads(result_json)))
+        except (ValueError, TypeError) as exc:
+            return json.dumps(dict(status='RESULT_INVALID', error=str(redact(str(exc)))))
+        previous = getattr(self, '_submitted_result', None)
+        if previous is not None:
+            return json.dumps(dict(status='RESULT_ACCEPTED' if previous['result'] == parsed else 'RESULT_ALREADY_SUBMITTED',
+                                   note='The first accepted result is immutable; finish with done.'))
+        checkpoint = dict(role=self.role, result=parsed, commands=getattr(self, '_metrics', {}).get('commands', 0),
+                          submitted_at=datetime.now(timezone.utc).isoformat())
+        # No await between the idle check and freeze: a new shell job cannot
+        # interleave on the MCP event loop. Persist before acknowledging success.
+        path = Path(self.artifact_dir) / 'submitted-result.json'
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            pending = path.with_suffix('.json.tmp')
+            pending.write_text(json.dumps(checkpoint, indent=2) + '\n')
+            pending.replace(path)
+        except OSError as exc:
+            return json.dumps(dict(status='INFRA_FAILURE', error=str(redact(str(exc)))))
+        self._submitted_result = checkpoint
+        return json.dumps(dict(status='RESULT_ACCEPTED', note='Complete result saved. Reply done; further commands are disabled.'))
+
     async def run_command(self, command: str, timeout_seconds: float | None = None,
                           extension_reason: str = '') -> str:
         """Execute with a 120s default. Tester starts in test_dir, Fixer in test_dir/fixer; use $WALLY for RTL."""
+        if getattr(self, '_submitted_result', None) is not None:
+            return json.dumps(dict(status='RESULT_ALREADY_SUBMITTED', note='Command not executed. Finish with done.'))
         if not hasattr(self, '_jobs'):
             self._jobs = {}
         for job_id, task in self._jobs.items():
@@ -380,6 +424,7 @@ class DiagnosticOpenCodeLLM(OpenCodeLLM):
             result.success = False
             # Only explicitly selected API metadata; never include request/auth headers.
             result.api_metadata = dict(error_type=exc.error_type, message=exc.raw_message,
+                                       status_code=(self._last_export_error or {}).get('data', {}).get('statusCode'),
                                        command=getattr(self, '_last_command_status', {}))
             if exc.error_type == 'rate_limit':
                 from datetime import datetime, timezone
