@@ -36,10 +36,10 @@ class SubmissionTests(unittest.TestCase):
 
     def test_submission_forwards_only_selected_configuration_and_pins_digest(self):
         command, digest = submission_command(self.root, 'http://head:8265',
-                                            {'WALLY_RUN_REGRESSION': '1', 'SECRET': 'private'})
+                                            {'WALLY_RUN_REGRESSION': '1', 'CHIA_FIXER_MODEL':'provider/fixer', 'SECRET': 'private'})
         runtime = json.loads(command[command.index('--runtime-env-json') + 1])
         self.assertEqual(runtime['working_dir'], str(self.root))
-        self.assertEqual(runtime['env_vars'], {'WALLY_RUN_REGRESSION': '1'})
+        self.assertEqual(runtime['env_vars'], {'WALLY_RUN_REGRESSION': '1', 'CHIA_FIXER_MODEL':'provider/fixer'})
         self.assertEqual(command[-2:], ['--verify', digest])
 
     def run_entrypoint(self, digest):

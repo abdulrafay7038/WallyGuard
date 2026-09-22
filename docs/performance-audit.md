@@ -466,3 +466,34 @@ This is repeated executable mismatch evidence, not a confirmed architectural
 bug: Critic/spec review, RTL fixing and regression were not run. Archived run
 records were not rewritten or promoted. No new LLM campaign was launched and
 the recurring provider error remains unresolved.
+
+## September 22: Fixer provider restriction
+
+Run `20260922T021745Z-e2b36d57` reached a repeated controller mismatch and an
+approved Critic review. Its final native record reported Wally `0x80000050`
+versus expected `0x8000004c`; the positive control passed. Earlier repairs were
+still necessary: revision 0 used an invalid signature layout, and revision 1
+reported failed status with equal expected/actual values of zero, which cannot
+establish a value mismatch. These rejections were retained.
+
+Architect completed in 314.7 seconds, three Tester calls totaled 1052.1 seconds,
+and Critic took 1450.8 seconds. Fixer then failed in 8.1 seconds, before tool
+execution. The provider rejected `opencode/mimo-v2.5-free` with: "OpenCode's free
+tier can only be used from within OpenCode". The controller was invoking the
+OpenCode CLI; the saved response does not establish the gateway's underlying
+reason for rejecting that request. No client-identity spoofing or restriction
+bypass was attempted.
+
+The Fixer model was the only hardcoded role. It now reads `CHIA_FIXER_MODEL`,
+defaulting to `TESTER_MODEL`, whose provider was used successfully in this run.
+The submission helper forwards the override. The default therefore uses the
+existing Vertex credentials and project billing; this is an explicit source
+default change, not an automatic runtime fallback. README and deployment notes
+document the choice. All role permissions, test guards and verification gates
+are unchanged.
+
+Validation: 136 tests pass, including fresh-process checks for default inheritance
+and explicit role isolation, plus submission environment forwarding. No new
+paid LLM call, Fixer run or campaign was launched. The archived review/evidence
+remain intact; the WFI hypothesis has no verified RTL fix yet. The long Critic
+stage and recurring Gemini conversation error remain separate limitations.

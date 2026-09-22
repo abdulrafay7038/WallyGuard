@@ -1,14 +1,15 @@
-The Architect, Tester and Critic use Vertex AI through `OpenCodeLLM`:
+All four agents default to Vertex AI through `OpenCodeLLM`:
 
 | Agent | Default model | Environment override |
 | --- | --- | --- |
 | Architect | `google-vertex/gemini-3.8-flash` | `CHIA_ARCHITECT_MODEL` |
 | Tester | `google-vertex/gemini-3.1-pro-preview-customtools` | `CHIA_TESTER_MODEL` |
-| Critic | `google-vertex/gemini-3.1-pro-preview-customtools` | `CHIA_CRITIC_MODEL` |
+| Critic | `google-vertex/gemini-3.8-flash` | `CHIA_CRITIC_MODEL` |
+| RTL Fixer | Configured Tester model | `CHIA_FIXER_MODEL` |
 
-The current four-agent loop, RTL Fixer model, prompts, timeouts and verification
-are preserved. `GOOGLE_CLOUD_PROJECT` defaults in Python to
-`jovial-analyst-507116-p9`; the provider pins location to `global`.
+Set `GOOGLE_CLOUD_PROJECT` explicitly for your billing-enabled project. Python's
+deployment fallback is `project-0df87a12-e649-434b-84a`; location is `global`.
+The Fixer shares the Tester's provider and billing unless explicitly overridden.
 
 `cluster.yaml` mounts the host's `${HOME}/.config/gcloud` directory read-only at
 `/home/ray/.config/gcloud`. The actual container user is `ray` (UID 1000), and
@@ -47,7 +48,7 @@ docker exec chia-opencode-abdul-0 opencode run \
 ```
 
 Ray job drivers do not automatically inherit shell exports. `submit.py` forwards
-the project and the three `CHIA_*_MODEL` settings using `--runtime-env-json`.
+the project and the four `CHIA_*_MODEL` settings using `--runtime-env-json`.
 It uses the absolute loop path on this existing head host, avoiding an upload
 of the large Wally checkout. Inspect the command without starting a campaign:
 

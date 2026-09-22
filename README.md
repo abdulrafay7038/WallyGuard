@@ -281,7 +281,10 @@ gcloud auth application-default set-quota-project "$GOOGLE_CLOUD_PROJECT"
 The cluster mounts `$HOME/.config/gcloud` read-only at
 `/home/ray/.config/gcloud` in the OpenCode container. Its user must be able to read
 those credentials, and the project must have access to the configured models.
-The Fixer uses a separate OpenCode model; ensure that provider is available too.
+The Fixer defaults to the configured Tester model and uses the same provider
+credentials and billing. Set `CHIA_FIXER_MODEL` to select a different model
+explicitly. The former free OpenCode default was rejected by the provider in
+this deployment; retrying that restriction does not restore access.
 Do not put credential contents into runtime-environment JSON or repository files.
 
 If Gemini reports `Requests ending with a model turn are not supported.`, the
@@ -416,7 +419,7 @@ Environment settings are read when `loop.py` is imported.
 | Architect | `google-vertex/gemini-3.8-flash` | `CHIA_ARCHITECT_MODEL` |
 | Tester | `google-vertex/gemini-3.1-pro-preview-customtools` | `CHIA_TESTER_MODEL` |
 | Critic | `google-vertex/gemini-3.8-flash` | `CHIA_CRITIC_MODEL` |
-| RTL Fixer | `opencode/mimo-v2.5-free` | `MODELS["rtl_fixer"]` in `loop.py`; no environment override. |
+| RTL Fixer | Configured Tester model (normally `google-vertex/gemini-3.1-pro-preview-customtools`) | `CHIA_FIXER_MODEL` |
 
 These are configured identifiers, not a guarantee of current provider access.
 Changing providers may also require updating the registered provider definition

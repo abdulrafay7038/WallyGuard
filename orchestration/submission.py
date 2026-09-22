@@ -14,7 +14,7 @@ ENV_KEYS = (
     'WALLY_ORACLE_TIMEOUT', 'WALLY_COMMAND_TIMEOUT', 'WALLY_AGENT_TIMEOUT',
     'WALLY_BASELINE_RUNS', 'WALLY_LLM_CONCURRENCY', 'WALLY_ISA_DOCS',
     'GOOGLE_CLOUD_PROJECT', 'WALLY_PROFILE', 'WALLY_PROFILE_DIR',
-    'CHIA_ARCHITECT_MODEL', 'CHIA_TESTER_MODEL', 'CHIA_CRITIC_MODEL',
+    'CHIA_ARCHITECT_MODEL', 'CHIA_TESTER_MODEL', 'CHIA_CRITIC_MODEL', 'CHIA_FIXER_MODEL',
 )
 EXCLUDES = ['cvw/', 'runs/', 'reviews/', 'wally-worktrees/', 'confirmed-bugs/',
             'candidate-bugs/', '.git/', '__pycache__/', '*.pyc', 'mineforge3/']

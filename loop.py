@@ -3,7 +3,7 @@
 Run through the existing Chia cluster. The architect uses source/document
 retrieval and saved findings, not weight training. Optional environment settings:
 WALLY_PATH, WALLY_ISA_DOCS (local specs), WALLY_REGRESSION_COMMAND,
-GOOGLE_CLOUD_PROJECT, CHIA_ARCHITECT_MODEL, CHIA_TESTER_MODEL, CHIA_CRITIC_MODEL
+GOOGLE_CLOUD_PROJECT, CHIA_ARCHITECT_MODEL, CHIA_TESTER_MODEL, CHIA_CRITIC_MODEL, CHIA_FIXER_MODEL
 (Vertex AI via OpenCode; see GOOGLE_GENAI.md).
 """
 
@@ -70,11 +70,12 @@ VERTEX_PROVIDER = AdditionalModelProvider(
 ARCHITECT_MODEL = os.environ.get("CHIA_ARCHITECT_MODEL", "google-vertex/gemini-3.8-flash")
 TESTER_MODEL = os.environ.get("CHIA_TESTER_MODEL", "google-vertex/gemini-3.1-pro-preview-customtools")
 CRITIC_MODEL = os.environ.get("CHIA_CRITIC_MODEL", "google-vertex/gemini-3.8-flash")
+FIXER_MODEL = os.environ.get("CHIA_FIXER_MODEL", TESTER_MODEL)
 MODELS = {
     "architect": ARCHITECT_MODEL,
     "tester": TESTER_MODEL,
     "critic": CRITIC_MODEL,
-    "rtl_fixer": "opencode/mimo-v2.5-free",
+    "rtl_fixer": FIXER_MODEL,
 }
 
 
