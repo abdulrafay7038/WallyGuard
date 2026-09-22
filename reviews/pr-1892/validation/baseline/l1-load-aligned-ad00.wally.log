@@ -1,5 +1,0 @@
-/home/rafay/miniconda3/WallyGuard2/reviews/pr-1892/validation/baseline/l1-load-aligned-ad00.elf succeeded.  Brilliant!!!
-- /home/rafay/miniconda3/WallyGuard2/reviews/pr-1892/baseline/testbench/testbench.sv:490: Verilog $finish
-- S i m u l a t i o n   R e p o r t: Verilator 5.036 2025-04-27
-- Verilator: $finish at 3ns; walltime 0.017 s; speed 197.570 ns/s
-- Verilator: cpu 0.013 s on 1 threads; alloced 346 MB
