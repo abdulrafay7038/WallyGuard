@@ -497,3 +497,64 @@ and explicit role isolation, plus submission environment forwarding. No new
 paid LLM call, Fixer run or campaign was launched. The archived review/evidence
 remain intact; the WFI hypothesis has no verified RTL fix yet. The long Critic
 stage and recurring Gemini conversation error remain separate limitations.
+
+## September 22: Fixer scratch placement and Critic harness rediscovery
+
+Run `20260922T032209Z-b069f2a3` used the configurable Fixer model successfully.
+It produced a parsed answer and an RTL patch, then failed the artifact guard:
+the Fixer wrote `patch_controller.sh` relative to its shell's checkout-root
+directory. The saved script edits `$WALLY/src/ieu/controller.sv`; its name did
+not refer to the Python controller. Its location was nevertheless outside the
+allowed scope. The guard archived and removed it, retaining the proposed RTL
+diff. No controller verification of that proposed fix completed, so the Fixer's
+claim of success is not accepted verification.
+
+Recorded timings for this incomplete iteration:
+
+| Operation | Wall time | Shell commands |
+| --- | ---: | ---: |
+| Architect | 129.1 s | 12 |
+| Tester | 463.2 s | 23 |
+| Critic | 1810.6 s | 67 |
+| Fixer, including rejected guard | 243.5 s | 9 |
+| Controller baseline verification | 11.4 s | — |
+| Worktree setup | 0.06 s | — |
+| Entire iteration | 2658.7 s (44.3 min) | — |
+
+These durations overlap. The Critic dominates: 169.7 seconds of command
+execution versus 1665.6 seconds of assistant time outside tool calls, which
+includes provider/CLI waits and is not a measurement of pure LLM generation.
+Its transcript shows useful adversarial tests, followed by many reads of
+`CheckSelfCheck`, Makefile rules and label maps to rediscover why controller
+sidecars include an alias absent from objdump. It also searched large previous
+run trees. The controller already preserves ELF aliases using `nm`.
+
+Changes:
+
+- `ManagedBashTool.run_command` starts Fixer commands in `test_dir/fixer` and
+  refuses a symlinked directory before execution. Existing `$WALLY` and
+  `$WALLY_TEST_DIR` paths remain available. Prompts explicitly distinguish RTL,
+  frozen reproducer inputs and writable helper files.
+- `main` now stops with a nonzero status after archiving an unhandled
+  `invalid_artifacts` failure. Previously this run immediately started a new
+  investigation and reset the shared checkout. The archived patch remains
+  available, but neither a guard violation nor a parsed Fixer claim can promote
+  it to a verified fix.
+- `CRITIC_PROMPT` explains the existing symbol-map preparation and names its
+  evidence logs. It requires checking supplemental maps against their own ELF
+  and still requires independent Spike/Wally execution. No Critic timeout or
+  command limit was added.
+
+Validation: 140 tests pass. New tests execute real shell commands in a temporary
+Git checkout, pass an allowed Fixer helper and RTL edit through the real guard,
+reject/restore root helpers and frozen-test edits, refuse symlink redirection,
+and exercise campaign archival/termination after a guard failure. The guard's
+allowlist and all directed/regression/export requirements are unchanged.
+
+No new LLM campaign was launched and no live or archived run was edited. There
+is no measured after-change iteration time yet. The next run,
+`20260922T040628Z-e59647ef`, failed after 146.8 seconds with the Gemini model-turn
+400 despite one continuation. That provider failure remains unresolved; retries
+and models were not changed here. The next performance check should measure
+Critic command count and wall time on a new submission, especially whether the
+explicit harness context avoids the repeated label-map investigation.

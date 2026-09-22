@@ -157,8 +157,9 @@ uninitialized signals and timeouts are not evidence of an RTL bug.
 All generated programs, assertions, testbenches, scripts and oracle data MUST
 live below test_dir. Put generated binaries/build output in test_dir/build and
 logs in test_dir/logs. Write README.md with configuration, ISA/ABI, exact commands,
-seeds, observed and expected results. Tester commands start in test_dir; other
-roles start at the worktree root. $WALLY always names the checkout and
+seeds, observed and expected results. Tester commands start in test_dir, Fixer
+commands in test_dir/fixer, and other roles at the worktree root.
+$WALLY always names the checkout and
 $WALLY_TEST_DIR names the run directory. Use "$WALLY/src/..." to read RTL.
 Each command starts afresh: a cd does not carry over to the next tool call.
 attempt.json, proposed.patch and untracked-rtl/ are controller-owned; do not edit them.
@@ -306,6 +307,20 @@ constrain legal behavior. Try control tests or an independent oracle.
 Put additional tests under test_dir/critic. Do not edit original reproducer
 inputs, tracked files or RTL. Reject unsupported or inconclusive claims.
 
+Known native self-check preparation: the controller explicitly rebuilds each
+ELF's .memfile/.objdump, then writes .objdump.addr and .objdump.lab from that
+ELF's nm symbols. Objdump alone can omit the selfcheck_record alias when it shares
+an address with begin_signature. Different label lists are therefore expected;
+verify addresses against the actual ELF, not against objdump labels alone.
+Read the supplied verification steps' *-symbols and *-elf-prepare logs first.
+For a new supplemental ELF, prepare its own runtime files and paired address/label
+maps from its own defined nm symbols after the final build and before wsim.
+Keep the rows in matching order, retain aliases and check all tool failures.
+Never copy maps/signatures from another ELF or change the original test inputs.
+Resolve a harness doubt with these exact files; do not search prior run archives
+or the home directory for generated symbol maps. This preparation is not oracle
+evidence: independently execute Spike and Wally and inspect their actual results.
+
 phase=bug_review: review the quality of the controller's independently reproduced
 mismatch and the validity of the test/spec interpretation. The controller alone
 establishes bug existence; your verdict is advisory and cannot override its gates. No fix exists yet. If the test
@@ -332,7 +347,11 @@ You are Agent 4, RTL Fixer. The controller reproduced the mismatch and the Criti
 reproducer and critique, find the root cause and apply the SMALLEST correct fix
 to existing files under src/. Do not edit tests, expected results, configuration,
 regression scripts or dependencies. Do not commit. You may add notes/supplemental
-tests under test_dir/fixer. Keep original reproducer inputs unchanged. Rebuild
+tests under test_dir/fixer. Your shell starts in that directory on EVERY command;
+save helper scripts and backups there. Use "$WALLY/src/..." for RTL edits and
+"$WALLY_TEST_DIR/..." for existing reproducer files. For checkout-relative build
+commands, explicitly cd "$WALLY" within that command. Do not leave scripts at the
+checkout root or change frozen test inputs. Rebuild
 and run the reproducer against the fix. Use previous verification logs and
 Critic feedback to refine your patch after failures. Never hide errors, disable
 features or weaken checks. The controller runs full regression only when
@@ -1140,7 +1159,7 @@ def main(max_iterations: int | None = MAX_ITERATIONS, max_fix_attempts: int = MA
             timing_state.active_record.reset(timing_context)
         if record['status'] in {'fix_attempts_exhausted', 'fix_rejected', 'regression_blocked',
                                 'api_rate_limit', 'mcp_server_timeout', 'agent_failed',
-                                'agent_output_invalid', 'controller_error'}:
+                                'agent_output_invalid', 'invalid_artifacts', 'controller_error'}:
             log('LOOP', 'Stopping discovery; unresolved candidate and evidence retained')
             return 1
     log("LOOP", f"Stopped after {i} iterations. Confirmed patches: {confirmed_bugs}")

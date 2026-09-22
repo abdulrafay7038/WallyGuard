@@ -105,8 +105,14 @@ and Architect may change test artifacts; Critic may add only `critic/` artifacts
 Fixer may modify existing `src/**/*.sv` and `fixer/` artifacts. Runtime `build/`
 and `logs/` remain writable. Unauthorized changes, including setup scripts and
 controller input snapshots, are archived under `controller/guards/`, restored,
-and classified as invalid artifacts. Valid RTL edits remain visible. The existing
-managed-worktree reset supplies the next iteration's baseline. Original CVW and
+and classified as invalid artifacts. Valid RTL edits remain visible. The
+campaign stops on an unhandled guard violation after archiving the attempt; it
+does not automatically reset the reviewed candidate for another investigation.
+Fixer commands start in `test_dir/fixer`, so relative scripts and backups stay
+inside its allowed scope. `$WALLY` still identifies RTL, and `$WALLY_TEST_DIR`
+identifies the frozen reproducer's run directory. A symlinked Fixer directory is
+rejected before command execution. Other normal iteration transitions use the
+managed-worktree reset to supply the next baseline. Original CVW and
 existing archived patches are not reset or reclassified.
 
 This is an artifact-integrity guard, not an OS sandbox for malicious same-user

@@ -146,5 +146,31 @@ class LoopIntegrationTests(unittest.TestCase):
             loop.main(max_iterations=3)
         work.assert_called_once()
 
+    def test_guard_failure_archives_evidence_and_stops_discovery(self):
+        saved = []
+        def remote(function, *args):
+            if function.__name__ == 'load_history':
+                return []
+            if function.__name__ == 'save_attempt':
+                saved.append(copy.deepcopy(args[1]))
+                return None
+            raise AssertionError(function.__name__)
+        def attempt(record, *args):
+            record.update(scratch='/fixture/work', test_dir='/fixture/artifacts',
+                          base_commit='fixture', plan={'target': 'ALU'},
+                          bug_review={'verdict': 'approve', 'critique': 'reviewed'})
+            raise loop.ArtifactViolation('Disallowed changes: source/patch_controller.sh')
+        with patch.object(loop, 'remote', side_effect=remote), \
+             patch.object(loop, 'run_attempt', side_effect=attempt) as work, redirect_stdout(io.StringIO()):
+            status = loop.main(max_iterations=3)
+        self.assertEqual(status, 1)
+        work.assert_called_once()
+        self.assertEqual(len(saved), 1)
+        self.assertEqual(saved[0]['status'], 'invalid_artifacts')
+        self.assertFalse(saved[0]['active'])
+        self.assertEqual(saved[0]['bug_review']['verdict'], 'approve')
+        self.assertIn('source/patch_controller.sh', saved[0]['error'])
+        self.assertFalse(confirmation_allowed(saved[0]))
+
 
 if __name__=='__main__':unittest.main()

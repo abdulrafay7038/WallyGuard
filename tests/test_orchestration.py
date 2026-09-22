@@ -203,10 +203,64 @@ class ArtifactTests(unittest.TestCase):
             finish(before)
         self.assertEqual(root_events.read_text(), 'controller history\n')
     def test_new_unauthorized_file_removed(self):
-        before=snapshot(str(self.root),str(self.tests),'tester')
-        (self.root/'new-env.sh').write_text('bad')
-        with self.assertRaises(ArtifactViolation):finish(before)
-        self.assertFalse((self.root/'new-env.sh').exists())
+        for role in ('tester', 'rtl_fixer'):
+            with self.subTest(role=role):
+                before=snapshot(str(self.root),str(self.tests),role)
+                (self.root/'new-env.sh').write_text('bad')
+                with self.assertRaises(ArtifactViolation):finish(before)
+                self.assertFalse((self.root/'new-env.sh').exists())
+                self.assertEqual((Path(before)/'unauthorized/source/new-env.sh').read_text(), 'bad')
+
+    def fixer_commands(self, *commands):
+        import asyncio
+        import threading
+        from orchestration.tool_runtime import ManagedBashTool
+        tool = object.__new__(ManagedBashTool)
+        tool.role = 'rtl_fixer'
+        tool.work_dir, tool.test_dir = str(self.root), str(self.tests)
+        tool.timeout_seconds = 5
+        tool._cancel_event = threading.Event()
+        tool._metrics = dict(commands=0, command_seconds=0)
+        async def execute():
+            results = []
+            for command in commands:
+                result = json.loads(await tool.run_command(command))
+                while result['status'] == 'RUNNING':
+                    result = json.loads(await tool.command_status(result['job_id']))
+                results.append(result)
+            return results
+        return asyncio.run(execute()), tool._metrics
+
+    def test_fixer_relative_helper_and_rtl_edit_pass_guard(self):
+        before = snapshot(str(self.root), str(self.tests), 'rtl_fixer')
+        results, metrics = self.fixer_commands(
+            'cat > patch_controller.sh <<\'SH\'\nprintf "candidate RTL" > "$WALLY/src/test.sv"\nSH\n'
+            'bash ./patch_controller.sh\ncd "$WALLY"',
+            'pwd; test -f patch_controller.sh; test -f "$WALLY/src/test.sv"')
+        self.assertEqual([r['status'] for r in results], ['PASS', 'PASS'])
+        self.assertEqual(metrics['commands'], 2)
+        self.assertIn(str(self.tests/'fixer'), results[1]['tail'])
+        self.assertTrue((self.tests/'fixer/patch_controller.sh').is_file())
+        self.assertFalse((self.root/'patch_controller.sh').exists())
+        self.assertEqual((self.root/'src/test.sv').read_text(), 'candidate RTL')
+        finish(before)
+
+    def test_fixer_scratch_does_not_allow_original_test_edits(self):
+        original = self.tests/'test.S'
+        original.write_text('frozen test')
+        before = snapshot(str(self.root), str(self.tests), 'rtl_fixer')
+        results, _ = self.fixer_commands('printf changed > ../test.S')
+        self.assertEqual(results[0]['status'], 'PASS')
+        with self.assertRaises(ArtifactViolation):
+            finish(before)
+        self.assertEqual(original.read_text(), 'frozen test')
+
+    def test_fixer_rejects_redirected_scratch_without_execution(self):
+        (self.tests/'fixer').symlink_to(self.root, target_is_directory=True)
+        results, metrics = self.fixer_commands('printf bad > patch_controller.sh')
+        self.assertEqual(results[0]['status'], 'INVALID_COMMAND')
+        self.assertFalse((self.root/'patch_controller.sh').exists())
+        self.assertEqual(metrics['commands'], 0)
 
 
 class LoggingTests(unittest.TestCase):

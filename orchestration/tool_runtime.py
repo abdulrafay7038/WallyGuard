@@ -207,7 +207,7 @@ class ManagedBashTool(ChiaTool):
 
     async def run_command(self, command: str, timeout_seconds: float | None = None,
                           extension_reason: str = '') -> str:
-        """Execute with a 120s default. Tester starts in its run directory; repository paths use $WALLY."""
+        """Execute with a 120s default. Tester starts in test_dir, Fixer in test_dir/fixer; use $WALLY for RTL."""
         if not hasattr(self, '_jobs'):
             self._jobs = {}
         for job_id, task in self._jobs.items():
@@ -232,13 +232,23 @@ class ManagedBashTool(ChiaTool):
         # Completed metadata is bounded; full logs are never discarded.
         for key in list(self._jobs)[:-128]:
             del self._jobs[key]
+        env = simulation_env(self.work_dir)
+        env['WALLY_TEST_DIR'] = str((Path(self.work_dir) / self.test_dir).resolve())
+        command_dir = env['WALLY_TEST_DIR'] if getattr(self, 'role', None) == 'tester' else self.work_dir
+        if getattr(self, 'role', None) == 'rtl_fixer':
+            command_dir = Path(env['WALLY_TEST_DIR']) / 'fixer'
+            # Relative helper/backup files belong in the Fixer's allowed scope.
+            # Refuse a redirected directory; never follow it into original inputs.
+            if command_dir.is_symlink():
+                return json.dumps(dict(status='INVALID_COMMAND', error='Fixer directory must not be a symlink'))
+            try:
+                command_dir.mkdir(parents=True, exist_ok=True)
+            except OSError as exc:
+                return json.dumps(dict(status='INFRA_FAILURE', error=str(redact(str(exc)))))
         job_id = uuid.uuid4().hex
         if hasattr(self, '_metrics'):
             self._metrics['commands'] += 1
         log_path = Path(self.test_dir) / 'logs' / f'tool-{job_id}.log'
-        env = simulation_env(self.work_dir)
-        env['WALLY_TEST_DIR'] = str((Path(self.work_dir) / self.test_dir).resolve())
-        command_dir = env['WALLY_TEST_DIR'] if getattr(self, 'role', None) == 'tester' else self.work_dir
         timing_path = Path(self.test_dir) / 'logs' / 'tool-timing.jsonl'
         fields = dict(role=getattr(self, 'role', 'unknown'), job_id=job_id, log_path=str(log_path))
         record_event(timing_path, 'COMMAND_STARTED', **fields, extension_reason=extension_reason[:400])

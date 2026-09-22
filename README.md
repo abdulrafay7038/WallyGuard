@@ -457,7 +457,11 @@ Do not run unrelated editors or campaigns in the managed shared checkout.
 
 Rate limits retry the same stage/workspace with bounded backoff. A hung MCP server
 can be restarted once. JSON schema failures get one tool-free format-repair retry.
-Unauthorized edits are archived and restored. Command timeouts preserve disk logs
+Unauthorized edits are archived and restored; an unhandled artifact-guard failure
+stops discovery after saving the current attempt. Fixer shell commands start in
+`test_dir/fixer`, keeping relative helper scripts and backups in their permitted
+location. Use `$WALLY/src/...` for RTL and `$WALLY_TEST_DIR/...` for original test
+artifacts. Command timeouts preserve disk logs
 and trigger process-tree cleanup.
 
 Current limitations to account for when operating the loop:
