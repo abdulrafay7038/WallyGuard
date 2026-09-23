@@ -11,6 +11,13 @@ from .input_files import input_files
 class ArtifactViolation(RuntimeError):
     status = 'invalid_artifacts'
 
+    def __init__(self, message, restored=False):
+        self.restored = restored
+        super().__init__(message)
+
+    def __reduce__(self):
+        return type(self), (str(self), self.restored)
+
 
 def git(root: Path, *args: str) -> str:
     return subprocess.run(['git', '-C', str(root), *args], check=True, capture_output=True,
@@ -137,4 +144,4 @@ def finish(snapshot_path: str) -> None:
         if scope == 'source':
             # Undo staging of unauthorized paths as well as their working content.
             git(root, 'reset', '-q', manifest['head'], '--', name)
-    raise ArtifactViolation(f'Disallowed changes archived and restored: {invalid}; changed_head={changed_head}; {directory}')
+    raise ArtifactViolation(f'Disallowed changes archived and restored: {invalid}; changed_head={changed_head}; {directory}', restored=True)

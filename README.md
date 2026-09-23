@@ -82,7 +82,51 @@ A targeted fix with regression disabled or directed tests unconfigured is only
 The final confirmation gate is checked again when exporting to `confirmed-bugs/`.
 Historical patches may predate these gates; inspect their associated run records.
 
+### Unattended campaigns
+
+To request 48 hours of discovery using the verified submission helper:
+
+```bash
+export WALLY_CAMPAIGN_HOURS=48
+export WALLY_CAMPAIGN_MAX_FAILURES=3
+python -B -m orchestration.submission
+```
+
+The duration replaces the default 200-iteration cap. It is checked between
+iterations: an active investigation finishes and archives, so actual wall time
+can exceed 48 hours. Agent and command deadlines are unchanged.
+
+In duration mode, an archived rejected/exhausted fix, invalid agent response, or
+artifact violation whose restoration completed can move to a fresh investigation.
+Three consecutive such failures stop the campaign to avoid an endless failure
+cycle. A completed investigation resets this count. Provider/billing errors,
+exhausted rate limits, MCP failures, regression infrastructure failures, unknown
+controller errors and incomplete restoration still stop for attention. Without
+`WALLY_CAMPAIGN_HOURS`, the existing stop-on-failure behavior remains.
+
+Every next iteration requires an explicit complete-archive acknowledgement from
+the worker. Failure to archive blocks continuation even after an otherwise
+successful investigation. Archived candidates and rejected evidence retain their
+status; continuing never promotes them or bypasses verification. This is graceful
+handling of known failures, not a guarantee against machine, disk, cluster or
+provider outages. A real 48-hour soak test is still required.
+
 ### Faster iterations, same verification gates
+
+Architect and Tester receive a bounded summary drawn from the full available
+attempt history: eight negative investigations (favoring the current baseline)
+and eight accepted targets. Controller matches remain visible separately from
+unverified tester reports and critic feedback. This keeps earlier disproofs from
+disappearing after five unrelated attempts; it does not declare a subsystem correct
+or assume that every historical patch is present in the current RTL.
+
+Planning instructions limit exploration to one subsystem and at most two narrow
+hypotheses, with explicit uncertainties at handoff. Post-budget reads should resolve
+a blocking fact about the selected lead. These are model instructions, not hard
+command or time limits. Tester is asked to probe the key oracle assumption early,
+matching configuration and implementation parameters before expensive DUT work.
+Claims still require the full existing control, oracle/DUT and verification gates.
+These changes have unit-test coverage but no measured campaign speedup yet.
 
 Each new run includes a native self-check harness, a build script, and a
 `reproducer.json` contract. The Tester adapts the RV64 starter to the target and
@@ -428,6 +472,8 @@ Environment settings are read when `loop.py` is imported.
 | `WALLY_PROFILE` | `1` | Enable Chia task profiling when running `loop.py` as the CLI. |
 | `WALLY_PROFILE_DIR` | Chia default | Profile output directory on the driver host; use a persistent path to retain timelines. |
 | `WALLY_ISA_DOCS` | Empty | Optional local ISA documentation path supplied to agents. |
+| `WALLY_ARCHITECT_MAX_COMMANDS` | `14` | Maximum bash commands the Architect may issue per iteration (bounded 6–16). Tighten to reduce LLM turn latency; loosen for exploratory deep-dives. |
+| `WALLY_ARCHITECT_MAX_SECONDS` | `360` | Wall-clock seconds the Architect planning phase may use per iteration (bounded 120–600). |
 | `GOOGLE_CLOUD_PROJECT` | Deployment-specific fallback in `loop.py` | Set explicitly for your Vertex project; provider location is `global`. |
 
 | Agent | Model default in source | Override |

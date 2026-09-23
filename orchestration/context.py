@@ -22,7 +22,7 @@ def observed_failure(record: dict) -> str:
     observations = []
     for revision in record.get('test_revisions', []):
         result = revision.get('baseline_reproducer', {})
-        if result.get('status') and result['status'] != 'MATCH':
+        if result.get('status'):
             control = result.get('control', {})
             text = ': '.join(str(result.get(k, '')) for k in ('status', 'reason'))
             if control:
@@ -32,6 +32,42 @@ def observed_failure(record: dict) -> str:
     if record.get('error'):
         observations.append(str(record['error']))
     return ' | '.join(observations)[-900:]
+
+
+def investigation_lessons(history: list[dict], base: str) -> dict:
+    """Keep useful outcomes beyond the five most recent notes, with provenance.
+
+    Selection hints only: no agent report becomes a controller observation, and
+    a match on one test never establishes correctness of an entire subsystem.
+    """
+    unique = {entry['tag']: entry for entry in history if entry.get('tag')
+              and entry.get('target') not in (None, '', 'planning failed')}
+    entries = list(unique.values())
+    negatives = [entry for entry in entries if entry.get('status') in
+                 {'no_bug', 'baseline_not_reproduced', 'bug_rejected', 'fix_rejected'}]
+    # Favor evidence on today's RTL, then recency. Repeated subsystem names do
+    # not imply duplicate bugs; retain separate investigations and their tags.
+    negatives = sorted(reversed(negatives),
+                       key=lambda entry: entry.get('source_base') != base)[:8]
+    accepted = [entry for entry in entries if entry.get('status') in
+                {'confirmed', 'candidate_fix_verified'}][-8:]
+
+    def summary(entry):
+        return dict(tag=entry['tag'], target=str(entry.get('target', ''))[:400],
+                    status=entry.get('status'), source_base=entry.get('source_base'),
+                    same_base=bool(base) and entry.get('source_base') == base,
+                    controller_observation=str(entry.get('observed_failure', ''))[:900],
+                    tester_report_unverified=str(entry.get('report', ''))[:1200],
+                    critic_feedback=deepcopy(entry.get('critic_feedback', [])[-1:]))
+
+    return dict(negative_results=[summary(entry) for entry in negatives],
+                accepted_targets=[dict(tag=entry['tag'], target=str(entry.get('target', ''))[:400],
+                                       source_base=entry.get('source_base'), status=entry.get('status'))
+                                  for entry in accepted],
+                policy='Advisory evidence, not proof of correctness or novelty. Before revisiting a lead, '
+                       'identify the changed trigger, configuration, source, or evidence that addresses '
+                       'its previous outcome. Check accepted targets against current RTL; do not assume '
+                       'every historical patch is present.')
 
 
 def agent_context(role: str, context: dict) -> dict:
@@ -47,6 +83,10 @@ def agent_context(role: str, context: dict) -> dict:
     }
     result = {key: deepcopy(context[key]) for key in common + per_role[role] if key in context}
     if role in {'architect', 'tester'}:
+        result['investigation_lessons'] = deepcopy(context.get('investigation_lessons'))
+        if result['investigation_lessons'] is None:
+            result['investigation_lessons'] = investigation_lessons(
+                context.get('history', []), context.get('base_commit', ''))
         entries = [entry for entry in context.get('history', []) if entry.get('critic_feedback')]
         result['prior_critic_feedback'] = [dict(
             tag=entry.get('tag'), target=str(entry.get('target', ''))[:400],
@@ -55,10 +95,32 @@ def agent_context(role: str, context: dict) -> dict:
     # Include concise observations so tooling mistakes do not require another
     # investigation of the archive. Agent notes remain explicitly unverified.
     if role == 'architect':
+        from .planning import MAX_COMMANDS, READ_SECONDS
         result['coverage'] = deepcopy(context.get('coverage', {}))
         result['exploration_budget'] = dict(commands=12, deeply_read_files=6, minutes=8,
             policy='Advisory: hand off once grounded. If more reading is essential, explain the missing fact '
                    'in extension_reason on the next tool call; no forced failure or reduced agent timeout.')
+        result['repository_subsystems'] = {
+            'mmu': 'src/mmu/ (mmu.sv, hptw.sv, pmpchecker.sv, adrdec.sv, tlb.sv)',
+            'cache': 'src/cache/ (cache.sv, cachefsm.sv, cacheway.sv, cmo.sv)',
+            'atomics': 'src/lsu/ (lsu.sv, amoalu.sv, lrsc.sv, atomic.sv)',
+            'privileged': 'src/privileged/ (csr.sv, csrm.sv, csrs.sv, csrc.sv, csri.sv, trap.sv)',
+            'ieu': 'src/ieu/ (controller.sv, datapath.sv, alu.sv, shifter.sv, regfile.sv, bmu/)',
+            'fpu': 'src/fpu/ (fpu.sv, postproc/flags.sv, fdiv.sv, fmul.sv)',
+            'ifu': 'src/ifu/ (ifu.sv, decompress.sv, bpred/)',
+            'hazard': 'src/hazard/ (hazard.sv)',
+        }
+        result['recent_commits'] = [
+            f"{entry.get('tag')}: {str(entry.get('target', ''))[:100]} ({entry.get('status')})"
+            for entry in context.get('history', [])[-5:] if entry.get('target')
+        ]
+        result['exploration_budget'] = dict(
+            max_commands=MAX_COMMANDS,
+            minutes=READ_SECONDS // 60,
+            policy=f'Strict budget: maximum {MAX_COMMANDS} commands / {READ_SECONDS // 60} minutes. '
+                   f'After 8 commands, extension_reason is required. Stay within ONE subsystem. '
+                   'Do not run git log or directory scans; use repository_subsystems.'
+        )
         result['history'] = [{key: str(entry.get(key, ''))[:400]
                               for key in ('tag', 'target', 'status', 'observed_failure', 'source_base')}
                              for entry in context.get('history', [])[-40:]]

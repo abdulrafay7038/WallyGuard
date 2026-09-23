@@ -36,6 +36,13 @@ def parse_agent_response(agent_name: str, raw_output: str, schema: dict | None =
         value = objects[0]
     if not isinstance(value, dict):
         raise AgentOutputInvalid(f'{agent_name}: response must be an object')
+    if agent_name == 'architect' and schema is None and required_fields is None:
+        from .planning import validate_plan
+        try:
+            validate_plan(value)
+        except ValueError as exc:
+            raise AgentOutputInvalid(str(exc)) from exc
+        return value
     schema = SCHEMAS.get(agent_name, {}) if schema is None else schema
     for key in required_fields if required_fields is not None else schema:
         if key not in value or type(value[key]) is not schema.get(key, str):
@@ -78,6 +85,9 @@ def structured_response(agent: str, raw: str, repair: Callable[[str], str],
                       'Convert the original answer to one JSON object. Do not invent missing facts; '
                       'if the answer lacks required information leave it absent. Schema: '
                       + json.dumps(schema) + '. Critic verdict is approve, revise, or reject. '
+                      'Architect must supply outcome=investigate, evidence entries with kind/status/claim/reference, '
+                      'and probe_batch entries with id/trigger/expected/configuration; or '
+                      'outcome=no_grounded_lead with reason and knowledge. Never invent evidence to repair format. '
                       'Tester found_bug=true also requires evidence and reproducer_file="reproducer.json" '
                       'for an existing saved contract, or an inline reproducer object. '
                       '\nValidation error: ' + str(exc) + '\nOriginal answer:\n' + raw)

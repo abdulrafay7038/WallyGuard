@@ -1,6 +1,7 @@
 """Recover an archived or interrupted workspace after verifying its Ray job stopped."""
 import argparse
 import fcntl
+from inspect import unwrap
 import json
 from pathlib import Path
 import re
@@ -21,7 +22,8 @@ def recover(wally_path: str, job_id: str, client) -> dict:
         if str(status) not in {"STOPPED", "FAILED"}:
             raise RuntimeError(f"Recovery requires a STOPPED or FAILED job, got {status}")
         for job in client.list_jobs():
-            if "loop.py" in (job.entrypoint or "") and str(job.status) in {"PENDING", "RUNNING"}:
+            if (any(name in (job.entrypoint or "") for name in ("loop.py", "orchestration.submission"))
+                    and str(job.status) in {"PENDING", "RUNNING"}):
                 raise RuntimeError(f"Another loop job is active: {job.submission_id}")
         marker = rf"\(LOOP\) Iteration \d+: {re.escape(state['tag'])}(?:\s|$)"
         if not re.search(marker, client.get_job_logs(job_id)):
@@ -30,13 +32,14 @@ def recover(wally_path: str, job_id: str, client) -> dict:
         test_dir = base.parent / "runs" / state["tag"]
         path = test_dir / "attempt.json"
         record = json.loads(path.read_text()) if path.exists() else {}
-        if record and record.get("status") != "in_progress" and not record.get("workspace_recovery_required"):
+        if (record and record.get("status") != "in_progress" and not record.get("active")
+                and not record.get("workspace_recovery_required")):
             raise RuntimeError(f"Attempt is already archived as {record.get('status')}")
         loop.repair_submodule_links(str(scratch), state["base_commit"], str(test_dir))
         record.update(tag=state["tag"], scratch=str(scratch), base_commit=state["base_commit"],
-                      test_dir=str(test_dir), status="interrupted",
+                      test_dir=str(test_dir), status="interrupted", active=False,
                       recovery={"job_id": job_id, "job_status": str(status)})
-        save = getattr(loop.save_attempt, "_chia_original", loop.save_attempt)
+        save = unwrap(loop.save_attempt)
         save(str(base), record)
         if record.get("workspace_recovery_required"):
             raise RuntimeError(f"Archive still needs repair: {record['archive_errors'][-1]}")

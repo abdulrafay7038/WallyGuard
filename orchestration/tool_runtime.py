@@ -23,6 +23,7 @@ from .toolchain import simulation_env
 from .timing import record_event, export_timing
 from .opencode_recovery import continuation_session, clear_recovered_error, completed_tool_ids, CONTINUATION
 from .agent_protocol import parse_agent_response
+from .planning import MAX_COMMANDS, READ_SECONDS
 
 
 @ray.remote(num_cpus=0)
@@ -103,6 +104,8 @@ class ManagedBashTool(ChiaTool):
         self.mcp.add_tool(self.command_status, name=f'{name}_command_status')
         self.mcp.add_tool(self.validate_reproducer, name=f'{name}_validate_reproducer')
         self.mcp.add_tool(self.submit_result, name=f'{name}_submit_result')
+        if role == 'tester':
+            self.mcp.add_tool(self.oracle_probe_batch, name=f'{name}_oracle_probe_batch')
         self._submitted_result = None
         self._metrics = dict(commands=0, polls=0, preflights=0, command_seconds=0.0)
         self._stage_started = time.monotonic()
@@ -189,17 +192,58 @@ class ManagedBashTool(ChiaTool):
                 elapsed = time.monotonic() - getattr(self, '_stage_started', time.monotonic())
                 count = getattr(self, '_metrics', {}).get('commands', 0)
                 result['planning_progress'] = dict(commands=count, elapsed_seconds=round(elapsed, 1),
-                    reminder='Handoff budget reached: return the narrow grounded target, or explain the '
-                             'specific missing fact in extension_reason for another read.'
-                             if count >= 12 or elapsed >= 480 else
-                             'Plan one target; leave builds and simulation to Tester. Aim for 12 commands / 6 deep files / 8 minutes.')
+                    reminder=(
+                        'Handoff budget reached: submit the chosen narrow investigation with '
+                        'unverified assumptions. Stay in the same subsystem; an extension must '
+                        'resolve a blocking fact for this lead, not introduce a new topic. '
+                        'Leave oracle probes, assembly and simulation to Tester.'
+                        if count >= 8 or elapsed >= (READ_SECONDS * 0.7) else
+                        f'Plan one target in one subsystem; leave builds and simulation to Tester. '
+                        f'Aim for {MAX_COMMANDS} commands / {READ_SECONDS//60} minutes.'
+                    ))
             return json.dumps(result)
         except (OSError, ValueError) as exc:
             return json.dumps(dict(status='INFRA_FAILURE', job_id=job_id,
                                    error=str(redact(f'{type(exc).__name__}: {exc}'))))
 
+    async def oracle_probe_batch(self, cases_json: str) -> str:
+        """Run 1–8 built ELFs on Spike; each case has id, isa, elf, optional args. Oracle evidence only."""
+        from .oracle_probes import validate_cases, run_batch
+        from .toolchain import validate_spike
+        if getattr(self, 'role', '') != 'tester':
+            return json.dumps(dict(status='INVALID_ROLE'))
+        if getattr(self, '_submitted_result', None) is not None:
+            return json.dumps(dict(status='RESULT_ALREADY_SUBMITTED'))
+        if not hasattr(self, '_jobs'):
+            self._jobs = {}
+        for job_id, task in self._jobs.items():
+            if not task.done():
+                return json.dumps(dict(status='BUSY', job_id=job_id))
+        try:
+            cases = validate_cases(cases_json, self.test_dir)
+        except (ValueError, TypeError, OSError) as exc:
+            return json.dumps(dict(status='PROBES_INVALID', error=str(exc)))
+        job_id = uuid.uuid4().hex
+        directory = Path(self.test_dir) / 'logs' / ('oracle-probes-' + job_id)
+        def execute():
+            env = simulation_env(self.work_dir)
+            try:
+                validate_spike(env)
+                report = run_batch(cases, directory, env, self._cancel_event)
+            except (ValueError, OSError) as exc:
+                report = dict(status='INFRA_FAILURE', error=str(exc))
+            return json.dumps(redact(dict(report, job_id=job_id, artifact_dir=str(directory))))
+        async def job():
+            return await anyio.to_thread.run_sync(execute, abandon_on_cancel=False)
+        task = asyncio.create_task(job())
+        self._jobs[job_id] = task
+        await asyncio.wait({task}, timeout=getattr(self, '_response_wait', 2))
+        return self._command_result(job_id)
+
     async def validate_reproducer(self, contract_path: str = 'reproducer.json') -> str:
         """Check the saved contract before submitting a finding; does not prove a bug."""
+        if getattr(self, 'role', '') == 'architect':
+            return json.dumps(dict(status='PLANNING_ONLY', note='Reproducer validation belongs to Tester.'))
         if getattr(self, '_submitted_result', None) is not None:
             return json.dumps(dict(status='RESULT_ALREADY_SUBMITTED', note='Finish with done; no further tools needed.'))
         if hasattr(self, '_metrics'):
@@ -261,7 +305,12 @@ class ManagedBashTool(ChiaTool):
         if getattr(self, 'role', '') == 'architect':
             count = getattr(self, '_metrics', {}).get('commands', 0)
             elapsed = time.monotonic() - getattr(self, '_stage_started', time.monotonic())
-            if (count >= 12 or elapsed >= 480) and not extension_reason.strip():
+            if count >= MAX_COMMANDS or elapsed >= READ_SECONDS:
+                return json.dumps(dict(status='PLANNING_BUDGET_EXHAUSTED', commands=count,
+                    reason='No more planning commands are permitted, including with extension_reason. '
+                           'Submit an evidence-labelled investigate plan or outcome=no_grounded_lead '
+                           'with reason and knowledge. Do not invent a finding.'))
+            if count >= 8 and not extension_reason.strip():
                 return json.dumps(dict(status='PLANNING_HANDOFF_REQUIRED', commands=count,
                     reason='Command not executed. Return your best source-grounded narrow target with '
                            'uncertainties for Tester, or repeat this call with extension_reason naming '
@@ -271,6 +320,8 @@ class ManagedBashTool(ChiaTool):
             if isinstance(requested, bool) or not isinstance(requested, (float, int)) or not math.isfinite(requested) or requested <= 0:
                 raise ValueError('timeout_seconds must be positive and finite')
             deadline = min(requested, self.timeout_seconds)
+            if getattr(self, 'role', '') == 'architect':
+                deadline = min(deadline, max(.01, READ_SECONDS - elapsed))
         except (TypeError, ValueError) as exc:
             return json.dumps(dict(status='INVALID_COMMAND', error=str(exc)))
         # Completed metadata is bounded; full logs are never discarded.

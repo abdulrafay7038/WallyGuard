@@ -34,8 +34,10 @@ from orchestration.test_preflight import run_reproducer, saved_contract
 from orchestration.verification_state import confirmation_allowed, candidate_allowed
 from orchestration.workspace_baseline import retain_verified_fix
 from orchestration.derived_configs import prepare_derived_configs
+from orchestration.campaign import CampaignPolicy, STOP_OUTCOMES
 from orchestration.processes import run_command
-from orchestration.context import agent_context, observed_failure, review_history
+from orchestration.context import agent_context, observed_failure, review_history, investigation_lessons
+from orchestration.planning import READ_SECONDS, HANDOFF_SECONDS, PlanningBudgetExpired, no_lead
 from orchestration.scaffold import seed_harness
 from orchestration.toolchain import simulation_env, validate_spike
 from orchestration.input_files import input_files
@@ -193,6 +195,12 @@ bug existence or bypass controller verification, reviews, or artifact guards.
 """
 
 ARCHITECT_PROMPT = """
+Read investigation_lessons before exploration. Its negative_results preserve
+earlier disproofs and controller matches; tester reports remain unverified.
+Do not repeat a negative target merely with a new title. State the materially
+different trigger, configuration, RTL change or evidence that addresses its
+previous outcome. Check accepted_targets against current RTL before selecting
+an already-fixed behavior. A previous no_bug result is limited to its tests.
 Consult prior_critic_feedback before selecting a target. Do not repeat a rejected
 reproducer without identifying new evidence that addresses the critique. Review
 notes from guard-failed stages are unaccepted leads, never verification results.
@@ -212,6 +220,16 @@ that the Tester can investigate deeply, not a Wally survey or reproducer.
    Tester must verify rather than claim you checked unavailable documentation.
 3. Stop when you can name the signals, a legal trigger sequence, the expected
    behavior and a falsifiable failure hypothesis. Hand off remaining uncertainties.
+   Distinguish RTL observations from ISA interpretation and predicted oracle
+   behavior. Never present an unexecuted Spike prediction as an observation.
+
+Stay within one subsystem and consider at most two narrow hypotheses per planning
+stage. If the first is disproved, record why and consider the second in the same
+area. Submit the strongest remaining falsifiable investigation with its uncertainty;
+do not invent a bug or sweep additional subsystems to find a confident claim.
+Each post-budget extension must resolve a blocking fact about the chosen lead,
+not start a new topic. Oracle probes, assembling instruction encodings and test
+development belong to Tester, not planning.
 
 Budget roughly 12 shell commands, 6 deeply read source files, and 8 minutes.
 These are handoff checkpoints, not stage failure limits. After 12 commands or
@@ -221,6 +239,13 @@ executing it. Return the best grounded lead with explicit uncertainties when
 further facts can be checked by Tester. Do not compile, simulate, debug harnesses or inspect tool
 installations during planning. Leave those tasks to the Tester. You may only
 write under test_dir. Do not perform repository-wide or home-directory surveys.
+Consult repository_subsystems and recent_commits in your context; do NOT run git log,
+ls, or broad directory exploration. Focus strictly on ONE subsystem (preferring
+coverage.prefer). Read 2–4 targeted source files using grep or sed, check the normative
+ISA rule, and formulate the hypothesis.
+Strict budget: maximum 14 commands and 6 minutes total. After 8 commands, an extension_reason
+is required. If facts remain uncertain, hand them off to the Tester. Do not compile, simulate,
+debug harnesses, or inspect tool installations during planning. Leave those to the Tester.
 
 Submit string fields target, rationale, tester_prompt, knowledge via submit_result. You may include
 subsystem using a key from coverage.areas. tester_prompt must identify RTL files
@@ -231,6 +256,24 @@ and reusable observations, with uncertain claims clearly labelled.
 """
 
 TESTER_PROMPT = """
+Read investigation_lessons and first try to falsify the plan's key assumption.
+Before lengthy DUT builds or elaborate test variants, make the smallest oracle
+probe of the claimed behavior using the intended configuration, when feasible.
+Save its command and observed result. Match implementation parameters such as PMP
+granularity, misaligned-access support, extensions and privilege settings; an
+oracle default is not evidence that the DUT must implement the same choice.
+If the expected oracle behavior is wrong, reconsider the hypothesis immediately.
+If the relevant Wally behavior also matches, submit found_bug=false with the
+specific disproof instead of building more variants of the same failed premise.
+An oracle-only probe is never enough to establish an RTL mismatch. Preserve all
+Use your MCP tool `oracle_probe_batch` or standalone Spike to test the key oracle
+assumption FIRST on 1–8 compiled ELFs in fractions of a second.
+Match implementation parameters such as PMP granularity, misaligned-access support,
+extensions and privilege settings. If Spike already agrees with Wally or contradicts
+the hypothesis (e.g. Spike also traps on illegal instructions or yields the same value),
+immediately submit found_bug=false with the disproving log, avoiding costly Verilator
+DUT builds. An oracle-only probe is never enough to establish an RTL mismatch. Preserve all
+required control, same-ELF comparison and controller verification steps for a claim.
 Read prior_critic_feedback for this target before building. Address its oracle
 configuration and assertion objections explicitly; a repeated mismatch alone
 does not resolve them. WALLY_TEST_DIR is supplied by both tools and controller.
@@ -395,7 +438,10 @@ def prompt_with_rate_limit_retry(llm, prompt: str, tools: list, role: str, emit=
     emit = emit or (lambda status, **fields: log(role, status + " " + json.dumps(redact(fields))))
     capacity = LLMCapacity.options(name="wallyguard-llm-capacity", namespace="wallyguard",
                                    get_if_exists=True).remote(LLM_CONCURRENCY)
+    planning_deadline = time.monotonic() + READ_SECONDS + HANDOFF_SECONDS if role == 'architect' else None
     def call():
+        if planning_deadline is not None and time.monotonic() >= planning_deadline:
+            raise PlanningBudgetExpired('Planning deadline exhausted without a completed handoff')
         capacity_started = time.monotonic()
         lease = uuid.uuid4().hex
         acquire = capacity.acquire.remote(lease, AGENT_TIMEOUT + 60)
@@ -412,9 +458,13 @@ def prompt_with_rate_limit_retry(llm, prompt: str, tools: list, role: str, emit=
         try:
             ref = llm.prompt.chia_remote(llm, prompt, tools=tools)
             deadline = time.monotonic() + AGENT_TIMEOUT + 30
+            if planning_deadline is not None:
+                deadline = min(deadline, planning_deadline)
             while True:
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
+                    if planning_deadline is not None:
+                        raise PlanningBudgetExpired('Planning deadline exhausted without a completed handoff')
                     raise AgentCallFailure('LLM host deadline expired')
                 try:
                     response = get(ref, timeout=min(15, remaining))
@@ -466,6 +516,14 @@ def ask_agent(role: str, scratch: str, instructions: str, context: dict) -> dict
             response = prompt_with_rate_limit_retry(llm,
                 COMMON_PROMPT + instructions + "\nContext:\n" + json.dumps(prompt_context, separators=(',', ':')),
                 [bash], role, emit)
+        except PlanningBudgetExpired as exc:
+            parsed = submitted_answer()
+            if parsed is not None:
+                return parsed
+            parsed = no_lead(str(exc))
+            bash.save('parsed.json', parsed)
+            emit('PLANNING_BUDGET_EXHAUSTED', origin='controller', reason=str(exc))
+            return parsed  # Tool shutdown and stage guard still run.
         except AgentCallFailure as exc:
             bash.ready()
             if not is_model_turn_failure(exc.api_metadata):
@@ -508,8 +566,7 @@ def ask_agent(role: str, scratch: str, instructions: str, context: dict) -> dict
 @measured_worker
 def architect(scratch: str, context: dict) -> dict:
     result = ask_agent("architect", scratch, ARCHITECT_PROMPT, context)
-    require_text(result, "target", "rationale", "tester_prompt", "knowledge")
-    return result
+    return parse_agent_response('architect', json.dumps(result))
 
 
 @ChiaFunction(num_cpus=0, max_retries=0)
@@ -873,7 +930,7 @@ def verify_command(scratch: str, command, log_path: str, timeout: int = REGRESSI
 
 @ChiaFunction(resources={"wally_sim": 1}, max_retries=0)
 @measured_worker
-def save_attempt(wally_path: str, record: dict) -> None:
+def save_attempt(wally_path: str, record: dict) -> dict:
     """Archive all attempts under runs/ beside the cvw checkout."""
     archive_started = time.monotonic()
     dest = Path(wally_path).parent / "runs" / record["tag"]
@@ -911,6 +968,8 @@ def save_attempt(wally_path: str, record: dict) -> None:
         pending = ledger.with_suffix('.json.tmp')
         pending.write_text(json.dumps(record['coverage_after'], indent=2) + '\n')
         pending.replace(ledger)
+    return dict(tag=record['tag'], safe_to_release=(record.get('active') is False
+                and not record.get('workspace_recovery_required', False)))
 
 
 def history_entry(record: dict) -> dict:
@@ -973,6 +1032,15 @@ def export_patch(wally_path: str, record: dict, expected_diff: str) -> str:
     return str(path)
 
 
+@ChiaFunction(resources={"wally_sim": 1}, max_retries=0)
+@measured_worker
+def patch_provenance(scratch: str, diff: str, record: dict) -> dict:
+    from orchestration.novelty import assess_novelty
+    return assess_novelty(scratch, diff, [json.dumps(record.get('plan', {})),
+                                       json.dumps(record.get('tester', {})),
+                                       json.dumps(record.get('fix_attempts', []))])
+
+
 def remote(function, *args, **kwargs):
     # Keep ContextVar behind an importable module: script-mode functions are
     # cloudpickled by value, and a captured ContextVar cannot be serialized.
@@ -1006,14 +1074,18 @@ def run_attempt(record: dict, history: list[dict], max_fix_attempts: int) -> Non
     record.update(remote(make_worktree, WALLY_PATH, record["tag"]))
     scratch, test_dir, base = record["scratch"], record["test_dir"], record["base_commit"]
     context = {**record, "history": history[-40:], 'coverage': coverage_summary(history, base),
+               'investigation_lessons': investigation_lessons(history, base),
                "history_dir": str(Path(WALLY_PATH).parent / "runs"),
                "original_checkout": WALLY_PATH, "isa_docs": ISA_DOCS,
                "regression_command": REGRESSION_COMMAND}
     remote(save_attempt, WALLY_PATH, record)
     log("Architect", "Studying source and choosing the next target...")
     record["plan"] = agent_stage(architect, scratch, context)
-    log("Architect", record["plan"]["target"])
+    log("Architect", record["plan"].get("target") or record["plan"].get('reason', 'No grounded lead'))
     remote(check_changes, scratch, base, False, test_dir)
+    if record['plan'].get('outcome') == 'no_grounded_lead':
+        record['status'] = 'no_grounded_lead'
+        return
     remote(save_attempt, WALLY_PATH, record)
     context["plan"] = record["plan"]
 
@@ -1154,10 +1226,12 @@ def run_attempt(record: dict, history: list[dict], max_fix_attempts: int) -> Non
             record['status'] = 'full_regression_passed'
             record['patch'] = remote(export_patch, WALLY_PATH, record, diff)
             record['status'] = 'confirmed'
+            record['novelty'] = remote(patch_provenance, scratch, diff, record)
             return
         if candidate_allowed(record):
             record['status'] = 'candidate_fix_verified'
             record['patch'] = remote(export_patch, WALLY_PATH, record, diff)
+            record['novelty'] = remote(patch_provenance, scratch, diff, record)
             return
         if fix["review"]["verdict"] == "reject":
             record["status"] = "fix_rejected"
@@ -1171,10 +1245,20 @@ def run_attempt(record: dict, history: list[dict], max_fix_attempts: int) -> Non
 def main(max_iterations: int | None = MAX_ITERATIONS, max_fix_attempts: int = MAX_FIX_ATTEMPTS):
     if max_fix_attempts < 1:
         raise ValueError("max_fix_attempts must be at least 1")
+    campaign = CampaignPolicy(float(os.environ.get('WALLY_CAMPAIGN_HOURS', '0')),
+                              int(os.environ.get('WALLY_CAMPAIGN_MAX_FAILURES', '3')))
+    campaign_started = time.monotonic()
+    # Duration mode replaces the default iteration cap, without interrupting
+    # an in-flight investigation or changing its verification requirements.
+    if campaign.hours and max_iterations == MAX_ITERATIONS:
+        max_iterations = None
     history = remote(load_history, WALLY_PATH)
     confirmed_bugs = []
     i = 0
     while max_iterations is None or i < max_iterations:
+        if campaign.expired(time.monotonic() - campaign_started):
+            log('LOOP', 'Campaign duration reached; all completed attempts archived')
+            break
         i += 1
         iteration_started = time.monotonic()
         tag = f"{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}-{uuid.uuid4().hex[:8]}"
@@ -1196,7 +1280,8 @@ def main(max_iterations: int | None = MAX_ITERATIONS, max_fix_attempts: int = MA
             log("LOOP", f"Stopping: {exc}")
             raise  # Ray must not report a workspace-blocked run as succeeded.
         except ArtifactViolation as exc:
-            record.update(status="invalid_artifacts", error=str(exc))
+            record.update(status="invalid_artifacts", error=str(exc),
+                          artifact_guard_restored=getattr(exc, 'restored', False))
             log("LOOP", f"Evidence rejected; artifacts preserved: {exc}")
         except AgentOutputInvalid as exc:
             record.update(status='agent_output_invalid', error=str(exc))
@@ -1214,18 +1299,21 @@ def main(max_iterations: int | None = MAX_ITERATIONS, max_fix_attempts: int = MA
             record['active'] = False
             record['coverage_after'] = coverage_summary(history + [history_entry(record)], record.get('base_commit', ''))
             record['duration_seconds'] = round(time.monotonic() - iteration_started, 3)
+            archive_receipt = None
             try:
-                remote(save_attempt, WALLY_PATH, record)
+                archive_receipt = remote(save_attempt, WALLY_PATH, record)
             except Exception as exc:
                 log("LOOP", f"Archive failed: {exc!r}; files remain in {record.get('scratch')}")
             history.append(history_entry(record))
             log("LOOP", f"Outcome: {record['status']}; worktree retained: {record.get('scratch')}")
             timing_state.active_record.reset(timing_context)
-        if record['status'] in {'fix_attempts_exhausted', 'fix_rejected', 'regression_blocked',
-                                'api_rate_limit', 'mcp_server_timeout', 'agent_failed',
-                                'agent_output_invalid', 'invalid_artifacts', 'controller_error'}:
-            log('LOOP', 'Stopping discovery; unresolved candidate and evidence retained')
+        reason = campaign.stop_reason(record, archive_receipt)
+        if reason:
+            log('LOOP', 'Stopping discovery: ' + reason)
             return 1
+        if record['status'] in STOP_OUTCOMES:
+            log('LOOP', 'Failed investigation archived; continuing with a fresh attempt '
+                f'({campaign.consecutive_failures}/{campaign.max_consecutive_failures} consecutive failures)')
     log("LOOP", f"Stopped after {i} iterations. Confirmed patches: {confirmed_bugs}")
     return 0
 
