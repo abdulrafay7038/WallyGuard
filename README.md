@@ -11,7 +11,7 @@ recovery mechanisms, and implementation details.
 
 ## Authors
 
-- Haiqua Ghaffaar
+- Haiqua Ghaffar
 - Abdul Rafay
 - Syed Moeed Ali
 
@@ -216,7 +216,7 @@ end-to-end speedup.
 ## Repository structure
 
 ```text
-WallyGuard2/
+WallyGuard/
 ├── README.md                  Architecture and campaign behavior
 ├── ORCHESTRATION.md           Detailed verifier and orchestration contracts
 ├── GOOGLE_GENAI.md            Historical deployment/authentication notes
