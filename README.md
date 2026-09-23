@@ -9,6 +9,12 @@ This README describes the implementation in [loop.py](loop.py). See
 [ORCHESTRATION.md](ORCHESTRATION.md) for the reproducer contract, validation rules,
 recovery mechanisms, and implementation details.
 
+## Authors
+
+- Haiqua Ghaffaar
+- Abdul Rafay
+- Syed Moeed Ali
+
 ## High-level architecture
 
 **The Architect, Tester, Critic, and RTL Fixer are LLM agents.** The controller
