@@ -17,23 +17,7 @@ deterministic verification and enforces confirmation gates; agent claims cannot
 override those results. Workers and MCP servers are execution infrastructure,
 not additional LLM agents.
 
-```mermaid
-flowchart TD
-    Driver["loop.py: CHIA / Ray controller"] --> Architect["Architect: choose investigation"]
-    Architect --> Tester["Tester: generate test and control artifacts"]
-    Tester --> Baseline["Controller: build, preflight, compare Wally / Spike twice"]
-    Baseline --> Critic["Critic: review test validity and evidence"]
-    Critic --> BaselineRegression["Controller: baseline regression"]
-    BaselineRegression --> Fixer["RTL Fixer: minimal patch in managed worktree"]
-    Fixer --> Targeted["Controller: rerun original reproducer"]
-    Targeted --> Directed["Controller: configured directed tests"]
-    Directed --> Regression["Controller: configured full regression"]
-    Regression --> Review["Critic: review fix and verification evidence"]
-    Review --> Gate{"All required gates pass?"}
-    Gate -->|Yes| Confirmed["confirmed-bugs/: exported patch"]
-    Gate -->|Retryable failure| Fixer
-    Gate -->|Incomplete or exhausted| Retained["Candidate or blocked result; preserve evidence"]
-```
+![WallyGuard architecture](docs/architecture.jpeg)
 
 The diagram shows the successful path and repair feedback. A baseline match,
 invalid test, rejected review, or infrastructure failure can end an attempt
@@ -227,7 +211,7 @@ end-to-end speedup.
 
 ```text
 WallyGuard2/
-├── README.md                  Setup and architecture
+├── README.md                  Architecture and campaign behavior
 ├── ORCHESTRATION.md           Detailed verifier and orchestration contracts
 ├── GOOGLE_GENAI.md            Historical deployment/authentication notes
 ├── loop.py                   Four-agent campaign and verification sequencing
@@ -255,155 +239,21 @@ WallyGuard2/
 └── confirmed-bugs/           Patches accepted by the full confirmation gate
 ```
 
-`cvw/` is not supplied by a WallyGuard package installation. Keep a populated CVW
-Git checkout and its dependencies on the simulation host. Generated directories
+`cvw/` is not supplied by WallyGuard. Keep a populated CVW Git checkout and its dependencies
+on the simulation host. Generated directories
 are placed beside `WALLY_PATH`, so changing that path also changes their location.
-`merge-open-prs.sh` merges upstream PRs into CVW and is not a setup or run step.
+`merge-open-prs.sh` merges upstream PRs into CVW and is not part of the campaign flow.
 
-## Setup
-
-### 1. Python and CHIA
-
-The local CHIA installation documents Python **3.10.19**, matching its worker
-images. On a fresh host, with a CHIA source checkout available:
-
-```bash
-conda create -n chia_env python=3.10.19
-conda activate chia_env
-python -m pip install -e /path/to/chia
-```
-
-For the existing deployment:
-
-```bash
-source "$HOME/miniconda3/etc/profile.d/conda.sh"
-conda activate chia_env
-cd "$HOME/miniconda3/WallyGuard2"
-```
-
-This repository has no Python packaging manifest or root Makefile. Run from the
-repository root. The job submission below uploads `loop.py` and `orchestration/`
-through Ray's working-directory runtime environment; it does not install CHIA,
-EDA tools, or credentials on a fresh machine.
-
-### 2. Wally and regression prerequisites
-
-Use the intended CVW revision, with initialized dependencies and no unresolved
-Git merges. Follow that checkout's `README.md` and official toolchain installation
-scripts for the RISC-V compiler, Spike, Verilator, `uv`, and any simulator/license
-requirements of the selected regression.
-
-From the WallyGuard repository root, activate the installed toolchain:
-
-```bash
-export WALLY_PATH="$(pwd)/cvw"
-source "$WALLY_PATH/setup.sh"
-export WALLY_SPIKE="$HOME/riscv/bin/spike"
-"$WALLY_SPIKE" --help 2>&1 | head -n 3
-git -C "$WALLY_PATH" status --short
-command -v spike verilator uv
-```
-
-For an already installed toolchain, CVW's documented test preparation and baseline
-regression commands are:
-
-```bash
-(
-    cd "$WALLY_PATH"
-    git submodule update --init --recursive
-    make --jobs
-    bin/regression-wally
-)
-```
-
-Run preparation before the first campaign. The current CVW Makefile includes
-architectural tests, RISCOF tests, peripheral tests, floating-point vectors,
-coverage tests, and other generated inputs. Optional regression modes can require
-additional inputs such as Linux/Buildroot or commercial tools; `make` alone is not
-a guarantee that every optional suite is ready. Inspect the selected checkout's
-`bin/regression-wally --help` and suite documentation.
-
-The loop's **test preflight** validates generated reproducers. It does **not**
-automatically install missing full-regression prerequisites. Baseline regression
-infrastructure failures produce `regression_blocked`, not confirmation.
-
-### 3. Model credentials
-
-The current Architect, Tester, and Critic defaults use Vertex AI through OpenCode.
-Set your project and configure Application Default Credentials on the host:
-
-```bash
-export GOOGLE_CLOUD_PROJECT="your-project-id"
-gcloud auth application-default login
-gcloud auth application-default set-quota-project "$GOOGLE_CLOUD_PROJECT"
-```
-
-The cluster mounts `$HOME/.config/gcloud` read-only at
-`/home/ray/.config/gcloud` in the OpenCode container. Its user must be able to read
-those credentials, and the project must have access to the configured models.
-The Fixer defaults to the configured Tester model and uses the same provider
-credentials and billing. Set `CHIA_FIXER_MODEL` to select a different model
-explicitly. The former free OpenCode default was rejected by the provider in
-this deployment; retrying that restriction does not restore access.
-Do not put credential contents into runtime-environment JSON or repository files.
-
-If Gemini reports `Requests ending with a model turn are not supported.`, the
-OpenCode wrapper adds a user continuation in the same session, preserving the
-model, tools and assignment. A second continuation is allowed only if the first
-completed new, identified tool calls before encountering the same error again.
-There are at most two continuations, sharing the original deadline. Repeated
-errors without new tool activity, a changed session or other HTTP errors cannot
-unlock the second continuation. Streams and recovery counts are retained. The
-quoted-continuation parser was verified against a real completed session; the
-new second-continuation path is tested using saved streams and mocked calls,
-not a newly completed live campaign. Provider errors can still recur.
-
-[GOOGLE_GENAI.md](GOOGLE_GENAI.md) contains deployment-specific ADC permission
-notes. Its older model defaults, submission helpers, and recovery descriptions
-may differ from current code; use this README and `loop.py` for current behavior.
-
-### 4. Start and check the cluster
-
-The supplied [cluster.yaml](cluster.yaml) assumes Miniconda at
-`/home/${USER}/miniconda3`, the `chia_env` environment, and CVW at
-`/home/${USER}/miniconda3/WallyGuard2/cvw`. Check these paths on a different host.
-The SSH key must already authorize access to the head host, and Docker must be
-available. `GCP_PRIVATE_KEY_PATH` is the configuration's SSH-key variable; the
-file does not provision a new GCP machine.
+## Deployment variables
 
 ```bash
 export HEAD_IP="$(hostname -I | awk '{print $1}')"
 export GCP_PRIVATE_KEY_PATH="$HOME/.ssh/chia_gcp"
-# GOOGLE_CLOUD_PROJECT must also be exported before cluster creation.
-chia up cluster.yaml -y
-curl --fail --silent --show-error http://127.0.0.1:8265/ >/dev/null
 ```
-
-On hosts with multiple interfaces, set `HEAD_IP` to the address reachable by the
-workers. Use the dashboard on the head host, or through your existing tunnel.
-Verify worker resources from the activated environment:
-
-```bash
-python -B - <<'CHECK_CLUSTER'
-import ray
-ray.init(address="auto")
-resources = ray.cluster_resources()
-print(resources)
-assert resources.get("wally_sim", 0) >= 1, "CVW worker is missing"
-assert resources.get("opencode_creds", 0) >= 1, "OpenCode worker is missing"
-ray.shutdown()
-CHECK_CLUSTER
-```
-
-The configured OpenCode worker advertises three credential resource units; the
-loop additionally defaults to one concurrent LLM call. Dashboard reachability
-and resource registration do not prove model authentication or toolchain health.
-Cluster start commands include `ray stop`; start/recreate it only when existing
-jobs can be interrupted. This repository uses `chia up`, not `make cluster`.
 
 ## Run the full configured loop
 
-Run these commands from the repository root after setup and cluster checks.
+Run these commands from the repository root in the configured deployment.
 Select directed tests relevant to the investigation; `arch64i` below is an
 example requiring its architectural-test assets.
 
