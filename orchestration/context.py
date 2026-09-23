@@ -95,11 +95,10 @@ def agent_context(role: str, context: dict) -> dict:
     # Include concise observations so tooling mistakes do not require another
     # investigation of the archive. Agent notes remain explicitly unverified.
     if role == 'architect':
-        from .planning import MAX_COMMANDS, READ_SECONDS
         result['coverage'] = deepcopy(context.get('coverage', {}))
-        result['exploration_budget'] = dict(commands=12, deeply_read_files=6, minutes=8,
-            policy='Advisory: hand off once grounded. If more reading is essential, explain the missing fact '
-                   'in extension_reason on the next tool call; no forced failure or reduced agent timeout.')
+        result['exploration_budget'] = dict(
+            policy='Open-ended source investigation. Continue until a strong, source-grounded lead is ready; '
+                   'do not hand off merely because of command count or elapsed time.')
         result['repository_subsystems'] = {
             'mmu': 'src/mmu/ (mmu.sv, hptw.sv, pmpchecker.sv, adrdec.sv, tlb.sv)',
             'cache': 'src/cache/ (cache.sv, cachefsm.sv, cacheway.sv, cmo.sv)',
@@ -115,11 +114,8 @@ def agent_context(role: str, context: dict) -> dict:
             for entry in context.get('history', [])[-5:] if entry.get('target')
         ]
         result['exploration_budget'] = dict(
-            max_commands=MAX_COMMANDS,
-            minutes=READ_SECONDS // 60,
-            policy=f'Strict budget: maximum {MAX_COMMANDS} commands / {READ_SECONDS // 60} minutes. '
-                   f'After 8 commands, extension_reason is required. Stay within ONE subsystem. '
-                   'Do not run git log or directory scans; use repository_subsystems.'
+             policy='Open-ended source investigation: stay within ONE subsystem and continue until a strong, '
+                 'source-grounded lead is ready. Do not run git log or directory scans; use repository_subsystems.'
         )
         result['history'] = [{key: str(entry.get(key, ''))[:400]
                               for key in ('tag', 'target', 'status', 'observed_failure', 'source_base')}

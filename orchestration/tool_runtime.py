@@ -23,7 +23,6 @@ from .toolchain import simulation_env
 from .timing import record_event, export_timing
 from .opencode_recovery import continuation_session, clear_recovered_error, completed_tool_ids, CONTINUATION
 from .agent_protocol import parse_agent_response
-from .planning import MAX_COMMANDS, READ_SECONDS
 
 
 @ray.remote(num_cpus=0)
@@ -191,16 +190,11 @@ class ManagedBashTool(ChiaTool):
             if getattr(self, 'role', '') == 'architect':
                 elapsed = time.monotonic() - getattr(self, '_stage_started', time.monotonic())
                 count = getattr(self, '_metrics', {}).get('commands', 0)
-                result['planning_progress'] = dict(commands=count, elapsed_seconds=round(elapsed, 1),
-                    reminder=(
-                        'Handoff budget reached: submit the chosen narrow investigation with '
-                        'unverified assumptions. Stay in the same subsystem; an extension must '
-                        'resolve a blocking fact for this lead, not introduce a new topic. '
-                        'Leave oracle probes, assembly and simulation to Tester.'
-                        if count >= 8 or elapsed >= (READ_SECONDS * 0.7) else
-                        f'Plan one target in one subsystem; leave builds and simulation to Tester. '
-                        f'Aim for {MAX_COMMANDS} commands / {READ_SECONDS//60} minutes.'
-                    ))
+                result['planning_progress'] = dict(
+                    commands=count,
+                    elapsed_seconds=round(elapsed, 1),
+                    reminder='Continue source investigation until a strong lead is grounded. '
+                             'Stay in one subsystem; leave oracle probes, assembly and simulation to Tester.')
             return json.dumps(result)
         except (OSError, ValueError) as exc:
             return json.dumps(dict(status='INFRA_FAILURE', job_id=job_id,
@@ -305,23 +299,11 @@ class ManagedBashTool(ChiaTool):
         if getattr(self, 'role', '') == 'architect':
             count = getattr(self, '_metrics', {}).get('commands', 0)
             elapsed = time.monotonic() - getattr(self, '_stage_started', time.monotonic())
-            if count >= MAX_COMMANDS or elapsed >= READ_SECONDS:
-                return json.dumps(dict(status='PLANNING_BUDGET_EXHAUSTED', commands=count,
-                    reason='No more planning commands are permitted, including with extension_reason. '
-                           'Submit an evidence-labelled investigate plan or outcome=no_grounded_lead '
-                           'with reason and knowledge. Do not invent a finding.'))
-            if count >= 8 and not extension_reason.strip():
-                return json.dumps(dict(status='PLANNING_HANDOFF_REQUIRED', commands=count,
-                    reason='Command not executed. Return your best source-grounded narrow target with '
-                           'uncertainties for Tester, or repeat this call with extension_reason naming '
-                           'the specific missing fact needed to form the hypothesis. Do not start a new survey.'))
         try:
             requested = float(os.environ.get('WALLY_COMMAND_TIMEOUT', '120')) if timeout_seconds is None else timeout_seconds
             if isinstance(requested, bool) or not isinstance(requested, (float, int)) or not math.isfinite(requested) or requested <= 0:
                 raise ValueError('timeout_seconds must be positive and finite')
             deadline = min(requested, self.timeout_seconds)
-            if getattr(self, 'role', '') == 'architect':
-                deadline = min(deadline, max(.01, READ_SECONDS - elapsed))
         except (TypeError, ValueError) as exc:
             return json.dumps(dict(status='INVALID_COMMAND', error=str(exc)))
         # Completed metadata is bounded; full logs are never discarded.

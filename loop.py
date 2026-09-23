@@ -37,7 +37,7 @@ from orchestration.derived_configs import prepare_derived_configs
 from orchestration.campaign import CampaignPolicy, STOP_OUTCOMES
 from orchestration.processes import run_command
 from orchestration.context import agent_context, observed_failure, review_history, investigation_lessons
-from orchestration.planning import READ_SECONDS, HANDOFF_SECONDS, PlanningBudgetExpired, no_lead
+from orchestration.planning import PlanningBudgetExpired, no_lead
 from orchestration.scaffold import seed_harness
 from orchestration.toolchain import simulation_env, validate_spike
 from orchestration.input_files import input_files
@@ -231,14 +231,6 @@ Each post-budget extension must resolve a blocking fact about the chosen lead,
 not start a new topic. Oracle probes, assembling instruction encodings and test
 development belong to Tester, not planning.
 
-Budget roughly 12 shell commands, 6 deeply read source files, and 8 minutes.
-These are handoff checkpoints, not stage failure limits. After 12 commands or
-8 minutes, a further command requires extension_reason naming the concrete
-missing fact; otherwise the tool returns PLANNING_HANDOFF_REQUIRED without
-executing it. Return the best grounded lead with explicit uncertainties when
-further facts can be checked by Tester. Do not compile, simulate, debug harnesses or inspect tool
-installations during planning. Leave those tasks to the Tester. You may only
-write under test_dir. Do not perform repository-wide or home-directory surveys.
 Consult repository_subsystems and recent_commits in your context; do NOT run git log,
 ls, or broad directory exploration. Focus strictly on ONE subsystem (preferring
 coverage.prefer). Read 2–4 targeted source files using grep or sed, check the normative
@@ -257,15 +249,6 @@ and reusable observations, with uncertain claims clearly labelled.
 
 TESTER_PROMPT = """
 Read investigation_lessons and first try to falsify the plan's key assumption.
-Before lengthy DUT builds or elaborate test variants, make the smallest oracle
-probe of the claimed behavior using the intended configuration, when feasible.
-Save its command and observed result. Match implementation parameters such as PMP
-granularity, misaligned-access support, extensions and privilege settings; an
-oracle default is not evidence that the DUT must implement the same choice.
-If the expected oracle behavior is wrong, reconsider the hypothesis immediately.
-If the relevant Wally behavior also matches, submit found_bug=false with the
-specific disproof instead of building more variants of the same failed premise.
-An oracle-only probe is never enough to establish an RTL mismatch. Preserve all
 Use your MCP tool `oracle_probe_batch` or standalone Spike to test the key oracle
 assumption FIRST on 1–8 compiled ELFs in fractions of a second.
 Match implementation parameters such as PMP granularity, misaligned-access support,
@@ -438,10 +421,7 @@ def prompt_with_rate_limit_retry(llm, prompt: str, tools: list, role: str, emit=
     emit = emit or (lambda status, **fields: log(role, status + " " + json.dumps(redact(fields))))
     capacity = LLMCapacity.options(name="wallyguard-llm-capacity", namespace="wallyguard",
                                    get_if_exists=True).remote(LLM_CONCURRENCY)
-    planning_deadline = time.monotonic() + READ_SECONDS + HANDOFF_SECONDS if role == 'architect' else None
     def call():
-        if planning_deadline is not None and time.monotonic() >= planning_deadline:
-            raise PlanningBudgetExpired('Planning deadline exhausted without a completed handoff')
         capacity_started = time.monotonic()
         lease = uuid.uuid4().hex
         acquire = capacity.acquire.remote(lease, AGENT_TIMEOUT + 60)
@@ -458,13 +438,9 @@ def prompt_with_rate_limit_retry(llm, prompt: str, tools: list, role: str, emit=
         try:
             ref = llm.prompt.chia_remote(llm, prompt, tools=tools)
             deadline = time.monotonic() + AGENT_TIMEOUT + 30
-            if planning_deadline is not None:
-                deadline = min(deadline, planning_deadline)
             while True:
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
-                    if planning_deadline is not None:
-                        raise PlanningBudgetExpired('Planning deadline exhausted without a completed handoff')
                     raise AgentCallFailure('LLM host deadline expired')
                 try:
                     response = get(ref, timeout=min(15, remaining))

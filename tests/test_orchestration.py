@@ -134,6 +134,33 @@ class RetryTests(unittest.TestCase):
         sleep.assert_not_called()
         self.assertEqual(emit.call_args.kwargs['stderr'], 'CLI broke')
 
+    def test_empty_response_retries_then_succeeds(self):
+        empty = SimpleNamespace(success=True, result='', api_metadata={})
+        success = SimpleNamespace(success=True, result='plan')
+        call, emit, sleep = Mock(side_effect=[empty, success]), Mock(), Mock()
+        self.assertIs(retry_call(call, lambda e:False, emit, sleep=sleep), success)
+        sleep.assert_called_once_with(5)
+        self.assertEqual(call.call_count, 2)
+        self.assertEqual(emit.call_args_list[0].args[0], 'AGENT_EMPTY_RESPONSE')
+
+    def test_empty_response_retry_is_bounded(self):
+        empty = SimpleNamespace(success=True, result='', api_metadata={})
+        call, emit, sleep = Mock(return_value=empty), Mock(), Mock()
+        with self.assertRaises(AgentCallFailure):
+            retry_call(call, lambda e:False, emit, sleep=sleep)
+        self.assertEqual(call.call_count, 2)
+        sleep.assert_called_once_with(5)
+        event = emit.call_args_list[-1]
+        self.assertEqual(event.args[0], 'AGENT_EMPTY_RESPONSE')
+        self.assertFalse(event.kwargs['will_retry'])
+
+    def test_zero_exit_empty_response_retries_even_if_unsuccessful(self):
+        empty = SimpleNamespace(success=False, result='', returncode=0, api_metadata={})
+        success = SimpleNamespace(success=True, result='plan')
+        call, sleep = Mock(side_effect=[empty, success]), Mock()
+        self.assertIs(retry_call(call, lambda e:False, Mock(), sleep=sleep), success)
+        sleep.assert_called_once_with(5)
+
     def test_mcp_restart_once_same_call(self):
         first, second = Mock(), Mock()
         first.ready.side_effect = MCPFailure('hung')

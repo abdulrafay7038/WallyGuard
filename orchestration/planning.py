@@ -1,11 +1,8 @@
 """Planning limits and validated handoffs; no planning outcome proves a bug."""
-import os
 from .retry_policy import AgentCallFailure
 
-MAX_COMMANDS = 24
-READ_SECONDS = 480
-MAX_COMMANDS = min(16, max(6, int(os.environ.get('WALLY_ARCHITECT_MAX_COMMANDS', '14'))))
-READ_SECONDS = min(600, max(120, int(os.environ.get('WALLY_ARCHITECT_MAX_SECONDS', '360'))))
+MAX_COMMANDS = None
+READ_SECONDS = None
 HANDOFF_SECONDS = 90
 
 

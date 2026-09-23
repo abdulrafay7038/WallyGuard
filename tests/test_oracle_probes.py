@@ -1,4 +1,4 @@
-"""Unit tests for oracle batch probes and planning budget limits."""
+"""Unit tests for oracle batch probes and architect planning."""
 import json
 import os
 import tempfile
@@ -69,11 +69,9 @@ class OracleProbesTests(unittest.TestCase):
 
 
 class PlanningBudgetTests(unittest.TestCase):
-    def test_budget_bounds(self):
-        self.assertLessEqual(MAX_COMMANDS, 16)
-        self.assertGreaterEqual(MAX_COMMANDS, 6)
-        self.assertLessEqual(READ_SECONDS, 600)
-        self.assertGreaterEqual(READ_SECONDS, 120)
+    def test_architect_planning_is_open_ended(self):
+        self.assertIsNone(MAX_COMMANDS)
+        self.assertIsNone(READ_SECONDS)
 
     def test_validate_plan_valid(self):
         plan = {
