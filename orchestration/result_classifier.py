@@ -34,6 +34,15 @@ class ReproducerResult:
 WATCHDOG = re.compile(r'(?:FAILURE:\s*)?Watch\s*Dog\s*Time\s*Out|watchdog.*(?:timeout|time out)', re.I)
 TOOL_ERROR = re.compile(r'command not found|No such file or directory|cannot open|failed to open|%Error|segmentation fault|make(?:\[\d+\])?: \*\*\*|Usage: elf2hex', re.I)
 FAILURE = re.compile(r'\bFAIL(?:URE|ED)?\b|\bError:|Assertion .*failed', re.I)
+# This elaboration advisory predicts possible failures; it is not a test result.
+# Match the entire known message so appended errors cannot be hidden.
+RAM_SIZE_ADVISORY = re.compile(
+    r"(?:\[\d+\]\s+)?%Warning: (?:[^\s:]+/)?riscvassertions_wally\.sv:\d+: "
+    r"[\w.]+: Some regression tests will fail if UNCORE_RAM_RANGE is less than 64'h07FFFFFF")
+
+
+def is_ram_size_advisory(line: str) -> bool:
+    return RAM_SIZE_ADVISORY.fullmatch(line.rstrip('\r\n')) is not None
 
 
 def classify(command: dict, wally_log: str = '', oracle_log: str = '', *,
@@ -52,7 +61,9 @@ def classify(command: dict, wally_log: str = '', oracle_log: str = '', *,
         status, reason = Outcome.DUT_WATCHDOG_FAILURE, 'DUT watchdog marker (not a host timeout)'
     elif code != 0:
         status, reason = Outcome.TOOL_FAILURE, 'Command did not complete normally'
-    elif not complete or equal is None or FAILURE.search(wally_log):
+    elif not complete or equal is None or any(
+            FAILURE.search(line) and not is_ram_size_advisory(line)
+            for line in wally_log.splitlines()):
         status, reason = Outcome.TEST_INVALID, 'Missing/invalid completion or independent oracle artifacts'
     else:
         status = Outcome.MATCH if equal else Outcome.MISMATCH_CONFIRMED

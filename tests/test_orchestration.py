@@ -15,7 +15,7 @@ from orchestration.event_log import configure_logger, event, redact
 from orchestration.retry_policy import RetryPolicy, retry_call, AgentCallFailure, MCPFailure
 from orchestration.result_classifier import classify, Outcome, artifact_argv
 from orchestration.stage_runner import with_tool_recovery
-from orchestration.test_preflight import run_reproducer, vector_preflight
+from orchestration.test_preflight import run_reproducer, vector_preflight, log_markers
 from orchestration.processes import run_command
 
 
@@ -66,6 +66,33 @@ class ProtocolTests(unittest.TestCase):
 
 
 class ClassifierTests(unittest.TestCase):
+    advisory = ("[0] %Warning: riscvassertions_wally.sv:45: testbench.riscvassertions_wally: "
+                "Some regression tests will fail if UNCORE_RAM_RANGE is less than 64'h07FFFFFF\n")
+
+    def test_ram_advisory_still_requires_complete_comparison(self):
+        for complete, equal, expected in (
+                (True, True, Outcome.MATCH), (True, False, Outcome.MISMATCH_CONFIRMED),
+                (False, True, Outcome.TEST_INVALID), (True, None, Outcome.TEST_INVALID)):
+            with self.subTest(complete=complete, equal=equal):
+                self.assertEqual(classify({'returncode': 0}, self.advisory,
+                    complete=complete, equal=equal).status, expected)
+
+    def test_ram_advisory_does_not_hide_actual_failures(self):
+        for marker, expected in (
+                ('FAIL: bad result', Outcome.TEST_INVALID),
+                ('%Warning: Assertion failed', Outcome.TEST_INVALID),
+                ('%Error: simulator stopped', Outcome.TOOL_FAILURE),
+                ('FAILURE: Watch Dog Time Out', Outcome.DUT_WATCHDOG_FAILURE)):
+            for log in (self.advisory + marker, marker + '\n' + self.advisory,
+                        self.advisory.rstrip() + ' ' + marker):
+                with self.subTest(log=log):
+                    with tempfile.TemporaryDirectory() as directory:
+                        path = Path(directory) / 'wally.log'
+                        path.write_text(log)
+                        for text in (log, log_markers(path)):
+                            self.assertEqual(classify({'returncode': 0}, text,
+                                complete=True, equal=True).status, expected)
+
     def test_watchdog_zero_is_not_host_timeout(self):
         result = classify({'returncode':0}, 'FAILURE: Watch Dog Time Out', complete=True, equal=False)
         self.assertEqual(result.status, Outcome.DUT_WATCHDOG_FAILURE)
@@ -505,7 +532,7 @@ class ToolRuntimeTests(unittest.TestCase):
 
 class NativeSelfCheckTests(unittest.TestCase):
     setUp = PreflightTests.setUp
-    def run_selfcheck(self, *, matched=False, watchdog=False, tool_error=False, extra_error='', summary=True, equal_values=False):
+    def run_selfcheck(self, *, matched=False, watchdog=False, tool_error=False, extra_error='', summary=True, equal_values=False, advisory=False):
         header=bytearray(64);header[:5]=b'\x7fELF\x02';header[18:20]=(243).to_bytes(2,'little')
         (self.tests/'build/test.elf').write_bytes(header)
         source=self.root/'testbench/testbench.sv';source.parent.mkdir()
@@ -537,6 +564,8 @@ class NativeSelfCheckTests(unittest.TestCase):
                 content=''
                 if log.stem.endswith('oracle'):
                     (self.tests/'build'/f'{log.stem}.sig').write_text('0000000000000001\n'+'0000000000000000\n'*4)
+            if advisory and log.stem.endswith('wally'):
+                content = ClassifierTests.advisory + content
             log.write_text(content)
             failed=log.stem=='test-wally' and not matched
             return {'status':'COMMAND_FAILED' if failed else 'PASS','returncode':134 if failed else 0,
@@ -547,6 +576,9 @@ class NativeSelfCheckTests(unittest.TestCase):
         result=self.run_selfcheck()
         self.assertEqual(result['status'],Outcome.MISMATCH_CONFIRMED)
         self.assertEqual(result['fingerprint']['wally'],'00000002')
+    def test_native_match_with_ram_advisory(self):
+        self.assertEqual(self.run_selfcheck(matched=True, advisory=True)['status'], Outcome.MATCH)
+
     def test_native_match(self):
         self.assertEqual(self.run_selfcheck(matched=True)['status'],Outcome.MATCH)
     def test_equal_values_in_failure_record_are_invalid_not_a_bug(self):

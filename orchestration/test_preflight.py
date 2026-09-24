@@ -9,7 +9,7 @@ import re
 import shutil
 import time
 from .processes import run_command
-from .result_classifier import Outcome, ReproducerResult, artifact_argv, classify, FAILURE, TOOL_ERROR, WATCHDOG
+from .result_classifier import Outcome, ReproducerResult, artifact_argv, classify, FAILURE, TOOL_ERROR, WATCHDOG, is_ram_size_advisory
 
 TRAP_VECTOR_TEMPLATE = '''# Direct-mode trap entry: low two address bits must be zero.
 .balign 4
@@ -48,6 +48,10 @@ def log_markers(path: Path, omit_line=None) -> str:
                 'success': re.compile(r'succeeded\.  Brilliant!!!')}
     with path.open(errors='replace') as stream:
         for line in stream:
+            # Exclude the advisory before selecting the first failure marker,
+            # otherwise it can hide a real failure later in the log.
+            if is_ram_size_advisory(line):
+                continue
             if omit_line is not None and omit_line.fullmatch(line.rstrip('\r\n')):
                 continue
             for key, pattern in patterns.items():
