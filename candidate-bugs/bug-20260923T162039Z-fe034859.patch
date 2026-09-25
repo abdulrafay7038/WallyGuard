@@ -1,0 +1,45 @@
+diff --git a/src/lsu/lsu.sv b/src/lsu/lsu.sv
+index 8a7ab3998..9e3837a09 100644
+--- a/src/lsu/lsu.sv
++++ b/src/lsu/lsu.sv
+@@ -206,7 +206,7 @@ module lsu import cvw::*;  #(parameter cvw_t P) (
+     hptw #(P) hptw(.clk, .reset, .MemRWM, .AtomicM, .ITLBMissOrUpdateAF, .ITLBWriteF,
+       .DTLBMissOrUpdateDAM, .DTLBWriteM,
+       .FlushW, .DCacheBusStallM, .MemAccessInFlightM, .MemAccessDoneM, .SATP_REGW, .PCSpillF,
+-      .STATUS_MXR, .STATUS_SUM, .STATUS_MPRV, .STATUS_MPP, .ENVCFG_ADUE, .PrivilegeModeW,
++      .STATUS_MXR, .STATUS_SUM, .STATUS_MPRV, .STATUS_MPP, .ENVCFG_PBMTE, .ENVCFG_ADUE, .PrivilegeModeW,
+       .ReadDataM(ReadDataM[P.XLEN-1:0]), // ReadDataM is LLEN, but HPTW only needs XLEN
+       .WriteDataM(WriteDataZM), .Funct3M, .LSUFunct3M, .Funct7M, .LSUFunct7M,
+       .IEUAdrExtM, .PTE, .IHWriteDataM, .PageType, .PreLSURWM, .LSUAtomicM,
+diff --git a/src/mmu/hptw.sv b/src/mmu/hptw.sv
+index 323f97738..647911916 100644
+--- a/src/mmu/hptw.sv
++++ b/src/mmu/hptw.sv
+@@ -42,6 +42,7 @@ module hptw import cvw::*;  #(parameter cvw_t P) (
+   // system status
+   input  logic              STATUS_MXR, STATUS_SUM, STATUS_MPRV,
+   input  logic [1:0]        STATUS_MPP,
++  input  logic              ENVCFG_PBMTE,
+   input  logic              ENVCFG_ADUE,            // HPTW A/D Update enable
+   input  logic [1:0]        PrivilegeModeW,
+   input  logic [P.XLEN-1:0] ReadDataM,              // page table entry from LSU
+@@ -238,7 +239,18 @@ module hptw import cvw::*;  #(parameter cvw_t P) (
+     assign InvalidRead = ReadAccess & ~Readable & (~STATUS_MXR | ~Executable);
+     assign InvalidWrite = WriteAccess & ~Writable;
+     assign InvalidOp = DTLBWalk ? (InvalidRead | InvalidWrite) : ~Executable;
+-    assign OtherPageFault = ImproperPrivilege | InvalidOp | UpperBitsUnequalD | Misaligned | ~Valid;
++    logic                 LeafReservedFault;
++    if (P.XLEN == 64) begin : leafres
++      logic BadPBMT, BadNAPOT, BadReserved, NAPOT4;
++      assign NAPOT4 = (PTE[13:10] == 4'b1000);
++      assign BadPBMT = ((PTE[62:61] != 0) & ~(P.SVPBMT_SUPPORTED & ENVCFG_PBMTE)) | (PTE[62:61] == 3);
++      assign BadNAPOT = PTE[63] & (~P.SVNAPOT_SUPPORTED | ~NAPOT4);
++      assign BadReserved = |PTE[60:54];
++      assign LeafReservedFault = BadPBMT | BadNAPOT | BadReserved;
++    end else begin : leafres
++      assign LeafReservedFault = 1'b0;
++    end
++    assign OtherPageFault = ImproperPrivilege | InvalidOp | UpperBitsUnequalD | Misaligned | ~Valid | LeafReservedFault;
+ 
+     // hptw needs to know if there is a Dirty or Access fault occurring on this
+     // memory access.  If there is the PTE needs to be updated setting Access

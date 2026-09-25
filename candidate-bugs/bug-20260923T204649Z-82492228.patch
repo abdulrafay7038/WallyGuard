@@ -1,0 +1,78 @@
+diff --git a/src/ifu/ifu.sv b/src/ifu/ifu.sv
+index 52ff088c1..12848aa58 100644
+--- a/src/ifu/ifu.sv
++++ b/src/ifu/ifu.sv
+@@ -213,6 +213,7 @@ module ifu import cvw::*;  #(parameter cvw_t P) (
+          .VAdr(PCFExt),
+          .Size(2'b10),
+          .AMOCASPairM(1'b0),
++         .QuadWordFPM(1'b0),
+          .PTE(PTE),
+          .PageTypeWriteVal(PageType),
+          .TLBWrite(ITLBWriteF),
+diff --git a/src/lsu/lsu.sv b/src/lsu/lsu.sv
+index 9e3837a09..a92119577 100644
+--- a/src/lsu/lsu.sv
++++ b/src/lsu/lsu.sv
+@@ -274,7 +274,7 @@ module lsu import cvw::*;  #(parameter cvw_t P) (
+     assign WriteAccessM = PreLSURWM[0];
+     mmu #(.P(P), .TLB_ENTRIES(P.DTLB_ENTRIES), .IMMU(0))
+     dmmu(.clk, .reset, .SATP_REGW, .STATUS_MXR, .STATUS_SUM, .STATUS_MPRV, .STATUS_MPP, .ENVCFG_PBMTE, .ENVCFG_ADUE,
+-      .PrivilegeModeW, .DisableTranslation, .VAdr(IHAdrM), .Size(LSUFunct3M[1:0]), .AMOCASPairM(AMOCASPairM),
++      .PrivilegeModeW, .DisableTranslation, .VAdr(IHAdrM), .Size(LSUFunct3M[1:0]), .AMOCASPairM(AMOCASPairM), .QuadWordFPM(FpLoadStoreM & (LSUFunct3M == 3'b100)),
+       .PTE, .PageTypeWriteVal(PageType), .TLBWrite(DTLBWriteM), .TLBFlush(sfencevmaM), .TLBFlushAll(sfencevmaAllM),
+       .PhysicalAddress(PAdrM), .TLBMiss(DTLBMissM), .Cacheable(CacheableM), .Idempotent(), .SelTIM(SelDTIM),
+       .InstrAccessFaultF(), .LoadAccessFaultM(LSULoadAccessFaultM),
+diff --git a/src/mmu/mmu.sv b/src/mmu/mmu.sv
+index 648b064b3..9d78f921b 100644
+--- a/src/mmu/mmu.sv
++++ b/src/mmu/mmu.sv
+@@ -42,6 +42,7 @@ module mmu import cvw::*;  #(parameter cvw_t P,
+   input  logic [P.XLEN+1:0]    VAdr,               // virtual/physical address from IEU or physical address from HPTW
+   input  logic [1:0]           Size,
+   input  logic                 AMOCASPairM,               // access size: 00 = 8 bits, 01 = 16 bits, 10 = 32 bits , 11 = 64 bits
++  input  logic                 QuadWordFPM,
+   input  logic [P.XLEN-1:0]    PTE,                // page table entry
+   input  logic [2:0]           PageTypeWriteVal,   // page type
+   input  logic                 TLBWrite,           // write TLB entry
+@@ -125,7 +126,7 @@ module mmu import cvw::*;  #(parameter cvw_t P,
+   if (P.PMP_ENTRIES > 0) begin : pmp
+     pmpchecker #(P) pmpchecker(.PhysicalAddress, .EffectivePrivilegeModeW,
+       .PMPCFG_ARRAY_REGW, .PMPADDR_ARRAY_REGW,
+-      .ExecuteAccessF, .WriteAccessM, .ReadAccessM, .Size, .AMOCASPairM, .CMOpM,
++      .ExecuteAccessF, .WriteAccessM, .ReadAccessM, .Size, .AMOCASPairM, .QuadWordFPM, .CMOpM,
+       .PMPInstrAccessFaultF, .PMPLoadAccessFaultM, .PMPStoreAmoAccessFaultM);
+   end else begin
+     assign PMPInstrAccessFaultF     = 1'b0;
+@@ -137,7 +138,8 @@ module mmu import cvw::*;  #(parameter cvw_t P,
+ 
+   // Misaligned faults
+   always_comb // exclusion-tag: immu-wordaccess
+-    if (AMOCASPairM) DataMisalignedM = (P.XLEN == 64) ? |VAdr[3:0] : |VAdr[2:0];
++    if (QuadWordFPM) DataMisalignedM = |VAdr[3:0];
++    else if (AMOCASPairM) DataMisalignedM = (P.XLEN == 64) ? |VAdr[3:0] : |VAdr[2:0];
+     else case(Size)
+       2'b00:  DataMisalignedM = 1'b0;              // lb, sb, lbu
+       2'b01:  DataMisalignedM = VAdr[0];           // lh, sh, lhu
+diff --git a/src/mmu/pmpchecker.sv b/src/mmu/pmpchecker.sv
+index 656bfe845..7a60a6d64 100644
+--- a/src/mmu/pmpchecker.sv
++++ b/src/mmu/pmpchecker.sv
+@@ -45,6 +45,7 @@ module pmpchecker import cvw::*;  #(parameter cvw_t P) (
+   input  logic                     ExecuteAccessF, WriteAccessM, ReadAccessM,
+   input  logic [1:0]               Size,
+   input  logic                     AMOCASPairM,
++  input  logic                     QuadWordFPM,
+   input  logic [3:0]               CMOpM,
+   output logic                     PMPInstrAccessFaultF,
+   output logic                     PMPLoadAccessFaultM,
+@@ -83,7 +84,8 @@ module pmpchecker import cvw::*;  #(parameter cvw_t P) (
+       .Match, .L, .X, .W, .R);
+ 
+     // Check PMP permissions at the last byte of multi-byte accesses to detect boundary crossings
+-    assign SizeBytesMinus1 = AMOCASPairM ? ((P.XLEN == 64) ? 4'd15 : 4'd7) : ((4'd1 << Size) - 4'd1);
++    assign SizeBytesMinus1 = QuadWordFPM ? 4'd15 :
++                             AMOCASPairM ? ((P.XLEN == 64) ? 4'd15 : 4'd7) : ((4'd1 << Size) - 4'd1);
+     assign EndAddress = PhysicalAddress + {{(P.PA_BITS-4){1'b0}}, SizeBytesMinus1};
+ 
+     pmpadrdec #(P) pmpadrdecs_end[P.PMP_ENTRIES-1:0](
