@@ -1,17 +1,49 @@
-WallyGuard patch set for the 7 associated CORE-V Wally PRs
+WallyGuard patch provenance
 
-Original recovered files from the supplied bugs.zip:
-- bug-20260923T042133Z-b2f651bd.patch -> PR #1892
-- bug-20260922T154032Z-c3aec3e8.patch -> PR #1903
+This directory contains patch artifacts from WallyGuard bug-discovery campaigns
+and patches corresponding to associated CORE-V Wally pull requests.
 
-Reconstructed files (same bare `git diff` style as the two originals):
-- bug-pr1856-hptw-itlb-privilege.patch -> PR #1856
-- bug-pr1863-zicbom-decode.patch -> PR #1863
-- bug-pr1864-mcounteren-illegal-access.patch -> PR #1864
-- bug-pr1870-mstatus-mpp-reset.patch -> PR #1870
-- bug-pr1882-mhpmevent-address-decode.patch -> PR #1882
+PR-linked patches
+-----------------
 
-The five reconstructed files use the exact upstream PR code diffs, reformatted to
-match the style of the recovered WallyGuard patch files. Because the original local
-run artifacts were lost, their original WallyGuard run IDs/timestamp filenames
-cannot be recovered from the supplied archive and are not invented here.
+Recovered original WallyGuard candidate patches:
+
+- bug-20260923T042133Z-b2f651bd.patch
+  Associated with CORE-V Wally PR #1892.
+
+- bug-20260922T154032Z-c3aec3e8.patch
+  Associated with CORE-V Wally PR #1903.
+
+Reconstructed PR-linked patches:
+
+- bug-pr1856-hptw-itlb-privilege.patch
+  Associated with PR #1856.
+
+- bug-pr1863-zicbom-decode.patch
+  Associated with PR #1863.
+
+- bug-pr1864-mcounteren-illegal-access.patch
+  Associated with PR #1864.
+
+- bug-pr1870-mstatus-mpp-reset.patch
+  Associated with PR #1870.
+
+- bug-pr1882-mhpmevent-address-decode.patch
+  Associated with PR #1882.
+
+The five reconstructed files use the exact upstream PR code diffs, reformatted
+to match the bare git-diff style of the recovered WallyGuard patch files. Their
+original local WallyGuard run artifacts were lost and their original run IDs are
+therefore not invented here.
+
+Other files in this directory
+-----------------------------
+
+The directory also contains archived WallyGuard candidate patch exports and other
+campaign-level discovery artifacts. These should not be assumed to have a
+one-to-one relationship with the seven upstream pull requests.
+
+Historical controller statuses remain unchanged. In particular, archived
+successful targeted repairs recorded as `candidate_fix_verified` are not
+retroactively relabelled as `confirmed`.
+EOF
