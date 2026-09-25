@@ -100,6 +100,65 @@ A targeted fix with regression disabled or directed tests unconfigured is only
 The final confirmation gate is checked again when exporting to `confirmed-bugs/`.
 Historical patches may predate these gates; inspect their associated run records.
 
+## Results
+
+Across the broader campaign, WallyGuard independently identified **9 RTL bugs**:
+**6 fresh findings** and **3 independent rediscoveries** of bugs already known
+upstream. The project produced **7 associated CORE-V Wally PRs**: **4 merged**,
+**2 open**, and **1 closed as duplicate**. The discovery count is broader than
+the archived controller's successful repair campaigns; the nine bugs do not map
+one-to-one to archived controller records or pull requests.
+
+| PR | Finding | Status |
+| --- | --- | --- |
+| [#1856](https://github.com/openhwfoundation/cvw/pull/1856) | Instruction-side page-table privilege checking could update the PTE A-bit before faulting | Open; ACT gap |
+| [#1863](https://github.com/openhwfoundation/cvw/pull/1863) | Zicbom instructions were not fully disabled when the extension was unsupported | Closed as duplicate |
+| [#1864](https://github.com/openhwfoundation/cvw/pull/1864) | Illegal `mcounteren` access when U-mode was unavailable | Merged |
+| [#1870](https://github.com/openhwfoundation/cvw/pull/1870) | Invalid `mstatus.MPP` reset value when U-mode was unavailable | Merged |
+| [#1882](https://github.com/openhwfoundation/cvw/pull/1882) | `mhpmevent` CSR write-address decode was off by three | Merged |
+| [#1892](https://github.com/openhwfoundation/cvw/pull/1892) | Misaligned superpage could update PTE A/D bits before faulting | Open; ACT gap |
+| [#1903](https://github.com/openhwfoundation/cvw/pull/1903) | `cbo.zero` dirty-victim case could leave stale cache data | Merged |
+
+### Representative findings
+
+For PR #1903, `cbo.zero` on a cache hit could incorrectly interact with a
+different dirty replacement-selected line, leaving stale cache state or data.
+For PR #1892, a misaligned superpage could cause the page-table walker to update
+PTE A/D bits before raising the required page fault. For PR #1856, an S-mode
+instruction fetch from a user page could update the PTE A-bit before the required
+instruction page fault because the instruction-side privilege check was incorrect.
+
+The archived controller dataset contains **83 records**: **46 terminal records**
+and **37 development, partial, or infrastructure-incomplete records**. Six
+terminal campaigns produced successful targeted repair candidates. Their
+historical status is `candidate_fix_verified`; the historical controller
+`confirmed` count is **0**. These six archived repair campaigns are separate
+from the broader count of nine independently identified bugs.
+
+Regression was intentionally disabled during the archived campaigns to reduce
+experiment time. The six successful repair campaigns therefore remain
+`candidate_fix_verified`, not `confirmed`, and there are zero historical
+controller `confirmed` records. After the campaign, all six proposed fixes were
+applied together and **one combined manual regression** of the fixed RTL was run
+and passed. This later manual validation does not retroactively change the
+archived controller statuses; the controller itself did not run that regression.
+
+Headline runtime and cost accounting:
+
+| Measure | Result |
+| --- | ---: |
+| Terminal campaign median | 29.95 minutes |
+| Successful-repair campaign median (6 campaigns) | 73.62 minutes |
+| Gross Vertex AI usage | $334.13 |
+| Gross total cloud usage | $381.29 |
+| Net billed Vertex AI | $212.40 |
+| Net billed total cloud | $259.15 |
+
+For the detailed experiment and result accounting, see
+[`docs/paper-results.md`](docs/paper-results.md). The [`candidate-bugs/`](candidate-bugs/)
+directory contains selected archived candidate and PR-linked patch artifacts;
+the files should not be treated as a one-to-one mapping among bugs, runs, and PRs.
+
 ### Unattended campaigns
 
 To request 48 hours of discovery using the verified submission helper:
