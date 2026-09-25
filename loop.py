@@ -47,7 +47,8 @@ from orchestration.timing import measured_worker
 from orchestration.opencode_recovery import is_model_turn_failure
 from orchestration.agent_protocol import parse_agent_response
 
-WALLY_PATH = os.environ.get("WALLY_PATH", "/home/rafay/miniconda3/WallyGuard2/cvw")
+REPO_ROOT = Path(__file__).resolve().parent
+WALLY_PATH = os.environ.get("WALLY_PATH", str(REPO_ROOT / "cvw"))
 MAX_ITERATIONS = 200
 MAX_FIX_ATTEMPTS = 3
 MAX_TEST_REPAIRS = 2
@@ -65,7 +66,7 @@ DIRECTED_COMMAND = os.environ.get("WALLY_DIRECTED_COMMAND", "")
 BASELINE_RUNS = max(2, int(os.environ.get("WALLY_BASELINE_RUNS", "2")))
 LLM_CONCURRENCY = max(1, int(os.environ.get("WALLY_LLM_CONCURRENCY", "1")))
 ISA_DOCS = os.environ.get("WALLY_ISA_DOCS", "")
-VERTEX_PROJECT = os.environ.get("GOOGLE_CLOUD_PROJECT", "project-0df87a12-e649-434b-84a")
+VERTEX_PROJECT = os.environ.get("GOOGLE_CLOUD_PROJECT", "")
 VERTEX_PROVIDER = AdditionalModelProvider(
     id="google-vertex",
     npm="@ai-sdk/google-vertex",

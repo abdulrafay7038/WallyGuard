@@ -35,8 +35,11 @@ def source_digest(root: Path) -> str:
 
 def submission_command(root: Path, address: str, environ: dict) -> tuple[list[str], str]:
     digest = source_digest(root)
-    runtime = dict(working_dir=str(root), excludes=EXCLUDES,
-                   env_vars={key: environ[key] for key in ENV_KEYS if key in environ})
+    env_vars = {key: environ[key] for key in ENV_KEYS if key in environ}
+    # cvw is excluded from the upload: resolve its default on the submitter,
+    # not inside Ray's temporary runtime package. Explicit paths are unchanged.
+    env_vars.setdefault('WALLY_PATH', str(root.resolve() / 'cvw'))
+    runtime = dict(working_dir=str(root), excludes=EXCLUDES, env_vars=env_vars)
     command = ['chia', 'job', 'submit', '--address', address,
                '--runtime-env-json', json.dumps(runtime), '--',
                'python', '-B', '-m', 'orchestration.submission', '--verify', digest]

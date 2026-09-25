@@ -1,20 +1,20 @@
+# Export the variables in README.md's Environment setup before chia up/down.
+# CHIA expands ${VAR} at load time; $RAY_HEAD_IP stays for the worker shell.
 provider:
     head_ip: ${HEAD_IP}
-    
 
 auth:
     ssh_user: ${USER}
     ssh_private_key: ${GCP_PRIVATE_KEY_PATH}
-         
 
 available_node_types:
     cvw:
-        resources: {"wally_sim" : 1}
+        resources: {"wally_sim": 1}
         num_workers: 1
         compatible_ips: ["${HEAD_IP}"]
         worker_env_commands:
-        - "source /home/${USER}/miniconda3/etc/profile.d/conda.sh && conda activate chia_env"
-        - "source /home/${USER}/miniconda3/WallyGuard2/cvw/setup.sh"
+            - 'source "${CONDA_SH}" && conda activate "${CHIA_ENV_NAME}"'
+            - 'source "${CVW_SETUP_SCRIPT}"'
     opencode:
         resources: {"opencode_creds": 3}
         worker_setup_commands: ["source ~/.bashrc"]
@@ -22,22 +22,22 @@ available_node_types:
         compatible_ips: ["${HEAD_IP}"]
         docker:
             image: ghcr.io/ucb-bar/chia-opencode:latest
-            container_name: "chia-opencode-abdul"
+            container_name: "wallyguard-opencode"
             run_options:
-                - "-v ${HOME}/.config/gcloud:/home/ray/.config/gcloud:ro"
-                - "-e GOOGLE_CLOUD_PROJECT=${GOOGLE_CLOUD_PROJECT}"
+                - '-v "${GCLOUD_CONFIG_DIR}:/home/ray/.config/gcloud:ro"'
+                - '-e "GOOGLE_CLOUD_PROJECT=${GOOGLE_CLOUD_PROJECT}"'
                 - "-e VERTEX_LOCATION=global"
 
 head_env_commands:
-  - "source ~/miniconda3/etc/profile.d/conda.sh && conda activate chia_env"
+    - 'source "${CONDA_SH}" && conda activate "${CHIA_ENV_NAME}"'
 
 head_setup_commands:
-  - "source ~/miniconda3/etc/profile.d/conda.sh && conda activate chia_env"
+    - 'source "${CONDA_SH}" && conda activate "${CHIA_ENV_NAME}"'
 
 head_start_ray_commands:
-  - "ray stop"
-  - "ray start --head --port=6379 --include-dashboard=True --dashboard-agent-listen-port=0"
+    - "ray stop"
+    - "ray start --head --port=6379 --include-dashboard=True --dashboard-agent-listen-port=0"
 
 worker_start_ray_commands:
-  - "ray stop"
-  - "ray start --address=$RAY_HEAD_IP:6379 --dashboard-agent-listen-port=0"
+    - "ray stop"
+    - "ray start --address=$RAY_HEAD_IP:6379 --dashboard-agent-listen-port=0"

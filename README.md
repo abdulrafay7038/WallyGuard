@@ -9,6 +9,38 @@ This README describes the implementation in [loop.py](loop.py). See
 [ORCHESTRATION.md](ORCHESTRATION.md) for the reproducer contract, validation rules,
 recovery mechanisms, and implementation details.
 
+## Prerequisites
+
+WallyGuard does **not** install CHIA, CORE-V Wally, or the RISC-V toolchain.
+Cloning this repository alone is not enough to run a hardware experiment.
+Before starting the loop, provide:
+
+1. CHIA installed and working in a Python/Conda environment, including its Ray CLI.
+2. A complete CORE-V Wally (CVW) Git checkout with CVW's required submodules and dependencies.
+3. CVW's normal installation and environment setup completed successfully.
+4. A RISC-V cross compiler, binutils, and the other toolchain components required by CVW.
+5. The RISC-V Spike ISA simulator, available through `WALLY_SPIKE` or toolchain discovery.
+6. Verilator and CVW's normal build/simulation dependencies and test assets.
+7. Working Google Cloud Application Default Credentials (ADC), a billing-enabled
+   Vertex AI project, and access to the configured models when using the supplied Gemini configuration.
+8. CHIA's OpenCode integration and its worker image, plus Docker and SSH access
+   required by the supplied cluster configuration.
+
+The WallyGuard artifact contains the complete CHIA loop, multi-agent workflow,
+deterministic verification controller, orchestration/recovery code, tests,
+configuration, and documentation. CORE-V Wally and its RISC-V simulation/toolchain
+environment are external prerequisites.
+
+First verify that **CVW itself can build and run its normal simulation tests**
+using its own installation instructions, before attempting WallyGuard. The
+[CHIA documentation](https://docs.chialoops.ai/en/latest/) and
+[CORE-V Wally repository](https://github.com/openhwfoundation/cvw) describe their
+installation requirements. Record the CHIA/CVW/toolchain revisions used for a
+reproduction; the supplied OpenCode image uses `latest`, not an immutable digest.
+
+For the short evaluator workflow, see [ARTIFACT.md](ARTIFACT.md). Historical
+experiment counts and their limits are explained in [paper results](docs/paper-results.md).
+
 ## Authors
 
 - Haiqua Ghaffar
@@ -217,13 +249,11 @@ end-to-end speedup.
 
 ```text
 WallyGuard/
-├── README.md                  Architecture and campaign behavior
-├── ORCHESTRATION.md           Detailed verifier and orchestration contracts
-├── GOOGLE_GENAI.md            Historical deployment/authentication notes
+├── README.md                 Architecture and campaign behavior
 ├── loop.py                   Four-agent campaign and verification sequencing
 ├── cluster.yaml              CHIA head, CVW worker, and OpenCode worker settings
 ├── recover_workspace.py      Interrupted-job ownership/archive recovery helper
-├── merge-open-prs.sh          Separate CVW maintenance helper; not part of the loop
+├── merge-open-prs.sh         Separate CVW maintenance helper; not part of the loop
 ├── orchestration/
 │   ├── agent_protocol.py     Agent schemas, JSON extraction, format-only repair
 │   ├── artifact_guard.py     Stage allowlists, snapshots, unauthorized-edit recovery
@@ -238,8 +268,6 @@ WallyGuard/
 ├── tests/
 │   ├── test_orchestration.py Unit tests for validation and recovery mechanisms
 │   └── test_loop_integration.py Mocked campaign/state-transition tests
-├── cvw/                      Separately populated Wally checkout (ignored)
-├── wally-worktrees/          Managed checkout and ownership metadata (generated)
 ├── runs/                     Per-iteration inputs, logs, evidence, and state
 ├── candidate-bugs/           Partially verified patch exports (generated)
 └── confirmed-bugs/           Patches accepted by the full confirmation gate
@@ -250,12 +278,95 @@ on the simulation host. Generated directories
 are placed beside `WALLY_PATH`, so changing that path also changes their location.
 `merge-open-prs.sh` merges upstream PRs into CVW and is not part of the campaign flow.
 
-## Deployment variables
+## Artifact quick-start
+
+1. Install CHIA and its OpenCode integration in your Python/Conda environment.
+2. Clone this artifact and enter its root directory:
+   `git clone https://github.com/abdulrafay7038/WallyGuard.git && cd WallyGuard`.
+3. Populate `./cvw` with a complete CVW checkout, including required submodules.
+4. Install and source CVW's normal RISC-V toolchain/simulation environment;
+   verify a normal CVW build and test independently.
+5. Configure Vertex credentials and model access as described in
+   [GOOGLE_GENAI.md](GOOGLE_GENAI.md).
+6. Export the variables below and activate the environment.
+7. Run the offline tests, then the submission dry-run below.
+8. On an idle, prepared deployment, run `chia up cluster.yaml -y` and verify the
+   OpenCode worker as described in the credential guide.
+9. Start a campaign with `python -B -m orchestration.submission`.
+   For the full confirmation gates, configure the directed/full regression
+   commands in the following section before submission.
+
+## Environment setup
+
+Run from the artifact root on the host that will run the supplied cluster.
+Edit the example Conda location/environment, SSH key, CVW location/setup script,
+network address, and project for your installation:
 
 ```bash
+export WALLYGUARD_ROOT="$(pwd)"
+export WALLY_PATH="$WALLYGUARD_ROOT/cvw"
+export CHIA_ENV_NAME="chia_env"
+export CONDA_SH="$HOME/miniconda3/etc/profile.d/conda.sh"
+export CVW_SETUP_SCRIPT="$WALLY_PATH/setup.sh"
 export HEAD_IP="$(hostname -I | awk '{print $1}')"
 export GCP_PRIVATE_KEY_PATH="$HOME/.ssh/chia_gcp"
+export GOOGLE_CLOUD_PROJECT="<your-gcp-project>"
+export GCLOUD_CONFIG_DIR="$HOME/.config/gcloud"
+
+source "$CONDA_SH"
+conda activate "$CHIA_ENV_NAME"
+source "$CVW_SETUP_SCRIPT"
+cd "$WALLYGUARD_ROOT"
 ```
+
+`WALLY_PATH` must be an absolute path to the real CVW checkout on the simulation
+host; an existing checkout outside this repository is supported. `CONDA_SH`
+may point to Miniforge/Anaconda instead of Miniconda. `CVW_SETUP_SCRIPT` must
+activate all tools CVW needs. `HEAD_IP` must be reachable by the workers; choose
+it explicitly on hosts with several interfaces. `${USER}` supplies the SSH user
+in `cluster.yaml`; adapt that field if the host login differs.
+`GCLOUD_CONFIG_DIR` is the host ADC directory mounted read-only into OpenCode.
+Use absolute paths for the SSH key and mounted directory as well.
+
+CHIA expands `${VAR}` from the invoking environment when loading `cluster.yaml`.
+It leaves bare `$RAY_HEAD_IP` for the worker shell. Export **all** the listed
+cluster variables before `chia up` or `chia down`; missing substitutions are
+not defaulted by the loader. The supplied topology keeps one `wally_sim` worker
+and one Docker `opencode_creds` worker on `HEAD_IP`. Paths must exist on that
+host; the setup does not install dependencies or copy CVW there.
+
+Check the prerequisites from the activated environment:
+
+```bash
+command -v python
+command -v chia
+command -v verilator
+test -f "$CVW_SETUP_SCRIPT"
+git -C "$WALLY_PATH" status
+python -B - <<'PY_CHECK'
+import os
+from orchestration.toolchain import simulation_env, validate_spike
+print("RISC-V Spike:", validate_spike(simulation_env(os.environ["WALLY_PATH"])))
+PY_CHECK
+```
+
+If Spike discovery selects the wrong executable, set
+`WALLY_SPIKE` to the absolute path of your **RISC-V** Spike installation and
+repeat the check. This uses the same identity check as the controller.
+A clean Git checkout with no unfinished merges is recommended before discovery;
+see the baseline retention rules below for how local edits are captured.
+
+```bash
+python -B -m unittest discover -s tests -p 'test_*.py' -v
+python -B -m orchestration.submission --dry-run
+```
+
+The offline tests and dry-run need no live model calls or running cluster.
+The dry-run prints the source digest, forwarded settings, and exact submission
+arguments; it does not establish that credentials or simulators work.
+The helper forwards the submitter's absolute `./cvw` default if `WALLY_PATH`
+is absent, since CVW is excluded from Ray's uploaded package. For remote
+submission, always explicitly export the simulation host's `WALLY_PATH`.
 
 ## Run the full configured loop
 
@@ -264,7 +375,6 @@ Select directed tests relevant to the investigation; `arch64i` below is an
 example requiring its architectural-test assets.
 
 ```bash
-export WALLY_PATH="$(pwd)/cvw"
 export WALLY_RUN_REGRESSION=1
 export WALLY_DIRECTED_COMMAND="bin/wsim rv64gc arch64i --sim verilator"
 export WALLY_REGRESSION_COMMAND="bin/regression-wally"
@@ -313,7 +423,7 @@ Environment settings are read when `loop.py` is imported.
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `WALLY_PATH` | `/home/rafay/miniconda3/WallyGuard2/cvw` | Original CVW checkout on the simulation host; override for other installations. |
+| `WALLY_PATH` | `cvw/` beside `loop.py`; submission resolves the host path before upload | Original CVW checkout on the simulation host; an explicit value is preserved. |
 | `WALLY_SPIKE` | Toolchain discovery | Absolute RISC-V Spike path on the simulation host. Otherwise searches `$RISCV/bin`, `~/riscv/bin`, `/opt/riscv/bin`, then PATH. Identity is checked before agents run. `/usr/bin/spike` can be an unrelated secrets CLI. |
 | `WALLY_RUN_REGRESSION` | `0` (disabled) | Set to `1` to enable baseline and patched full regression, as in the full-loop example above. |
 | `WALLY_DIRECTED_COMMAND` | Empty | Operator-selected related tests; required for full confirmation. |
@@ -330,7 +440,7 @@ Environment settings are read when `loop.py` is imported.
 | `WALLY_ISA_DOCS` | Empty | Optional local ISA documentation path supplied to agents. |
 | `WALLY_ARCHITECT_MAX_COMMANDS` | `14` | Maximum bash commands the Architect may issue per iteration (bounded 6–16). Tighten to reduce LLM turn latency; loosen for exploratory deep-dives. |
 | `WALLY_ARCHITECT_MAX_SECONDS` | `360` | Wall-clock seconds the Architect planning phase may use per iteration (bounded 120–600). |
-| `GOOGLE_CLOUD_PROJECT` | Deployment-specific fallback in `loop.py` | Set explicitly for your Vertex project; provider location is `global`. |
+| `GOOGLE_CLOUD_PROJECT` | No project fallback | Required for the supplied Vertex configuration; provider location is `global`. |
 
 | Agent | Model default in source | Override |
 | --- | --- | --- |
@@ -406,9 +516,8 @@ Current limitations to account for when operating the loop:
 - There is no separate mandatory stress/RISC-V-DV stage or general automatic test
   minimizer. Confirmation covers the configured directed and regression commands.
 - `recover_workspace.py` checks stopped/failed job ownership and archives an
-  interrupted attempt; it is not stage-level resume. It predates the newer
-  `active` attempt flag and may leave that flag set, so review ownership metadata
-  before reuse. Do not clear active-workspace protection while a job is running.
+  interrupted attempt and marks it inactive; it is not stage-level resume.
+  Do not clear active-workspace protection while a job is running.
 - Artifact guards enforce allowed workspace changes, but are not an operating
   system sandbox for hostile shell commands.
 

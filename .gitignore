@@ -9,6 +9,7 @@ test.py
 mineforge3/
 reviews/
 __pycache__/
+*.py[cod]
 .ruff_cache/
 candidate-bugs/
 confirmed-bugs/

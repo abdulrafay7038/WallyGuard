@@ -207,6 +207,12 @@ The dominant measured bottleneck is agent/OpenCode execution and waiting, not de
 
 ## F. Token-Usage Audit
 
+**Reporting note:** [Section O, Final Usage Accounting Pass](#o-final-usage-accounting-pass)
+supersedes the earlier preliminary token totals throughout this document for
+paper-facing reporting: **167 usage-bearing records, 8,499 turns, 114,932,299 input
+tokens, 1,178,856 output tokens, 5,319,457 reasoning tokens, and 698,139,688 cache-read
+tokens**. Earlier calculations remain below as historical audit material.
+
 Exact token metadata exists opportunistically in archived OpenCode transcripts, but not as a normalized WallyGuard campaign schema.
 
 ### Successful usage-bearing calls
