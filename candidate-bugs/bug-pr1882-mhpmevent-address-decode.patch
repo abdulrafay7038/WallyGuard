@@ -1,0 +1,13 @@
+diff --git a/src/privileged/csrc.sv b/src/privileged/csrc.sv
+index efc873204a..00e5cc1e8c 100644
+--- a/src/privileged/csrc.sv
++++ b/src/privileged/csrc.sv
+@@ -162,7 +162,7 @@ module csrc  import cvw::*;  #(parameter cvw_t P) (
+   // hpmevent update and write logic
+   if (P.COUNTERS > 3) begin : mhpmeventgen
+     for (i = 3; i < P.COUNTERS; i = i+1) begin : mhpmevent
+-      assign WriteMHPMEVENTM[i] = CSRMWriteM & (CSRAdrM == MHPMEVENTBASE + i);
++      assign WriteMHPMEVENTM[i] = CSRMWriteM & (CSRAdrM == MHPMEVENTBASE + i - 3);
+       assign NextMHPMEVENTM[i] = WriteMHPMEVENTM[i] ? CSRWriteValM : MHPMEVENT_REGW[i];
+       always_ff @(posedge clk)
+         if (reset) MHPMEVENT_REGW[i] <= '0;
