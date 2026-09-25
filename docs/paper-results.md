@@ -6,6 +6,25 @@ run subsequently added to a local installation. Its source is
 That audit uses “campaign” for terminal attempt records; these counts must not be
 reinterpreted as 46 independent 48-hour jobs.
 
+## Campaign-level bug accounting
+
+Across the broader campaign, WallyGuard independently identified **nine real RTL
+bugs**: **six fresh findings** and **three independent rediscoveries** of bugs
+already known or fixed upstream. One rediscovery resulted in PR #1863 before it
+was recognized as a duplicate. The other two were recognized as already known
+upstream, so no new pull requests were submitted for them.
+
+These nine discoveries are broader campaign-level accounting. They do not mean
+that all nine have archived `candidate_fix_verified` terminal controller records.
+The six `candidate_fix_verified` records below are the six archived successful
+targeted repair campaigns used in the controller/runtime analysis. The nine
+independently identified bugs and six archived repair campaigns are distinct
+counts and should not be treated as a one-to-one mapping.
+
+## Archived controller evidence
+
+The archived audit dataset is separate from the broader discovery count:
+
 | Audited category | Count |
 | --- | ---: |
 | Archived attempt records | 83 |
@@ -28,39 +47,43 @@ full controller confirmation:
 
 Where the raw archive is supplied, inspect `runs/<tag>/attempt.json`, including
 `test_revisions`, `fix_attempts`, and `review_notes`. In these six records,
-`run_regression=false` and `directed_configured=false`. The audit therefore records
-zero directed/full regression executions. **No later controller evidence satisfying
-both gates for these six repairs was identified in the supplied material.**
-Their historical status remains `candidate_fix_verified`; no record is relabelled.
-Raw runs and patch exports are Git-ignored and may be absent from a source clone.
+`run_regression=false` and `directed_configured=false`. Regression was
+intentionally disabled during the archived campaigns to reduce experiment time,
+so these successful repair campaigns were recorded as `candidate_fix_verified`,
+not `confirmed`. The archived audit therefore records zero directed/full
+regression executions and zero historical controller `confirmed` records.
+
+After the agentic campaign, all six proposed fixes were applied together and a
+manual regression of the combined fixed RTL was run and passed. This was later
+manual validation, separate from the archived campaigns; it does not retroactively
+change their controller statuses. The archived records remain
+`candidate_fix_verified`. This was one combined manual regression, not six
+independent full regressions, and the controller itself did not run it. Raw runs
+and patch exports are Git-ignored and may be absent from a source clone.
 
 ## Upstream results are a separate status
 
-The artifact owner's paper summary reports **seven associated upstream CVW PRs**.
-The checked-in audit explicitly lists upstream PR linkage as unavailable
-([efficiency metrics](wallyguard-runtime-audit.md#i-efficiency-metrics)). It does not
-establish a complete seven-PR inventory or a one-to-one mapping to the six runs.
-Consequently seven is recorded here as an **owner-reported paper result**, not a
-new controller measurement. A complete sourced inventory remains needed.
+Across the broader campaign, WallyGuard independently identified nine RTL bugs:
+six fresh findings and three rediscoveries of bugs already known upstream. One
+rediscovery resulted in PR #1863 before being recognized as a duplicate; the
+other two were recognized as previously known and were not submitted as new pull
+requests. In total, the project produced seven associated CORE-V Wally pull
+requests: four merged, two open, and one closed as duplicate. The nine
+discoveries and seven PRs do not have a one-to-one relationship.
 
-The following related upstream references can be identified from the supplied
-local CVW Git history/refs; they are not asserted to be the complete paper set.
-The public PR links identify upstream discussions, not additional controller gates.
+| PR | Status |
+| --- | --- |
+| [1856](https://github.com/openhwfoundation/cvw/pull/1856) | Open |
+| [1863](https://github.com/openhwfoundation/cvw/pull/1863) | Closed as duplicate |
+| [1864](https://github.com/openhwfoundation/cvw/pull/1864) | Merged |
+| [1870](https://github.com/openhwfoundation/cvw/pull/1870) | Merged |
+| [1882](https://github.com/openhwfoundation/cvw/pull/1882) | Merged |
+| [1892](https://github.com/openhwfoundation/cvw/pull/1892) | Open |
+| [1903](https://github.com/openhwfoundation/cvw/pull/1903) | Merged |
 
-| PR | Subject | Source available during artifact preparation |
-| --- | --- | --- |
-| [1856](https://github.com/openhwfoundation/cvw/pull/1856) | HPTW privilege check for ITLB walks | Local `wallyguard-pr-1856` ref, commit `0b2bb0bbf` |
-| [1864](https://github.com/openhwfoundation/cvw/pull/1864) | mcounteren access without U-mode | Local CVW commit `79562b567`, subject includes PR number |
-| [1882](https://github.com/openhwfoundation/cvw/pull/1882) | mhpmevent CSR address decode | Local CVW commit `20ce3c57f`, subject includes PR number |
-| [1889](https://github.com/openhwfoundation/cvw/pull/1889) | Full PMP match across memory operations | Local `wallyguard-pr-1889` ref, commit `d9be29a60` |
-| [1892](https://github.com/openhwfoundation/cvw/pull/1892) | Misaligned-superpage A/D update ordering | Public PR and local review ref, commit `519500de4` |
-| [1903](https://github.com/openhwfoundation/cvw/pull/1903) | cbo.zero dirty-victim handling | Local CVW merge commit `be4b5af64`, implementation `2921ee702` |
-
-These local CVW refs are external-checkout evidence, not files bundled in the
-WallyGuard source artifact. Similar topics do not prove run-to-PR provenance;
-no such mapping is invented here. PR opening, review, merge, and any upstream
-validation are separate from a WallyGuard `confirmed` result. Even a merged PR
-does not retroactively run the archived controller's missing regression gates.
+Upstream PR opening, review, merge, and validation are separate from a WallyGuard
+controller `confirmed` result. Even a merged PR does not retroactively run the
+archived controller's missing regression gates.
 
 ## Paper-facing usage totals
 
