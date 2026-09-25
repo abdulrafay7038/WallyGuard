@@ -5,9 +5,8 @@ compare Wally against Spike, and propose small RTL repairs. The Python controlle
 owns reproduction, verification, artifact integrity, and final patch promotion.
 An LLM's bug claim or approval is never sufficient to confirm a hardware bug.
 
-This README describes the implementation in [loop.py](loop.py). See
-[ORCHESTRATION.md](ORCHESTRATION.md) for the reproducer contract, validation rules,
-recovery mechanisms, and implementation details.
+This README describes the implementation in [loop.py](loop.py) and the supporting
+modules under `orchestration/`.
 
 ## Prerequisites
 
@@ -37,9 +36,6 @@ using its own installation instructions, before attempting WallyGuard. The
 [CORE-V Wally repository](https://github.com/openhwfoundation/cvw) describe their
 installation requirements. Record the CHIA/CVW/toolchain revisions used for a
 reproduction; the supplied OpenCode image uses `latest`, not an immutable digest.
-
-For the short evaluator workflow, see [ARTIFACT.md](ARTIFACT.md). Historical
-experiment counts and their limits are explained in [paper results](docs/paper-results.md).
 
 ## Authors
 
@@ -286,12 +282,12 @@ are placed beside `WALLY_PATH`, so changing that path also changes their locatio
 3. Populate `./cvw` with a complete CVW checkout, including required submodules.
 4. Install and source CVW's normal RISC-V toolchain/simulation environment;
    verify a normal CVW build and test independently.
-5. Configure Vertex credentials and model access as described in
-   [GOOGLE_GENAI.md](GOOGLE_GENAI.md).
+5. Configure Google Cloud Application Default Credentials and access to the
+   Vertex AI models used by the loop.
 6. Export the variables below and activate the environment.
 7. Run the offline tests, then the submission dry-run below.
 8. On an idle, prepared deployment, run `chia up cluster.yaml -y` and verify the
-   OpenCode worker as described in the credential guide.
+   OpenCode worker can access the configured Vertex credentials.
 9. Start a campaign with `python -B -m orchestration.submission`.
    For the full confirmation gates, configure the directed/full regression
    commands in the following section before submission.
