@@ -111,12 +111,12 @@ one-to-one to archived controller records or pull requests.
 
 | PR | Finding | Status |
 | --- | --- | --- |
-| [#1856](https://github.com/openhwfoundation/cvw/pull/1856) | Instruction-side page-table privilege checking could update the PTE A-bit before faulting | Open; ACT gap |
+| [#1856](https://github.com/openhwfoundation/cvw/pull/1856) | Instruction-side page-table privilege checking could update the PTE A-bit before faulting | Merged |
 | [#1863](https://github.com/openhwfoundation/cvw/pull/1863) | Zicbom instructions were not fully disabled when the extension was unsupported | Closed as duplicate |
 | [#1864](https://github.com/openhwfoundation/cvw/pull/1864) | Illegal `mcounteren` access when U-mode was unavailable | Merged |
 | [#1870](https://github.com/openhwfoundation/cvw/pull/1870) | Invalid `mstatus.MPP` reset value when U-mode was unavailable | Merged |
 | [#1882](https://github.com/openhwfoundation/cvw/pull/1882) | `mhpmevent` CSR write-address decode was off by three | Merged |
-| [#1892](https://github.com/openhwfoundation/cvw/pull/1892) | Misaligned superpage could update PTE A/D bits before faulting | Open; ACT gap |
+| [#1892](https://github.com/openhwfoundation/cvw/pull/1892) | Misaligned superpage could update PTE A/D bits before faulting | Merged |
 | [#1903](https://github.com/openhwfoundation/cvw/pull/1903) | `cbo.zero` dirty-victim case could leave stale cache data | Merged |
 
 ### Representative findings
